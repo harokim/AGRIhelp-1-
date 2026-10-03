@@ -2,10 +2,16 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "./Sidebar";
 
-export default function Layout({ children }) {
+export default function Layout({
+  children,
+}) {
   const { user } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const [collapsed, setCollapsed] =
+    useState(false);
+
+  const [mobileOpen, setMobileOpen] =
+    useState(false);
 
   if (!user) {
     return children;
@@ -14,7 +20,9 @@ export default function Layout({ children }) {
   return (
     <div
       className={`app-shell ${
-        collapsed ? "sidebar-collapsed" : "sidebar-expanded"
+        collapsed
+          ? "sidebar-collapsed"
+          : "sidebar-expanded"
       }`}
     >
       <Sidebar
@@ -29,7 +37,9 @@ export default function Layout({ children }) {
           type="button"
           className="mobile-backdrop"
           aria-label="Close navigation"
-          onClick={() => setMobileOpen(false)}
+          onClick={() =>
+            setMobileOpen(false)
+          }
         />
       )}
 
@@ -38,7 +48,9 @@ export default function Layout({ children }) {
           type="button"
           className="mobile-menu-btn"
           aria-label="Open navigation"
-          onClick={() => setMobileOpen(true)}
+          onClick={() =>
+            setMobileOpen(true)
+          }
         >
           <span />
           <span />

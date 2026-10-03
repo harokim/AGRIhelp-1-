@@ -93,37 +93,44 @@ export function RequestProvider({ children }) {
             )
           );
 
-    const unsubRequests = onSnapshot(
-      requestQuery,
-      (snapshot) => {
-        setRequests(
-          snapshot.docs
-            .map(mapSnapshot)
-            .sort((a, b) =>
-              String(
-                b.createdAt ||
-                  b.createdAtTimestamp ||
-                  ""
-              ).localeCompare(
+    const unsubRequests =
+      onSnapshot(
+        requestQuery,
+        (snapshot) => {
+          setRequests(
+            snapshot.docs
+              .map(mapSnapshot)
+              .sort((a, b) =>
                 String(
-                  a.createdAt ||
-                    a.createdAtTimestamp ||
+                  b.createdAtTimestamp ||
+                    b.createdAt ||
                     ""
+                ).localeCompare(
+                  String(
+                    a.createdAtTimestamp ||
+                      a.createdAt ||
+                      ""
+                  )
                 )
               )
-            )
-        );
-      },
-      () => {
-        setRequests([]);
-      }
-    );
+          );
+        },
+        () => {
+          setRequests([]);
+        }
+      );
 
     const documentQuery =
       user.role === "engineer"
-        ? collection(db, "documents")
+        ? collection(
+            db,
+            "documents"
+          )
         : query(
-            collection(db, "documents"),
+            collection(
+              db,
+              "documents"
+            ),
             where(
               "clientId",
               "==",
@@ -131,53 +138,82 @@ export function RequestProvider({ children }) {
             )
           );
 
-    const unsubDocs = onSnapshot(
-      documentQuery,
-      (snapshot) => {
-        setDocuments(
-          snapshot.docs.map(mapSnapshot)
-        );
-      },
-      () => {
-        setDocuments([]);
-      }
-    );
+    const unsubDocs =
+      onSnapshot(
+        documentQuery,
+        (snapshot) => {
+          setDocuments(
+            snapshot.docs.map(
+              mapSnapshot
+            )
+          );
+        },
+        () => {
+          setDocuments([]);
+        }
+      );
 
     return () => {
       unsubRequests();
       unsubDocs();
     };
-  }, [user?.id, user?.role]);
+  }, [
+    user?.id,
+    user?.role,
+  ]);
 
-  const createRequest = async (data) => {
-    if (!firebaseConfigured || !db) {
+  const createRequest = async (
+    data
+  ) => {
+    if (
+      !firebaseConfigured ||
+      !db
+    ) {
       throw new Error(
         "Firebase is not configured yet."
       );
     }
 
-    const referenceNumber = `REQ-${Date.now()
-      .toString()
-      .slice(-8)}`;
+    const details =
+      String(
+        data?.details || ""
+      ).trim();
+
+    if (!details) {
+      throw new Error(
+        "A request description is required."
+      );
+    }
+
+    const referenceNumber =
+      `REQ-${Date.now()
+        .toString()
+        .slice(-8)}`;
 
     const requestData = {
       ...data,
+      details,
       referenceNumber,
       status: "Submitted",
       notes: "",
-      createdAt: new Date()
-        .toISOString()
-        .slice(0, 10),
+      createdAt:
+        new Date()
+          .toISOString()
+          .slice(0, 10),
       createdAtTimestamp:
         serverTimestamp(),
       updatedAt:
         serverTimestamp(),
     };
 
-    const requestRef = await addDoc(
-      collection(db, "requests"),
-      requestData
-    );
+    const requestRef =
+      await addDoc(
+        collection(
+          db,
+          "requests"
+        ),
+        requestData
+      );
 
     return {
       id: requestRef.id,
@@ -190,29 +226,94 @@ export function RequestProvider({ children }) {
     status,
     note = ""
   ) => {
-    const current = requests.find(
-      (request) =>
-        request.id === id
-    );
+    const current =
+      requests.find(
+        (request) =>
+          request.id === id
+      );
 
     if (
       !current ||
       ![
         "Submitted",
         "Under Review",
-      ].includes(current.status)
+      ].includes(
+        current.status
+      )
     ) {
       return;
     }
 
+    const requestDocuments =
+      documents.filter(
+        (document) =>
+          document.requestId ===
+          id
+      );
+
+    const hasDetails =
+      Boolean(
+        String(
+          current.details || ""
+        ).trim()
+      );
+
+    const hasDocuments =
+      requestDocuments.length >
+      0;
+
+    if (
+      status === "Approved" &&
+      (!hasDetails ||
+        !hasDocuments)
+    ) {
+      const rejectionNote =
+        !hasDetails &&
+        !hasDocuments
+          ? "The application was rejected because it has no request description and no attached documents."
+          : !hasDetails
+          ? "The application was rejected because no request description was provided."
+          : "The application was rejected because no supporting documents were attached.";
+
+      await updateDoc(
+        doc(
+          db,
+          "requests",
+          id
+        ),
+        {
+          status: "Rejected",
+          notes:
+            rejectionNote,
+          updatedAt:
+            serverTimestamp(),
+        }
+      );
+
+      await notifyClient(
+        current.clientId,
+        "Request Rejected",
+        rejectionNote,
+        id
+      );
+
+      return;
+    }
+
     await updateDoc(
-      doc(db, "requests", id),
+      doc(
+        db,
+        "requests",
+        id
+      ),
       {
         status,
         notes:
-          status === "Documents Pending"
+          status ===
+          "Documents Pending"
             ? note
-            : current.notes || "",
+            : current.notes ||
+              "",
         updatedAt:
           serverTimestamp(),
       }
@@ -239,14 +340,21 @@ export function RequestProvider({ children }) {
     id,
     patch
   ) => {
-    if (!firebaseConfigured || !db) {
+    if (
+      !firebaseConfigured ||
+      !db
+    ) {
       throw new Error(
         "Firebase is not configured yet."
       );
     }
 
     await updateDoc(
-      doc(db, "requests", id),
+      doc(
+        db,
+        "requests",
+        id
+      ),
       {
         ...patch,
         updatedAt:
@@ -255,16 +363,23 @@ export function RequestProvider({ children }) {
     );
   };
 
-  const deleteRequest = async (id) => {
-    if (!firebaseConfigured || !db) {
+  const deleteRequest = async (
+    id
+  ) => {
+    if (
+      !firebaseConfigured ||
+      !db
+    ) {
       throw new Error(
         "Firebase is not configured yet."
       );
     }
 
-    const request = requests.find(
-      (item) => item.id === id
-    );
+    const request =
+      requests.find(
+        (item) =>
+          item.id === id
+      );
 
     if (!request) {
       throw new Error(
@@ -273,25 +388,33 @@ export function RequestProvider({ children }) {
     }
 
     if (
-      user?.role !== "engineer" &&
-      request.clientId !== user?.id
+      user?.role !==
+        "engineer" &&
+      request.clientId !==
+        user?.id
     ) {
       throw new Error(
         "You are not allowed to delete this request."
       );
     }
 
-    const documentQuery = query(
-      collection(db, "documents"),
-      where(
-        "requestId",
-        "==",
-        id
-      )
-    );
+    const documentQuery =
+      query(
+        collection(
+          db,
+          "documents"
+        ),
+        where(
+          "requestId",
+          "==",
+          id
+        )
+      );
 
     const documentSnapshot =
-      await getDocs(documentQuery);
+      await getDocs(
+        documentQuery
+      );
 
     await Promise.all(
       documentSnapshot.docs.map(
@@ -307,7 +430,11 @@ export function RequestProvider({ children }) {
     );
 
     await deleteDoc(
-      doc(db, "requests", id)
+      doc(
+        db,
+        "requests",
+        id
+      )
     );
   };
 
@@ -327,5 +454,8 @@ export function RequestProvider({ children }) {
   );
 }
 
-export const useRequests = () =>
-  useContext(RequestContext);
+export const useRequests =
+  () =>
+    useContext(
+      RequestContext
+    );

@@ -28,10 +28,13 @@ async function getLocations(path) {
   const response = await fetch(`${PSGC_API}${path}`);
 
   if (!response.ok) {
-    throw new Error("Unable to load Philippine location data.");
+    throw new Error(
+      "Unable to load Philippine location data."
+    );
   }
 
   const json = await response.json();
+
   return json.data || [];
 }
 
@@ -62,19 +65,26 @@ export default function ClientSignup() {
   const calculateAge = (birthday) => {
     if (!birthday) return "";
 
-    const birthDate = new Date(`${birthday}T00:00:00`);
+    const birthDate = new Date(
+      `${birthday}T00:00:00`
+    );
+
     const today = new Date();
 
     let calculatedAge =
-      today.getFullYear() - birthDate.getFullYear();
+      today.getFullYear() -
+      birthDate.getFullYear();
 
     const monthDifference =
-      today.getMonth() - birthDate.getMonth();
+      today.getMonth() -
+      birthDate.getMonth();
 
     if (
       monthDifference < 0 ||
-      (monthDifference === 0 &&
-        today.getDate() < birthDate.getDate())
+      (
+        monthDifference === 0 &&
+        today.getDate() < birthDate.getDate()
+      )
     ) {
       calculatedAge--;
     }
@@ -92,7 +102,8 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data = await getLocations("/regions");
+        const data =
+          await getLocations("/regions");
 
         if (mounted) {
           setRegions(data);
@@ -125,9 +136,11 @@ export default function ClientSignup() {
       return;
     }
 
-    const selectedRegion = regions.find(
-      (region) => region.name === form.region
-    );
+    const selectedRegion =
+      regions.find(
+        (region) =>
+          region.name === form.region
+      );
 
     if (!selectedRegion) return;
 
@@ -138,9 +151,12 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data = await getLocations(
-          `/regions/${encodeURIComponent(selectedRegion.code)}/provinces`
-        );
+        const data =
+          await getLocations(
+            `/regions/${encodeURIComponent(
+              selectedRegion.code
+            )}/provinces`
+          );
 
         if (mounted) {
           setProvinces(data);
@@ -166,21 +182,33 @@ export default function ClientSignup() {
   }, [form.region, regions]);
 
   useEffect(() => {
-    if (!form.region || !form.province) {
+    if (
+      !form.region ||
+      !form.province
+    ) {
       setMunicipalities([]);
       setBarangays([]);
       return;
     }
 
-    const selectedRegion = regions.find(
-      (region) => region.name === form.region
-    );
+    const selectedRegion =
+      regions.find(
+        (region) =>
+          region.name === form.region
+      );
 
-    const selectedProvince = provinces.find(
-      (province) => province.name === form.province
-    );
+    const selectedProvince =
+      provinces.find(
+        (province) =>
+          province.name === form.province
+      );
 
-    if (!selectedRegion || !selectedProvince) return;
+    if (
+      !selectedRegion ||
+      !selectedProvince
+    ) {
+      return;
+    }
 
     let mounted = true;
 
@@ -189,13 +217,14 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data = await getLocations(
-          `/regions/${encodeURIComponent(
-            selectedRegion.code
-          )}/provinces/${encodeURIComponent(
-            selectedProvince.code
-          )}/cities-municipalities`
-        );
+        const data =
+          await getLocations(
+            `/regions/${encodeURIComponent(
+              selectedRegion.code
+            )}/provinces/${encodeURIComponent(
+              selectedProvince.code
+            )}/cities-municipalities`
+          );
 
         if (mounted) {
           setMunicipalities(data);
@@ -218,7 +247,12 @@ export default function ClientSignup() {
     return () => {
       mounted = false;
     };
-  }, [form.region, form.province, regions, provinces]);
+  }, [
+    form.region,
+    form.province,
+    regions,
+    provinces,
+  ]);
 
   useEffect(() => {
     if (
@@ -230,10 +264,12 @@ export default function ClientSignup() {
       return;
     }
 
-    const selectedMunicipality = municipalities.find(
-      (municipality) =>
-        municipality.name === form.municipality
-    );
+    const selectedMunicipality =
+      municipalities.find(
+        (municipality) =>
+          municipality.name ===
+          form.municipality
+      );
 
     if (!selectedMunicipality) return;
 
@@ -244,11 +280,12 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data = await getLocations(
-          `/cities-municipalities/${encodeURIComponent(
-            selectedMunicipality.code
-          )}/barangays`
-        );
+        const data =
+          await getLocations(
+            `/cities-municipalities/${encodeURIComponent(
+              selectedMunicipality.code
+            )}/barangays`
+          );
 
         if (mounted) {
           setBarangays(data);
@@ -279,30 +316,44 @@ export default function ClientSignup() {
   ]);
 
   const isValidEmail = (email) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email.trim());
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(
+      email.trim()
+    );
 
   const isValidName = (name) =>
-    /^[A-Za-zÑñ .'-]+$/.test(name.trim());
+    /^[A-Za-zÑñ .'-]+$/.test(
+      name.trim()
+    );
 
   const validateStep = () => {
     setFormError("");
 
     if (step === 1) {
       const birthDate = form.birthday
-        ? new Date(`${form.birthday}T00:00:00`)
+        ? new Date(
+            `${form.birthday}T00:00:00`
+          )
         : null;
 
       const validBirthDate =
         birthDate &&
-        !Number.isNaN(birthDate.getTime()) &&
+        !Number.isNaN(
+          birthDate.getTime()
+        ) &&
         birthDate <= new Date();
 
       if (!form.firstName.trim()) {
-        setFormError("Please enter your first name.");
+        setFormError(
+          "Please enter your first name."
+        );
         return false;
       }
 
-      if (!isValidName(form.firstName)) {
+      if (
+        !isValidName(
+          form.firstName
+        )
+      ) {
         setFormError(
           "First name can only contain letters, spaces, periods, apostrophes, or hyphens."
         );
@@ -310,11 +361,17 @@ export default function ClientSignup() {
       }
 
       if (!form.lastName.trim()) {
-        setFormError("Please enter your last name.");
+        setFormError(
+          "Please enter your last name."
+        );
         return false;
       }
 
-      if (!isValidName(form.lastName)) {
+      if (
+        !isValidName(
+          form.lastName
+        )
+      ) {
         setFormError(
           "Last name can only contain letters, spaces, periods, apostrophes, or hyphens."
         );
@@ -323,14 +380,23 @@ export default function ClientSignup() {
 
       if (
         form.middleName.trim() &&
-        !isValidName(form.middleName)
+        !isValidName(
+          form.middleName
+        )
       ) {
-        setFormError("Please enter a valid middle name.");
+        setFormError(
+          "Please enter a valid middle name."
+        );
         return false;
       }
 
-      if (!form.birthday || !validBirthDate) {
-        setFormError("Please enter a valid birthday.");
+      if (
+        !form.birthday ||
+        !validBirthDate
+      ) {
+        setFormError(
+          "Please enter a valid birthday."
+        );
         return false;
       }
 
@@ -342,30 +408,45 @@ export default function ClientSignup() {
       }
 
       if (!form.civilStatus) {
-        setFormError("Please select your civil status.");
+        setFormError(
+          "Please select your civil status."
+        );
         return false;
       }
     }
 
     if (step === 2) {
       const contactNumber =
-        form.contactNumber.replace(/\D/g, "");
+        form.contactNumber.replace(
+          /\D/g,
+          ""
+        );
 
-      if (!/^09\d{9}$/.test(contactNumber)) {
+      if (
+        !/^09\d{9}$/.test(
+          contactNumber
+        )
+      ) {
         setFormError(
-          "Please enter a valid Philippine mobile number beginning with 09."
+          "Contact number must contain exactly 11 digits and begin with 09."
         );
         return false;
       }
 
-      if (!isValidEmail(form.email)) {
+      if (
+        !isValidEmail(
+          form.email
+        )
+      ) {
         setFormError(
           "Please enter a valid email address."
         );
         return false;
       }
 
-      if (form.password.length < 6) {
+      if (
+        form.password.length < 6
+      ) {
         setFormError(
           "Your password must contain at least 6 characters."
         );
@@ -381,12 +462,21 @@ export default function ClientSignup() {
     }
 
     if (step === 3) {
-      const members = Number(form.members);
-      const year = Number(form.year);
-      const currentYear = new Date().getFullYear();
+      const members = Number(
+        form.members
+      );
+
+      const year = Number(
+        form.year
+      );
+
+      const currentYear =
+        new Date().getFullYear();
 
       if (
-        !Number.isInteger(members) ||
+        !Number.isInteger(
+          members
+        ) ||
         members < 1
       ) {
         setFormError(
@@ -396,7 +486,9 @@ export default function ClientSignup() {
       }
 
       if (
-        !Number.isInteger(year) ||
+        !Number.isInteger(
+          year
+        ) ||
         year < 1900 ||
         year > currentYear
       ) {
@@ -416,12 +508,16 @@ export default function ClientSignup() {
 
     if (step === 4) {
       if (!form.region) {
-        setFormError("Please select your region.");
+        setFormError(
+          "Please select your region."
+        );
         return false;
       }
 
       if (!form.province) {
-        setFormError("Please select your province.");
+        setFormError(
+          "Please select your province."
+        );
         return false;
       }
 
@@ -433,7 +529,9 @@ export default function ClientSignup() {
       }
 
       if (!form.barangay) {
-        setFormError("Please select your barangay.");
+        setFormError(
+          "Please select your barangay."
+        );
         return false;
       }
     }
@@ -442,12 +540,15 @@ export default function ClientSignup() {
   };
 
   const nextStep = () => {
-    if (!validateStep()) return;
-
-    setFormError("");
+    if (!validateStep()) {
+      return;
+    }
 
     setStep((previous) =>
-      Math.min(previous + 1, 4)
+      Math.min(
+        previous + 1,
+        4
+      )
     );
   };
 
@@ -455,16 +556,25 @@ export default function ClientSignup() {
     setFormError("");
 
     setStep((previous) =>
-      Math.max(previous - 1, 1)
+      Math.max(
+        previous - 1,
+        1
+      )
     );
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
-    if (creatingAccount) return;
+    if (creatingAccount) {
+      return;
+    }
 
-    if (!validateStep()) return;
+    if (!validateStep()) {
+      return;
+    }
 
     const fullName = [
       form.firstName.trim(),
@@ -479,14 +589,25 @@ export default function ClientSignup() {
     try {
       await registerClient({
         ...form,
-        firstName: form.firstName.trim(),
-        middleName: form.middleName.trim(),
-        lastName: form.lastName.trim(),
-        email: form.email.trim().toLowerCase(),
+        firstName:
+          form.firstName.trim(),
+        middleName:
+          form.middleName.trim(),
+        lastName:
+          form.lastName.trim(),
+        email:
+          form.email
+            .trim()
+            .toLowerCase(),
         contactNumber:
-          form.contactNumber.replace(/\D/g, ""),
-        members: Number(form.members),
-        year: Number(form.year),
+          form.contactNumber.replace(
+            /\D/g,
+            ""
+          ),
+        members:
+          Number(form.members),
+        year:
+          Number(form.year),
         age,
         name: fullName,
       });
@@ -500,25 +621,29 @@ export default function ClientSignup() {
       });
     } catch (error) {
       if (
-        error?.code === "auth/email-already-in-use"
+        error?.code ===
+        "auth/email-already-in-use"
       ) {
         setFormError(
           "This email address is already registered. Please use another email address."
         );
       } else if (
-        error?.code === "auth/invalid-email"
+        error?.code ===
+        "auth/invalid-email"
       ) {
         setFormError(
           "The email address is not valid."
         );
       } else if (
-        error?.code === "auth/weak-password"
+        error?.code ===
+        "auth/weak-password"
       ) {
         setFormError(
           "The password is too weak. Please use at least 6 characters."
         );
       } else if (
-        error?.code === "auth/configuration-not-found"
+        error?.code ===
+        "auth/configuration-not-found"
       ) {
         setFormError(
           "Firebase Authentication is not configured for this project. Enable Email/Password sign-in in the Firebase Console."
@@ -541,17 +666,20 @@ export default function ClientSignup() {
           <button
             type="button"
             className="back-link"
-            onClick={() => navigate("/")}
+            onClick={() =>
+              navigate("/")
+            }
           >
             ← Back to sign in
           </button>
 
-          <h1>Create your AGRIhelp account</h1>
+          <h1>
+            Create your AGRIhelp account
+          </h1>
 
           <p>
-            Register the association representative
-            account used to submit requests and
-            coordinate appointments.
+            Register the association representative account used
+            to submit requests and coordinate appointments.
           </p>
 
           {[
@@ -559,32 +687,41 @@ export default function ClientSignup() {
             "Contact & association",
             "Association details",
             "Verification & address",
-          ].map((title, index) => {
-            const number = index + 1;
+          ].map(
+            (title, index) => {
+              const number =
+                index + 1;
 
-            return (
-              <div
-                className={`progress-step ${
-                  step >= number ? "done" : ""
-                }`}
-                key={title}
-              >
-                <span>{number}</span>
+              return (
+                <div
+                  className={`progress-step ${
+                    step >= number
+                      ? "done"
+                      : ""
+                  }`}
+                  key={title}
+                >
+                  <span>
+                    {number}
+                  </span>
 
-                <div>
-                  <strong>{title}</strong>
+                  <div>
+                    <strong>
+                      {title}
+                    </strong>
 
-                  <small>
-                    {step > number
-                      ? "Completed"
-                      : step === number
-                      ? "Current step"
-                      : "Upcoming"}
-                  </small>
+                    <small>
+                      {step > number
+                        ? "Completed"
+                        : step === number
+                        ? "Current step"
+                        : "Upcoming"}
+                    </small>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            }
+          )}
         </div>
 
         <form
@@ -611,7 +748,9 @@ export default function ClientSignup() {
                 "Verification & address"}
             </h2>
 
-            <p>Step {step} of 4</p>
+            <p>
+              Step {step} of 4
+            </p>
           </div>
 
           {formError && (
@@ -628,8 +767,12 @@ export default function ClientSignup() {
               <Field
                 label="First name"
                 name="firstName"
-                value={form.firstName}
-                onChange={updateField}
+                value={
+                  form.firstName
+                }
+                onChange={
+                  updateField
+                }
                 required
                 placeholder="Enter first name"
               />
@@ -637,16 +780,24 @@ export default function ClientSignup() {
               <Field
                 label="Middle name"
                 name="middleName"
-                value={form.middleName}
-                onChange={updateField}
+                value={
+                  form.middleName
+                }
+                onChange={
+                  updateField
+                }
                 placeholder="Enter middle name"
               />
 
               <Field
                 label="Last name"
                 name="lastName"
-                value={form.lastName}
-                onChange={updateField}
+                value={
+                  form.lastName
+                }
+                onChange={
+                  updateField
+                }
                 required
                 placeholder="Enter last name"
               />
@@ -655,8 +806,12 @@ export default function ClientSignup() {
                 label="Birthday"
                 name="birthday"
                 type="date"
-                value={form.birthday}
-                onChange={updateField}
+                value={
+                  form.birthday
+                }
+                onChange={
+                  updateField
+                }
                 required
                 max={
                   new Date()
@@ -675,8 +830,12 @@ export default function ClientSignup() {
               <SelectField
                 label="Civil status"
                 name="civilStatus"
-                value={form.civilStatus}
-                onChange={updateField}
+                value={
+                  form.civilStatus
+                }
+                onChange={
+                  updateField
+                }
                 required
                 options={[
                   "Single",
@@ -693,27 +852,43 @@ export default function ClientSignup() {
               <Field
                 label="Contact number"
                 name="contactNumber"
-                value={form.contactNumber}
-                onChange={(name, value) =>
+                value={
+                  form.contactNumber
+                }
+                onChange={(
+                  name,
+                  value
+                ) =>
                   updateField(
                     name,
                     value
-                      .replace(/\D/g, "")
-                      .slice(0, 11)
+                      .replace(
+                        /\D/g,
+                        ""
+                      )
+                      .slice(
+                        0,
+                        11
+                      )
                   )
                 }
                 required
                 inputMode="numeric"
                 placeholder="09XXXXXXXXX"
                 maxLength={11}
+                pattern="09[0-9]{9}"
               />
 
               <Field
                 label="Email address"
                 name="email"
                 type="email"
-                value={form.email}
-                onChange={updateField}
+                value={
+                  form.email
+                }
+                onChange={
+                  updateField
+                }
                 required
                 placeholder="example@gmail.com"
               />
@@ -722,22 +897,31 @@ export default function ClientSignup() {
                 label="Password"
                 name="password"
                 type="password"
-                value={form.password}
-                onChange={updateField}
+                value={
+                  form.password
+                }
+                onChange={
+                  updateField
+                }
                 required
                 minLength={6}
                 placeholder="At least 6 characters"
               />
 
               <div className="field wide">
-                <label>Association name *</label>
+                <label>
+                  Association name *
+                </label>
 
                 <select
-                  value={form.association}
+                  value={
+                    form.association
+                  }
                   onChange={(event) =>
                     updateField(
                       "association",
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   required
@@ -747,10 +931,16 @@ export default function ClientSignup() {
                   </option>
 
                   {ASSOCIATIONS.map(
-                    (association) => (
+                    (
+                      association
+                    ) => (
                       <option
-                        key={association}
-                        value={association}
+                        key={
+                          association
+                        }
+                        value={
+                          association
+                        }
                       >
                         {association}
                       </option>
@@ -767,8 +957,12 @@ export default function ClientSignup() {
                 label="Total number of members"
                 name="members"
                 type="number"
-                value={form.members}
-                onChange={updateField}
+                value={
+                  form.members
+                }
+                onChange={
+                  updateField
+                }
                 required
                 min="1"
               />
@@ -777,18 +971,28 @@ export default function ClientSignup() {
                 label="Year of registration"
                 name="year"
                 type="number"
-                value={form.year}
-                onChange={updateField}
+                value={
+                  form.year
+                }
+                onChange={
+                  updateField
+                }
                 required
                 min="1900"
-                max={new Date().getFullYear()}
+                max={
+                  new Date().getFullYear()
+                }
               />
 
               <SelectField
                 label="Member's position in association"
                 name="position"
-                value={form.position}
-                onChange={updateField}
+                value={
+                  form.position
+                }
+                onChange={
+                  updateField
+                }
                 required
                 options={[
                   "President",
@@ -806,68 +1010,102 @@ export default function ClientSignup() {
             <div className="form-grid">
               <LocationSelect
                 label="Region"
-                value={form.region}
+                value={
+                  form.region
+                }
                 items={regions}
                 disabled={
                   loadingLocations &&
-                  regions.length === 0
+                  regions.length ===
+                    0
                 }
                 onChange={(value) => {
-                  setForm((previous) => ({
-                    ...previous,
-                    region: value,
-                    province: "",
-                    municipality: "",
-                    barangay: "",
-                  }));
-                  setFormError("");
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      region: value,
+                      province: "",
+                      municipality:
+                        "",
+                      barangay: "",
+                    })
+                  );
+
+                  setFormError(
+                    ""
+                  );
                 }}
                 required
               />
 
               <LocationSelect
                 label="Province"
-                value={form.province}
-                items={provinces}
+                value={
+                  form.province
+                }
+                items={
+                  provinces
+                }
                 disabled={
                   !form.region ||
                   loadingLocations
                 }
                 onChange={(value) => {
-                  setForm((previous) => ({
-                    ...previous,
-                    province: value,
-                    municipality: "",
-                    barangay: "",
-                  }));
-                  setFormError("");
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      province:
+                        value,
+                      municipality:
+                        "",
+                      barangay: "",
+                    })
+                  );
+
+                  setFormError(
+                    ""
+                  );
                 }}
                 required
               />
 
               <LocationSelect
                 label="Municipality / City"
-                value={form.municipality}
-                items={municipalities}
+                value={
+                  form.municipality
+                }
+                items={
+                  municipalities
+                }
                 disabled={
                   !form.province ||
                   loadingLocations
                 }
                 onChange={(value) => {
-                  setForm((previous) => ({
-                    ...previous,
-                    municipality: value,
-                    barangay: "",
-                  }));
-                  setFormError("");
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      municipality:
+                        value,
+                      barangay: "",
+                    })
+                  );
+
+                  setFormError(
+                    ""
+                  );
                 }}
                 required
               />
 
               <LocationSelect
                 label="Barangay"
-                value={form.barangay}
-                items={barangays}
+                value={
+                  form.barangay
+                }
+                items={
+                  barangays
+                }
                 disabled={
                   !form.municipality ||
                   loadingLocations
@@ -903,7 +1141,9 @@ export default function ClientSignup() {
                   previousStep();
                 }
               }}
-              disabled={creatingAccount}
+              disabled={
+                creatingAccount
+              }
             >
               Back
             </button>
@@ -913,7 +1153,9 @@ export default function ClientSignup() {
                 type="button"
                 className="primary-btn"
                 onClick={nextStep}
-                disabled={creatingAccount}
+                disabled={
+                  creatingAccount
+                }
               >
                 Continue →
               </button>
@@ -921,7 +1163,9 @@ export default function ClientSignup() {
               <button
                 type="submit"
                 className="primary-btn"
-                disabled={creatingAccount}
+                disabled={
+                  creatingAccount
+                }
               >
                 {creatingAccount
                   ? "Creating account..."
@@ -948,6 +1192,8 @@ function Field({
   min,
   max,
   maxLength,
+  pattern,
+  minLength,
 }) {
   return (
     <div className="field">
@@ -973,6 +1219,8 @@ function Field({
         min={min}
         max={max}
         maxLength={maxLength}
+        pattern={pattern}
+        minLength={minLength}
       />
     </div>
   );
@@ -1008,14 +1256,16 @@ function SelectField({
           Select an option
         </option>
 
-        {options.map((option) => (
-          <option
-            key={option}
-            value={option}
-          >
-            {option}
-          </option>
-        ))}
+        {options.map(
+          (option) => (
+            <option
+              key={option}
+              value={option}
+            >
+              {option}
+            </option>
+          )
+        )}
       </select>
     </div>
   );
@@ -1039,7 +1289,9 @@ function LocationSelect({
       <select
         value={value || ""}
         onChange={(event) =>
-          onChange(event.target.value)
+          onChange(
+            event.target.value
+          )
         }
         disabled={disabled}
         required={required}
@@ -1050,14 +1302,21 @@ function LocationSelect({
             : `Select ${label.toLowerCase()}`}
         </option>
 
-        {items.map((item) => (
-          <option
-            key={item.code || item.name}
-            value={item.name}
-          >
-            {item.name}
-          </option>
-        ))}
+        {items.map(
+          (item) => (
+            <option
+              key={
+                item.code ||
+                item.name
+              }
+              value={
+                item.name
+              }
+            >
+              {item.name}
+            </option>
+          )
+        )}
       </select>
     </div>
   );

@@ -11,7 +11,7 @@ export const ASSOCIATIONS = [
   "Sta. Remedios Farmers Association",
   "A Bonifacio Farmers Irrigators Association",
 ];
-export const MAX_FILE_SIZE = 600 * 1024;
+export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export const MAX_PROFILE_IMAGE_SIZE = 350 * 1024;
 export const todayISO = () => new Date().toISOString().slice(0, 10);
 export function formatDate(date) {

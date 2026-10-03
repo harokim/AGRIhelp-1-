@@ -239,6 +239,7 @@ export default function EngineerSignup() {
                   type="text"
                   inputMode="numeric"
                   maxLength={11}
+                  minLength={11}
                   value={form.contactNumber}
                   onChange={(event) =>
                     updateField(

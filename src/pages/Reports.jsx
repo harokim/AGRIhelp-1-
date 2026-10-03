@@ -9,11 +9,12 @@ const statuses = [
   "Under Review",
   "Documents Pending",
   "Approved",
-  "Rejected"
 ];
 
 function escapeCsv(value) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  return `"${String(
+    value ?? ""
+  ).replaceAll('"', '""')}"`;
 }
 
 function escapeHtml(value) {
@@ -22,47 +23,90 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+    .replaceAll(
+      "'",
+      "&#039;"
+    );
 }
 
 function getRequestDate(request) {
-  const value = request.createdAt?.toDate
-    ? request.createdAt.toDate()
-    : request.createdAt || request.date;
+  const value =
+    request.createdAtTimestamp?.toDate
+      ? request.createdAtTimestamp.toDate()
+      : request.createdAt ||
+        request.date;
 
-  if (!value) return "";
+  if (!value) {
+    return "";
+  }
 
-  const date = value instanceof Date ? value : new Date(value);
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
 
-  return Number.isNaN(date.getTime())
-    ? String(value).slice(0, 10)
-    : date.toISOString().slice(0, 10);
+  return Number.isNaN(
+    date.getTime()
+  )
+    ? String(value).slice(
+        0,
+        10
+      )
+    : date
+        .toISOString()
+        .slice(0, 10);
 }
 
 function isImage(document) {
-  return String(document?.contentType || "").startsWith("image/");
+  return String(
+    document?.contentType || ""
+  ).startsWith(
+    "image/"
+  );
 }
 
 function isPdf(document) {
-  return document?.contentType === "application/pdf";
+  return (
+    document?.contentType ===
+    "application/pdf"
+  );
 }
 
 function formatFileSize(size) {
-  if (!size) return "";
-
-  const kb = size / 1024;
-
-  if (kb < 1024) {
-    return `${kb.toFixed(0)} KB`;
+  if (!size) {
+    return "";
   }
 
-  return `${(kb / 1024).toFixed(2)} MB`;
+  const kb =
+    size / 1024;
+
+  if (kb < 1024) {
+    return `${kb.toFixed(
+      0
+    )} KB`;
+  }
+
+  return `${(
+    kb / 1024
+  ).toFixed(2)} MB`;
 }
 
 function getDocumentHtml(document) {
-  const fileName = escapeHtml(document.fileName || "Uploaded document");
-  const fileSize = escapeHtml(formatFileSize(document.fileSize));
-  const data = document.data || "";
+  const fileName =
+    escapeHtml(
+      document.fileName ||
+        "Uploaded document"
+    );
+
+  const fileSize =
+    escapeHtml(
+      formatFileSize(
+        document.fileSize
+      )
+    );
+
+  const data =
+    document.data || "";
 
   if (!data) {
     return `
@@ -115,154 +159,253 @@ function getDocumentHtml(document) {
       <div>
         <strong>${fileName}</strong>
         <span>${fileSize}</span>
-        <small>${escapeHtml(document.contentType || "Document")}</small>
+        <small>${escapeHtml(
+          document.contentType ||
+            "Document"
+        )}</small>
       </div>
     </div>
   `;
 }
 
 export default function Reports() {
-  const { requests, documents } = useRequests();
-  const { appointments } = useAppointments();
-  const { users } = useAuth();
+  const {
+    requests,
+    documents,
+  } = useRequests();
 
-  const [status, setStatus] = useState("All");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const {
+    appointments,
+  } = useAppointments();
 
-  const filtered = useMemo(
-    () =>
-      requests.filter((request) => {
-        const requestDate = getRequestDate(request);
+  const { users } =
+    useAuth();
 
-        return (
-          (status === "All" || request.status === status) &&
-          (!from || requestDate >= from) &&
-          (!to || requestDate <= to)
-        );
-      }),
-    [requests, status, from, to]
-  );
+  const [status, setStatus] =
+    useState("All");
 
-  const getClient = (id) =>
-    users.find((user) => user.id === id);
+  const [from, setFrom] =
+    useState("");
 
-  const getRequestDocuments = (requestId) =>
-    documents.filter(
-      (document) => document.requestId === requestId
+  const [to, setTo] =
+    useState("");
+
+  const [
+    selectedRequest,
+    setSelectedRequest,
+  ] = useState(null);
+
+  const filtered =
+    useMemo(
+      () =>
+        requests
+          .filter(
+            (request) =>
+              request.status !==
+              "Rejected"
+          )
+          .filter(
+            (request) => {
+              const requestDate =
+                getRequestDate(
+                  request
+                );
+
+              return (
+                (status ===
+                  "All" ||
+                  request.status ===
+                    status) &&
+                (!from ||
+                  requestDate >=
+                    from) &&
+                (!to ||
+                  requestDate <=
+                    to)
+              );
+            }
+          )
+          .sort((a, b) =>
+            String(
+              a.association ||
+                ""
+            ).localeCompare(
+              String(
+                b.association ||
+                  ""
+              )
+            )
+          ),
+      [
+        requests,
+        status,
+        from,
+        to,
+      ]
     );
 
-  const approved = filtered.filter(
-    (request) => request.status === "Approved"
-  ).length;
+  const getClient =
+    (id) =>
+      users.find(
+        (user) =>
+          user.id === id
+      );
 
-  const rejected = filtered.filter(
-    (request) => request.status === "Rejected"
-  ).length;
+  const getRequestDocuments =
+    (requestId) =>
+      documents.filter(
+        (document) =>
+          document.requestId ===
+          requestId
+      );
 
-  const pending = filtered.filter(
-    (request) =>
-      !["Approved", "Rejected"].includes(request.status)
-  ).length;
+  const approved =
+    filtered.filter(
+      (request) =>
+        request.status ===
+        "Approved"
+    ).length;
+
+  const pending =
+    filtered.filter(
+      (request) =>
+        ![
+          "Approved",
+        ].includes(
+          request.status
+        )
+    ).length;
 
   const printReport = () => {
-    const rows = filtered
-      .map((request) => {
-        const client = getClient(request.clientId);
+    const rows =
+      filtered
+        .map(
+          (request) => {
+            const client =
+              getClient(
+                request.clientId
+              );
 
-        return `
-          <div class="request-report">
-            <div class="request-header">
-              <div>
-                <h2>${escapeHtml(
-                  request.association || "Service Request"
-                )}</h2>
-                <p class="request-client">
-                  Client: ${escapeHtml(client?.name || "Unknown")}
-                </p>
+            const requestDocuments =
+              getRequestDocuments(
+                request.id
+              );
+
+            return `
+              <div class="request-report">
+                <div class="request-header">
+                  <div>
+                    <h2>${escapeHtml(
+                      request.association ||
+                        "Service Request"
+                    )}</h2>
+
+                    <p>
+                      Client:
+                      ${escapeHtml(
+                        client?.name ||
+                          "Unknown"
+                      )}
+                    </p>
+                  </div>
+
+                  <div class="status-box">
+                    ${escapeHtml(
+                      request.status ||
+                        ""
+                    )}
+                  </div>
+                </div>
+
+                <div class="request-details">
+                  <div>
+                    <span>Reference</span>
+                    <strong>${escapeHtml(
+                      request.referenceNumber ||
+                        request.id
+                    )}</strong>
+                  </div>
+
+                  <div>
+                    <span>Client Name</span>
+                    <strong>${escapeHtml(
+                      client?.name ||
+                        "Unknown"
+                    )}</strong>
+                  </div>
+
+                  <div>
+                    <span>Email Address</span>
+                    <strong>${escapeHtml(
+                      client?.email ||
+                        "Not provided"
+                    )}</strong>
+                  </div>
+
+                  <div>
+                    <span>Contact Number</span>
+                    <strong>${escapeHtml(
+                      client?.contactNumber ||
+                        "Not provided"
+                    )}</strong>
+                  </div>
+
+                  <div>
+                    <span>Association</span>
+                    <strong>${escapeHtml(
+                      request.association ||
+                        ""
+                    )}</strong>
+                  </div>
+
+                  <div>
+                    <span>Date Submitted</span>
+                    <strong>${escapeHtml(
+                      getRequestDate(
+                        request
+                      )
+                    )}</strong>
+                  </div>
+                </div>
+
+                <div class="request-description">
+                  <h3>Request Details</h3>
+                  <p>${escapeHtml(
+                    request.details ||
+                      "No request details provided."
+                  )}</p>
+                </div>
+
+                <div class="request-attachments">
+                  <h3>Client Documents and Images</h3>
+
+                  ${
+                    requestDocuments.length >
+                    0
+                      ? requestDocuments
+                          .map(
+                            getDocumentHtml
+                          )
+                          .join("")
+                      : `
+                        <div class="no-attachments">
+                          No documents or images were uploaded for this request.
+                        </div>
+                      `
+                  }
+                </div>
               </div>
+            `;
+          }
+        )
+        .join("");
 
-              <div class="status-box">
-                ${escapeHtml(request.status || "")}
-              </div>
-            </div>
-
-            <div class="request-details">
-              <div>
-                <span>Client Name</span>
-                <strong>${escapeHtml(
-                  client?.name || "Unknown"
-                )}</strong>
-              </div>
-
-              <div>
-                <span>Email address</span>
-                <strong>${escapeHtml(
-                  client?.email || "Not provided"
-                )}</strong>
-              </div>
-
-              <div>
-                <span>Contact Number</span>
-                <strong>${escapeHtml(
-                  client?.contactNumber || "Not provided"
-                )}</strong>
-              </div>
-
-              <div>
-                <span>Association</span>
-                <strong>${escapeHtml(
-                  request.association || ""
-                )}</strong>
-              </div>
-
-              <div>
-                <span>Date Submitted</span>
-                <strong>${escapeHtml(
-                  getRequestDate(request)
-                )}</strong>
-              </div>
-
-              <div>
-                <span>Status</span>
-                <strong>${escapeHtml(
-                  request.status || ""
-                )}</strong>
-              </div>
-            </div>
-
-            <div class="request-description">
-              <h3>Request Details</h3>
-              <p>${escapeHtml(
-                request.details || "No request details provided."
-              )}</p>
-            </div>
-
-            <div class="request-attachments">
-              <h3>Client Documents and Images</h3>
-
-              ${
-                getRequestDocuments(request.id).length > 0
-                  ? getRequestDocuments(request.id)
-                      .map(getDocumentHtml)
-                      .join("")
-                  : `
-                    <div class="no-attachments">
-                      No documents or images were uploaded for this request.
-                    </div>
-                  `
-              }
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-
-    const reportWindow = window.open(
-      "",
-      "_blank",
-      "width=1200,height=900"
-    );
+    const reportWindow =
+      window.open(
+        "",
+        "_blank",
+        "width=1200,height=900"
+      );
 
     if (!reportWindow) {
       alert(
@@ -299,17 +442,9 @@ export default function Reports() {
               margin-bottom: 4px;
               color: #0c2b1b;
               font-size: 28px;
-              font-weight: 800;
-            }
-
-            .report-subtitle {
-              margin: 0 0 6px;
-              color: #4f5e53;
-              font-size: 14px;
             }
 
             .report-meta {
-              margin: 0;
               color: #68756b;
               font-size: 12px;
               line-height: 1.6;
@@ -317,7 +452,7 @@ export default function Reports() {
 
             .summary {
               display: grid;
-              grid-template-columns: repeat(4, 1fr);
+              grid-template-columns: repeat(3, 1fr);
               gap: 14px;
               margin: 26px 0 30px;
             }
@@ -339,7 +474,6 @@ export default function Reports() {
             }
 
             .summary-card strong {
-              display: block;
               color: #0c2b1b;
               font-size: 24px;
             }
@@ -368,32 +502,29 @@ export default function Reports() {
               font-size: 20px;
             }
 
-            .request-client {
+            .request-header p {
               margin: 0;
               color: #68756b;
               font-size: 12px;
             }
 
             .status-box {
-              flex-shrink: 0;
               padding: 7px 12px;
               border-radius: 6px;
               background: #fff5c7;
               color: #6c5600;
               font-size: 10px;
               font-weight: 800;
-              text-transform: uppercase;
             }
 
             .request-details {
               display: grid;
               grid-template-columns: repeat(3, 1fr);
-              gap: 18px;
+              gap: 12px;
               margin-bottom: 25px;
             }
 
             .request-details div {
-              min-width: 0;
               padding: 13px;
               border: 1px solid #e1e7e2;
               border-radius: 7px;
@@ -410,11 +541,8 @@ export default function Reports() {
             }
 
             .request-details strong {
-              display: block;
               color: #17231a;
               font-size: 12px;
-              line-height: 1.5;
-              overflow-wrap: anywhere;
             }
 
             .request-description {
@@ -439,10 +567,6 @@ export default function Reports() {
               white-space: pre-wrap;
             }
 
-            .request-attachments {
-              margin-top: 20px;
-            }
-
             .attachment-card {
               margin-top: 14px;
               padding: 14px;
@@ -454,24 +578,17 @@ export default function Reports() {
 
             .attachment-header {
               display: flex;
-              align-items: flex-start;
               justify-content: space-between;
               gap: 12px;
               margin-bottom: 12px;
             }
 
-            .attachment-header div {
-              min-width: 0;
-            }
-
             .attachment-header strong {
               display: block;
-              color: #17231a;
               font-size: 12px;
-              overflow-wrap: anywhere;
             }
 
-            .attachment-header span:not(.attachment-type) {
+            .attachment-header span {
               display: block;
               margin-top: 4px;
               color: #68756b;
@@ -479,13 +596,10 @@ export default function Reports() {
             }
 
             .attachment-type {
-              flex-shrink: 0;
               padding: 4px 7px;
               border-radius: 4px;
               background: #0c2b1b;
-              color: #ffffff;
-              font-size: 8px;
-              font-weight: 800;
+              color: #ffffff !important;
             }
 
             .attachment-image-wrap {
@@ -493,7 +607,6 @@ export default function Reports() {
               padding: 10px;
               text-align: center;
               background: #f5f8f5;
-              border-radius: 7px;
             }
 
             .attachment-image-wrap img {
@@ -501,7 +614,6 @@ export default function Reports() {
               max-width: 100%;
               max-height: 650px;
               margin: 0 auto;
-              object-fit: contain;
             }
 
             .pdf-card iframe {
@@ -509,8 +621,6 @@ export default function Reports() {
               width: 100%;
               height: 750px;
               border: 1px solid #dbe4dc;
-              border-radius: 5px;
-              background: #ffffff;
             }
 
             .attachment-file {
@@ -522,7 +632,6 @@ export default function Reports() {
               border: 1px solid #dbe4dc;
               border-radius: 8px;
               background: #f7faf7;
-              page-break-inside: avoid;
             }
 
             .attachment-icon {
@@ -531,19 +640,15 @@ export default function Reports() {
               justify-content: center;
               width: 42px;
               height: 42px;
-              flex-shrink: 0;
               border-radius: 7px;
               background: #e6b91e;
-              color: #17231a;
               font-size: 9px;
               font-weight: 900;
             }
 
             .attachment-file strong {
               display: block;
-              color: #17231a;
               font-size: 12px;
-              overflow-wrap: anywhere;
             }
 
             .attachment-file span,
@@ -564,10 +669,6 @@ export default function Reports() {
             }
 
             @media print {
-              body {
-                padding: 18px;
-              }
-
               .request-report {
                 page-break-inside: auto;
               }
@@ -576,24 +677,6 @@ export default function Reports() {
               .attachment-file,
               .request-details div {
                 break-inside: avoid;
-              }
-
-              .attachment-image-wrap img {
-                max-height: 620px;
-              }
-            }
-
-            @media (max-width: 800px) {
-              body {
-                padding: 18px;
-              }
-
-              .summary {
-                grid-template-columns: repeat(2, 1fr);
-              }
-
-              .request-details {
-                grid-template-columns: 1fr;
               }
             }
           </style>
@@ -605,18 +688,19 @@ export default function Reports() {
               AGRIhelp Request Report
             </h1>
 
-            <p class="report-subtitle">
+            <p class="report-meta">
               Municipal Agricultural and Biosystems Engineering Office
             </p>
 
             <p class="report-meta">
-              Generated: ${escapeHtml(new Date().toLocaleString())}
+              Generated:
+              ${escapeHtml(
+                new Date().toLocaleString()
+              )}
             </p>
 
             <p class="report-meta">
-              Filters: Status = ${escapeHtml(status)};
-              From = ${escapeHtml(from || "Any")};
-              To = ${escapeHtml(to || "Any")}
+              Rejected applications are excluded from this report.
             </p>
 
             <div class="summary">
@@ -633,11 +717,6 @@ export default function Reports() {
               <div class="summary-card">
                 <span>Approved</span>
                 <strong>${approved}</strong>
-              </div>
-
-              <div class="summary-card">
-                <span>Rejected</span>
-                <strong>${rejected}</strong>
               </div>
             </div>
 
@@ -673,62 +752,114 @@ export default function Reports() {
       "Association",
       "Request",
       "Status",
-      "Date",
-      "Documents"
+      "Date Submitted",
+      "Documents",
     ];
 
-    const rows = filtered.map((request) => {
-      const client = getClient(request.clientId);
-      const requestDocuments = getRequestDocuments(request.id);
+    const rows =
+      filtered.map(
+        (request) => {
+          const client =
+            getClient(
+              request.clientId
+            );
 
-      return [
-        request.referenceNumber || request.id,
-        client?.name || "Unknown",
-        client?.email || "",
-        request.association || "",
-        request.details || "",
-        request.status || "",
-        getRequestDate(request),
-        requestDocuments
-          .map((document) => document.fileName)
-          .join("; ")
-      ];
-    });
+          const requestDocuments =
+            getRequestDocuments(
+              request.id
+            );
 
-    const csv = [header, ...rows]
-      .map((row) => row.map(escapeCsv).join(","))
-      .join("\n");
+          return [
+            request.referenceNumber ||
+              request.id,
+            client?.name ||
+              "Unknown",
+            client?.email || "",
+            request.association ||
+              "",
+            request.details ||
+              "",
+            request.status ||
+              "",
+            getRequestDate(
+              request
+            ),
+            requestDocuments
+              .map(
+                (document) =>
+                  document.fileName
+              )
+              .join("; "),
+          ];
+        }
+      );
 
-    const url = URL.createObjectURL(
-      new Blob([csv], {
-        type: "text/csv;charset=utf-8"
-      })
+    const csv =
+      [
+        header,
+        ...rows,
+      ]
+        .map((row) =>
+          row
+            .map(
+              escapeCsv
+            )
+            .join(",")
+        )
+        .join("\n");
+
+    const url =
+      URL.createObjectURL(
+        new Blob(
+          [csv],
+          {
+            type: "text/csv;charset=utf-8",
+          }
+        )
+      );
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+    link.href = url;
+
+    link.download =
+      `AGRIhelp-request-report-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv`;
+
+    document.body.appendChild(
+      link
     );
 
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `AGRIhelp-request-report-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
-
-    document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
 
-    URL.revokeObjectURL(url);
+    document.body.removeChild(
+      link
+    );
+
+    URL.revokeObjectURL(
+      url
+    );
   };
 
   return (
     <div className="container page-container">
       <div className="page-header">
         <div>
-          <span className="eyebrow">ENGINEER REPORTS</span>
+          <span className="eyebrow">
+            ENGINEER REPORTS
+          </span>
 
-          <h1>Report generation</h1>
+          <h1>
+            Report generation
+          </h1>
 
           <p>
-            Generate a printable report containing request information
-            and the documents or images submitted by clients.
+            Generate reports from valid submitted
+            applications and their supporting documents.
           </p>
         </div>
 
@@ -736,7 +867,9 @@ export default function Reports() {
           <button
             type="button"
             className="secondary-btn"
-            onClick={exportCsv}
+            onClick={
+              exportCsv
+            }
           >
             Export CSV
           </button>
@@ -744,7 +877,9 @@ export default function Reports() {
           <button
             type="button"
             className="primary-btn"
-            onClick={printReport}
+            onClick={
+              printReport
+            }
           >
             Generate Report
           </button>
@@ -753,78 +888,122 @@ export default function Reports() {
 
       <section className="card report-filters">
         <div className="field">
-          <label>Status</label>
+          <label>
+            Status
+          </label>
 
           <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(event) =>
+              setStatus(
+                event.target
+                  .value
+              )
+            }
           >
-            {statuses.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
+            {statuses.map(
+              (item) => (
+                <option
+                  key={item}
+                  value={item}
+                >
+                  {item}
+                </option>
+              )
+            )}
           </select>
         </div>
 
         <div className="field">
-          <label>From date</label>
+          <label>
+            From date
+          </label>
 
           <input
             type="date"
             value={from}
-            onChange={(event) => setFrom(event.target.value)}
+            onChange={(event) =>
+              setFrom(
+                event.target
+                  .value
+              )
+            }
           />
         </div>
 
         <div className="field">
-          <label>To date</label>
+          <label>
+            To date
+          </label>
 
           <input
             type="date"
             value={to}
-            onChange={(event) => setTo(event.target.value)}
+            onChange={(event) =>
+              setTo(
+                event.target
+                  .value
+              )
+            }
           />
         </div>
       </section>
 
       <div className="stats-grid report-stats">
         <div className="stat-card">
-          <span>Total requests</span>
-          <strong>{filtered.length}</strong>
+          <span>
+            Total requests
+          </span>
+
+          <strong>
+            {filtered.length}
+          </strong>
         </div>
 
         <div className="stat-card">
-          <span>Pending</span>
-          <strong>{pending}</strong>
+          <span>
+            Pending
+          </span>
+
+          <strong>
+            {pending}
+          </strong>
         </div>
 
         <div className="stat-card">
-          <span>Approved</span>
-          <strong>{approved}</strong>
-        </div>
+          <span>
+            Approved
+          </span>
 
-        <div className="stat-card">
-          <span>Rejected</span>
-          <strong>{rejected}</strong>
+          <strong>
+            {approved}
+          </strong>
         </div>
       </div>
 
       <section className="table-card report-preview-card">
         <div className="section-title report-preview-heading">
           <div>
-            <h3>Report preview</h3>
+            <h3>
+              Submitted Requests
+            </h3>
 
             <p>
-              {filtered.length} request(s) match the selected
-              filters.
+              {filtered.length} request(s)
+              match the selected filters.
             </p>
           </div>
 
           <div className="report-preview-info">
             {filtered.reduce(
-              (total, request) =>
-                total + getRequestDocuments(request.id).length,
+              (
+                total,
+                request
+              ) =>
+                total +
+                getRequestDocuments(
+                  request.id
+                ).length,
               0
             )}{" "}
             attachment(s)
@@ -832,139 +1011,315 @@ export default function Reports() {
         </div>
 
         <div className="report-preview-list">
-          {filtered.map((request) => {
-            const client = getClient(request.clientId);
-            const requestDocuments = getRequestDocuments(
-              request.id
-            );
+          {filtered.map(
+            (request) => {
+              const client =
+                getClient(
+                  request.clientId
+                );
 
-            return (
-              <article
-                className="report-preview-request"
-                key={request.id}
-              >
-                <div className="report-preview-request-header">
-                  <div>
-                    <span className="report-reference">
-                      {request.referenceNumber || request.id}
-                    </span>
+              const requestDocuments =
+                getRequestDocuments(
+                  request.id
+                );
 
-                    <h3>
-                      {request.association ||
-                        "Service Request"}
-                    </h3>
+              return (
+                <article
+                  className="report-preview-request"
+                  key={
+                    request.id
+                  }
+                >
+                  <div className="report-preview-request-header">
+                    <div>
+                      <span className="report-reference">
+                        {request.referenceNumber ||
+                          request.id}
+                      </span>
 
-                    <p>
-                      {request.details ||
-                        "No request details provided."}
-                    </p>
-                  </div>
-
-                  <span className="status">
-                    {request.status}
-                  </span>
-                </div>
-
-                <div className="report-preview-client">
-                  <div>
-                    <span>Client</span>
-                    <strong>
-                      {client?.name || "Unknown"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Email address</span>
-                    <strong>
-                      {client?.email || "Not provided"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Contact</span>
-                    <strong>
-                      {client?.contactNumber ||
-                        "Not provided"}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span>Date</span>
-                    <strong>
-                      {getRequestDate(request)}
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="report-preview-attachments">
-                  <div className="report-preview-attachments-title">
-                    <strong>
-                      Client documents and images
-                    </strong>
-
-                    <span>
-                      {requestDocuments.length} file(s)
-                    </span>
-                  </div>
-
-                  {requestDocuments.length > 0 ? (
-                    <div className="report-preview-file-list">
-                      {requestDocuments.map((document) => (
-                        <div
-                          className="report-preview-file"
-                          key={document.id}
-                        >
-                          <div className="report-preview-file-icon">
-                            {isImage(document)
-                              ? "IMG"
-                              : isPdf(document)
-                              ? "PDF"
-                              : "FILE"}
-                          </div>
-
-                          <div>
-                            <strong>
-                              {document.fileName ||
-                                "Uploaded document"}
-                            </strong>
-
-                            <span>
-                              {formatFileSize(
-                                document.fileSize
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                      <h3>
+                        {request.association ||
+                          "Service Request"}
+                      </h3>
                     </div>
-                  ) : (
-                    <p className="report-preview-no-files">
-                      No documents or images uploaded.
-                    </p>
-                  )}
-                </div>
-              </article>
-            );
-          })}
 
-          {filtered.length === 0 && (
+                    <span
+                      className={`status ${String(
+                        request.status
+                      )
+                        .toLowerCase()
+                        .replaceAll(
+                          " ",
+                          "-"
+                        )}`}
+                    >
+                      {
+                        request.status
+                      }
+                    </span>
+                  </div>
+
+                  <div className="report-preview-client">
+                    <div>
+                      <span>
+                        Client
+                      </span>
+
+                      <strong>
+                        {client?.name ||
+                          "Unknown"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Association
+                      </span>
+
+                      <strong>
+                        {request.association ||
+                          "Not provided"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Date Submitted
+                      </span>
+
+                      <strong>
+                        {getRequestDate(
+                          request
+                        )}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span>
+                        Documents
+                      </span>
+
+                      <strong>
+                        {
+                          requestDocuments.length
+                        }{" "}
+                        file(s)
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="report-request-actions">
+                    <button
+                      type="button"
+                      className="secondary-btn small"
+                      onClick={() =>
+                        setSelectedRequest(
+                          request
+                        )
+                      }
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </article>
+              );
+            }
+          )}
+
+          {filtered.length ===
+            0 && (
             <div className="empty-state">
-              No requests match the selected filters.
+              No requests match the
+              selected filters.
             </div>
           )}
         </div>
       </section>
 
       <section className="card report-appointment-note">
-        <h3>Appointment records</h3>
+        <h3>
+          Appointment records
+        </h3>
 
         <p>
-          {appointments.length} appointment record(s) are
-          currently available in the system. Appointment details
-          remain available in the Appointments and Calendar
+          {appointments.length} appointment
+          record(s) are currently available
+          in the system. Appointment details remain
+          available in the Appointments and Calendar
           modules.
         </p>
       </section>
+
+      {selectedRequest && (
+        <div
+          className="modal-backdrop report-details-backdrop"
+          onClick={() =>
+            setSelectedRequest(
+              null
+            )
+          }
+        >
+          <div
+            className="modal card report-details-modal"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="modal-header">
+              <div>
+                <span className="report-reference">
+                  {selectedRequest.referenceNumber ||
+                    selectedRequest.id}
+                </span>
+
+                <h2>
+                  {selectedRequest.association ||
+                    "Service Request"}
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() =>
+                  setSelectedRequest(
+                    null
+                  )
+                }
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="report-detail-grid">
+              <div>
+                <span>
+                  Client
+                </span>
+
+                <strong>
+                  {getClient(
+                    selectedRequest.clientId
+                  )?.name ||
+                    "Unknown"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Email
+                </span>
+
+                <strong>
+                  {getClient(
+                    selectedRequest.clientId
+                  )?.email ||
+                    "Not provided"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Contact
+                </span>
+
+                <strong>
+                  {getClient(
+                    selectedRequest.clientId
+                  )?.contactNumber ||
+                    "Not provided"}
+                </strong>
+              </div>
+
+              <div>
+                <span>
+                  Date Submitted
+                </span>
+
+                <strong>
+                  {getRequestDate(
+                    selectedRequest
+                  )}
+                </strong>
+              </div>
+            </div>
+
+            <div className="report-detail-description">
+              <span>
+                Request Details
+              </span>
+
+              <p>
+                {selectedRequest.details ||
+                  "No request details provided."}
+              </p>
+            </div>
+
+            <div className="report-detail-documents">
+              <div className="report-detail-documents-header">
+                <strong>
+                  Attached Documents
+                </strong>
+
+                <span>
+                  {
+                    getRequestDocuments(
+                      selectedRequest.id
+                    ).length
+                  }{" "}
+                  file(s)
+                </span>
+              </div>
+
+              {getRequestDocuments(
+                selectedRequest.id
+              ).length > 0 ? (
+                getRequestDocuments(
+                  selectedRequest.id
+                ).map(
+                  (document) => (
+                    <div
+                      className="report-detail-file"
+                      key={
+                        document.id
+                      }
+                    >
+                      <div className="report-detail-file-icon">
+                        {isImage(
+                          document
+                        )
+                          ? "IMG"
+                          : isPdf(
+                              document
+                            )
+                          ? "PDF"
+                          : "FILE"}
+                      </div>
+
+                      <div>
+                        <strong>
+                          {document.fileName ||
+                            "Uploaded document"}
+                        </strong>
+
+                        <span>
+                          {formatFileSize(
+                            document.fileSize
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                )
+              ) : (
+                <p className="muted">
+                  No documents attached.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
