@@ -7,6 +7,64 @@ import {
   fileToDataURL
 } from "../services/documentService";
 
+const MINIMUM_REQUIREMENTS = [
+  {
+    title: "1. Board Resolution",
+    text: "Board Resolution duly signed by the majority of the board of directors of the organization stating the following:",
+    items: [
+      "Machinery, equipment, or facilities to be requested.",
+      "Explanation for the need and appropriateness of the machinery, equipment, or facilities.",
+      "Commitment to shoulder the cost of operation and maintenance of the requested machinery, equipment, facilities, and machinery shed, if applicable.",
+      "Name and technical qualifications of the designated operator.",
+      "Authorized representative to sign any legal documents or documentary requirements with the Department of Agriculture on the project.",
+      "Total number of members with RSBSA Control Number that will benefit from the requested project."
+    ]
+  },
+  {
+    title: "2. Pre-Validation Report",
+    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer (ABE) in the P/C/MLGU is required. In the absence of an ABE in the respective LGU, the pre-validation report may be signed by the ABE in the province, at a minimum. This shall follow Annex C: Pre-Validation Report."
+  },
+  {
+    title: "3. ABE Endorsement or Certification",
+    text: "Endorsement or certification from a licensed Agricultural and Biosystems Engineer is required. The proponent may hire an ABE as an employee or consultant under limited practice or seek technical assistance from their respective LGUs if unable to hire one. The endorsement must state the ABE's commitment to supporting the proponent in operating and maintaining the project."
+  },
+  {
+    title: "4. Utilization Proposal",
+    text: "Utilization Proposal indicating the production area and volume, the general specification, including type and capacity, of the requested machinery and facilities, and the period of operation. This shall follow Annex C: Utilization Proposal."
+  },
+  {
+    title: "5. Geotagged Photos",
+    text: "Geotagged photos of the existing shed and/or ongoing construction of the shed based on the capacity of the approved requested machinery."
+  },
+  {
+    title: "6. Authenticated Proof of Land",
+    text: "Authenticated proof of land ownership or a copy of any of the following documents named to the requesting entity:",
+    items: [
+      "Certificate of Land Title, such as Transfer Certificate of Title (TCT) or Certificate of Land Ownership Award (CLOA).",
+      "Usufruct or Lease Agreement based on the useful life of the type of project."
+    ]
+  },
+  {
+    title: "7. Letter of Intent",
+    text: "Letter of Intent duly signed by the Head of the Agricultural and Biosystems Engineering Office (LGU) or President of the Agricultural Schools, State Universities and Colleges (SUCs), stating the following:",
+    items: [
+      "Machinery, equipment, or facilities to be requested.",
+      "Explanation for the need and appropriateness of the machinery, equipment, or facilities.",
+      "Commitment to shoulder the cost of operation and maintenance of the requested machinery, equipment, facilities, and machinery shed, if applicable.",
+      "Name and technical qualifications of the designated operator.",
+      "Authorized representative to sign any legal documents or documentary requirements with the Department of Agriculture on the project."
+    ]
+  },
+  {
+    title: "8. LGU Pre-Validation Report",
+    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer (ABE) in the P/C/MLGU is required. In cases where there is no existing ABE office in the LGU, the requesting LGU must provide a commitment through a Sangguniang Bayan Resolution stating the creation of an ABE Office or hiring of an ABE within two years upon receipt of the requested intervention. The ABE must also be engaged during the implementation of the project. This shall follow Annex D: Pre-Validation Report."
+  },
+  {
+    title: "9. Placement Site Pre-Validation Report",
+    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer (ABE) in the P/C/MLGU where the requested agri-fisheries machinery and infrastructure should be placed is required. In the absence of an ABE in the respective LGU, the pre-validation report should be signed by the ABE in the province, at a minimum. This shall follow Annex D: Pre-Validation Report."
+  }
+];
+
 export default function Requests() {
   const { user } = useAuth();
 
@@ -17,11 +75,14 @@ export default function Requests() {
   } = useRequests();
 
   const [form, setForm] = useState({
+    requestType: "",
     details: ""
   });
 
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [requirementsRead, setRequirementsRead] =
+    useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -56,7 +117,7 @@ export default function Requests() {
 
     if (invalid) {
       alert(
-        `"${invalid.name}" is larger than the allowed file size.`
+        `"${invalid.name}" is larger than the allowed 5 MB file size.`
       );
 
       event.target.value = "";
@@ -130,6 +191,13 @@ export default function Requests() {
   const submit = async (event) => {
     event.preventDefault();
 
+    if (!requirementsRead) {
+      alert(
+        "Please read and acknowledge the minimum documentary requirements before submitting your request."
+      );
+      return;
+    }
+
     if (!user?.id) {
       alert("Please sign in again.");
       return;
@@ -138,6 +206,13 @@ export default function Requests() {
     if (!user.association) {
       alert(
         "Your account does not have an assigned association."
+      );
+      return;
+    }
+
+    if (!form.requestType) {
+      alert(
+        "Please select a request type."
       );
       return;
     }
@@ -160,6 +235,7 @@ export default function Requests() {
       const request = await createRequest({
         clientId: user.id,
         association: user.association,
+        requestType: form.requestType,
         details: form.details.trim()
       });
 
@@ -172,11 +248,13 @@ export default function Requests() {
       }
 
       setForm({
+        requestType: "",
         details: ""
       });
 
       setFiles([]);
       setPreviews([]);
+      setRequirementsRead(false);
 
       alert(
         "Request submitted successfully."
@@ -256,7 +334,9 @@ export default function Requests() {
 
         return `${request.referenceNumber || ""} ${
           request.association || ""
-        } ${request.details || ""}`
+        } ${request.requestType || ""} ${
+          request.details || ""
+        }`
           .toLowerCase()
           .includes(searchValue);
       })
@@ -330,7 +410,91 @@ export default function Requests() {
           className="card form-card"
           onSubmit={submit}
         >
-          <h3>New service request</h3>
+          <div className="request-form-heading">
+            <div>
+              <h3>New service request</h3>
+              <p>
+                Review the documentary requirements
+                before submitting your request.
+              </p>
+            </div>
+
+            <span className="request-requirement-badge">
+              Required
+            </span>
+          </div>
+
+          <div className="request-requirements-panel">
+            <div className="request-requirements-header">
+              <div>
+                <span className="eyebrow">
+                  DOCUMENTARY REQUIREMENTS
+                </span>
+
+                <h3>
+                  Minimum Requirements to be Submitted
+                  by the Requesting Beneficiary
+                </h3>
+              </div>
+            </div>
+
+            <div className="request-requirements-list">
+              {MINIMUM_REQUIREMENTS.map(
+                (requirement, index) => (
+                  <div
+                    className="request-requirement-item"
+                    key={requirement.title}
+                  >
+                    <div className="request-requirement-number">
+                      {index + 1}
+                    </div>
+
+                    <div className="request-requirement-content">
+                      <strong>
+                        {requirement.title.replace(
+                          /^\d+\.\s*/,
+                          ""
+                        )}
+                      </strong>
+
+                      <p>
+                        {requirement.text}
+                      </p>
+
+                      {requirement.items && (
+                        <ol>
+                          {requirement.items.map(
+                            (item) => (
+                              <li key={item}>
+                                {item}
+                              </li>
+                            )
+                          )}
+                        </ol>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            <label className="requirements-checkbox">
+              <input
+                type="checkbox"
+                checked={requirementsRead}
+                onChange={(event) =>
+                  setRequirementsRead(
+                    event.target.checked
+                  )
+                }
+              />
+
+              <span>
+                I have read and understand the minimum
+                documentary requirements listed above.
+              </span>
+            </label>
+          </div>
 
           <div className="assigned-association">
             <span>Assigned association</span>
@@ -340,6 +504,33 @@ export default function Requests() {
                 "No association assigned"}
             </strong>
           </div>
+
+          <label>
+            Request type
+          </label>
+
+          <select
+            value={form.requestType}
+            onChange={(event) =>
+              updateForm(
+                "requestType",
+                event.target.value
+              )
+            }
+            required
+          >
+            <option value="">
+              Select request type
+            </option>
+
+            <option value="Machinery">
+              Machinery
+            </option>
+
+            <option value="Infrastructure">
+              Infrastructure
+            </option>
+          </select>
 
           <label>
             Request details
@@ -365,7 +556,7 @@ export default function Requests() {
           <p className="upload-help">
             At least one supporting document is
             required. Each file must be within the
-            system upload limit.
+            5 MB system upload limit.
           </p>
 
           <label className="file-upload-box">
@@ -501,8 +692,11 @@ export default function Requests() {
           <button
             type="submit"
             className="primary-btn full"
+            disabled={!requirementsRead}
           >
-            Submit request
+            {requirementsRead
+              ? "Submit request"
+              : "Read requirements to continue"}
           </button>
         </form>
 
@@ -665,6 +859,11 @@ export default function Requests() {
                   {request.association ||
                     "Service Request"}
                 </h3>
+
+                <div className="request-type-label">
+                  {request.requestType ||
+                    "Request type not specified"}
+                </div>
 
                 <p>
                   {request.details ||

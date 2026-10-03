@@ -1,21 +1,288 @@
+import {
+  useMemo,
+  useState
+} from "react";
 import { useRequests } from "../context/RequestContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { useNavigate } from "react-router-dom";
 
+function getRequestDate(
+  request
+) {
+  if (
+    request.createdAt?.toDate
+  ) {
+    return request.createdAt.toDate();
+  }
+
+  if (
+    request.createdAtTimestamp?.toDate
+  ) {
+    return request.createdAtTimestamp.toDate();
+  }
+
+  const date = new Date(
+    request.createdAt ||
+      request.createdAtTimestamp ||
+      ""
+  );
+
+  return isNaN(
+    date.getTime()
+  )
+    ? null
+    : date;
+}
+
+function getAssociationData(
+  items,
+  getDate,
+  year,
+  month
+) {
+  const counts = {};
+
+  items.forEach(
+    (item) => {
+      const date =
+        getDate(item);
+
+      if (!date) return;
+
+      if (
+        date.getFullYear() !==
+          year ||
+        date.getMonth() !==
+          month
+      ) {
+        return;
+      }
+
+      const association =
+        item.association ||
+        "Unknown Association";
+
+      counts[
+        association
+      ] =
+        (counts[
+          association
+        ] || 0) + 1;
+    }
+  );
+
+  return Object.entries(
+    counts
+  ).sort(
+    (a, b) =>
+      b[1] - a[1]
+  );
+}
+
+function AssociationDiagram({
+  data,
+  emptyText
+}) {
+  const maximum =
+    data.length > 0
+      ? Math.max(
+          ...data.map(
+            ([, count]) =>
+              count
+          )
+        )
+      : 0;
+
+  if (
+    data.length === 0
+  ) {
+    return (
+      <div className="diagram-empty">
+        {emptyText}
+      </div>
+    );
+  }
+
+  return (
+    <div className="association-diagram">
+      {data.map(
+        ([
+          association,
+          count
+        ]) => (
+          <div
+            className="association-bar-row"
+            key={
+              association
+            }
+          >
+            <div className="association-bar-label">
+              <span>
+                {
+                  association
+                }
+              </span>
+
+              <strong>
+                {count}
+              </strong>
+            </div>
+
+            <div className="association-bar-track">
+              <div
+                className="association-bar-fill"
+                style={{
+                  width: `${Math.max(
+                    8,
+                    (count /
+                      maximum) *
+                      100
+                  )}%`
+                }}
+              />
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 export default function EngineerDashboard() {
-  const { requests } = useRequests();
-  const { appointments } = useAppointments();
-  const navigate = useNavigate();
+  const {
+    requests
+  } = useRequests();
 
-  const pending = requests.filter((request) =>
-    ["Submitted", "Under Review"].includes(
-      request.status
-    )
+  const {
+    appointments
+  } = useAppointments();
+
+  const navigate =
+    useNavigate();
+
+  const current =
+    new Date();
+
+  const [
+    selectedMonth,
+    setSelectedMonth
+  ] = useState(
+    current.getMonth()
   );
 
-  const approved = requests.filter(
-    (request) => request.status === "Approved"
+  const [
+    selectedYear,
+    setSelectedYear
+  ] = useState(
+    current.getFullYear()
   );
+
+  const pending =
+    requests.filter(
+      (request) =>
+        [
+          "Submitted",
+          "Under Review"
+        ].includes(
+          request.status
+        )
+    );
+
+  const approved =
+    requests.filter(
+      (request) =>
+        request.status ===
+        "Approved"
+    );
+
+  const reviewData =
+    useMemo(
+      () =>
+        getAssociationData(
+          pending,
+          getRequestDate,
+          selectedYear,
+          selectedMonth
+        ),
+      [
+        pending,
+        selectedMonth,
+        selectedYear
+      ]
+    );
+
+  const appointmentData =
+    useMemo(
+      () =>
+        getAssociationData(
+          appointments,
+          (appointment) => {
+            if (
+              appointment.date
+            ) {
+              const date =
+                new Date(
+                  `${appointment.date}T00:00:00`
+                );
+
+              return isNaN(
+                date.getTime()
+              )
+                ? null
+                : date;
+            }
+
+            return null;
+          },
+          selectedYear,
+          selectedMonth
+        ),
+      [
+        appointments,
+        selectedMonth,
+        selectedYear
+      ]
+    );
+
+  const years =
+    Array.from(
+      new Set(
+        [
+          ...requests.map(
+            (request) =>
+              getRequestDate(
+                request
+              )?.getFullYear()
+          ),
+          ...appointments.map(
+            (
+              appointment
+            ) => {
+              if (
+                !appointment.date
+              ) {
+                return null;
+              }
+
+              const date =
+                new Date(
+                  `${appointment.date}T00:00:00`
+                );
+
+              return isNaN(
+                date.getTime()
+              )
+                ? null
+                : date.getFullYear();
+            }
+          ),
+          current.getFullYear()
+        ].filter(Boolean)
+      )
+    ).sort(
+      (a, b) =>
+        b - a
+    );
 
   return (
     <div className="container page-container">
@@ -25,17 +292,24 @@ export default function EngineerDashboard() {
             ENGINEER PORTAL
           </span>
 
-          <h1>Engineer dashboard</h1>
+          <h1>
+            Engineer dashboard
+          </h1>
 
           <p>
-            Review client requests, appointments, reports,
+            Review client requests,
+            appointments, reports,
             and system activity.
           </p>
         </div>
 
         <button
           className="primary-btn"
-          onClick={() => navigate("/reports")}
+          onClick={() =>
+            navigate(
+              "/reports"
+            )
+          }
         >
           Generate Report
         </button>
@@ -43,143 +317,231 @@ export default function EngineerDashboard() {
 
       <div className="stats-grid engineer-stats">
         <div className="stat-card dashboard-stat total-stat">
-          <div className="dashboard-stat-icon">▣</div>
+          <div className="dashboard-stat-icon">
+            ▣
+          </div>
 
           <div>
-            <span>Total requests</span>
-            <strong>{requests.length}</strong>
+            <span>
+              Total requests
+            </span>
+
+            <strong>
+              {requests.length}
+            </strong>
           </div>
         </div>
 
         <div className="stat-card dashboard-stat pending-stat">
-          <div className="dashboard-stat-icon">◷</div>
+          <div className="dashboard-stat-icon">
+            ◷
+          </div>
 
           <div>
-            <span>Pending reviews</span>
-            <strong>{pending.length}</strong>
+            <span>
+              Pending reviews
+            </span>
+
+            <strong>
+              {pending.length}
+            </strong>
           </div>
         </div>
 
         <div className="stat-card dashboard-stat approved-stat">
-          <div className="dashboard-stat-icon">✓</div>
+          <div className="dashboard-stat-icon">
+            ✓
+          </div>
 
           <div>
-            <span>Approved</span>
-            <strong>{approved.length}</strong>
+            <span>
+              Approved
+            </span>
+
+            <strong>
+              {approved.length}
+            </strong>
           </div>
         </div>
 
         <div className="stat-card dashboard-stat appointment-stat">
-          <div className="dashboard-stat-icon">▦</div>
+          <div className="dashboard-stat-icon">
+            ▦
+          </div>
 
           <div>
-            <span>Appointments</span>
-            <strong>{appointments.length}</strong>
+            <span>
+              Appointments
+            </span>
+
+            <strong>
+              {
+                appointments.length
+              }
+            </strong>
           </div>
         </div>
       </div>
 
-      <div className="dashboard-grid engineer-dashboard-grid">
+      <div className="dashboard-diagram-controls">
+        <span>
+          Diagram period
+        </span>
+
+        <select
+          value={
+            selectedMonth
+          }
+          onChange={(
+            event
+          ) =>
+            setSelectedMonth(
+              Number(
+                event.target
+                  .value
+              )
+            )
+          }
+        >
+          {[
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December"
+          ].map(
+            (
+              month,
+              index
+            ) => (
+              <option
+                value={
+                  index
+                }
+                key={
+                  month
+                }
+              >
+                {month}
+              </option>
+            )
+          )}
+        </select>
+
+        <select
+          value={
+            selectedYear
+          }
+          onChange={(
+            event
+          ) =>
+            setSelectedYear(
+              Number(
+                event.target
+                  .value
+              )
+            )
+          }
+        >
+          {years.map(
+            (year) => (
+              <option
+                value={
+                  year
+                }
+                key={
+                  year
+                }
+              >
+                {year}
+              </option>
+            )
+          )}
+        </select>
+      </div>
+
+      <div className="dashboard-diagram-grid">
         <section className="card dashboard-panel review-queue-panel">
           <div className="section-title">
             <div>
-              <h3>Review queue</h3>
+              <h3>
+                Review Queue
+              </h3>
 
               <p>
-                Requests waiting for engineer action.
+                Requests by
+                association for
+                the selected
+                month.
               </p>
             </div>
 
             <span className="dashboard-panel-count">
-              {pending.length}
+              {
+                reviewData.reduce(
+                  (
+                    total,
+                    [, count]
+                  ) =>
+                    total +
+                    count,
+                  0
+                )
+              }
             </span>
           </div>
 
-          <div className="dashboard-activity-list">
-            {pending.slice(0, 6).map((request) => (
-              <div
-                className="activity-row compact-activity"
-                key={request.id}
-              >
-                <div>
-                  <strong>
-                    {request.association ||
-                      "Service Request"}
-                  </strong>
-
-                  <span>
-                    {request.referenceNumber ||
-                      request.id}
-                  </span>
-                </div>
-
-                <span
-                  className={`status ${String(
-                    request.status
-                  )
-                    .toLowerCase()
-                    .replaceAll(" ", "-")}`}
-                >
-                  {request.status}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {pending.length === 0 && (
-            <p className="muted dashboard-empty">
-              No requests are waiting for review.
-            </p>
-          )}
+          <AssociationDiagram
+            data={
+              reviewData
+            }
+            emptyText="No pending requests for this month."
+          />
         </section>
 
         <section className="card dashboard-panel appointments-panel">
           <div className="section-title">
             <div>
-              <h3>Upcoming appointments</h3>
+              <h3>
+                Upcoming Appointments
+              </h3>
 
               <p>
-                Recently scheduled validation appointments.
+                Appointments by
+                association for
+                the selected
+                month.
               </p>
             </div>
 
             <span className="dashboard-panel-count">
-              {appointments.length}
+              {
+                appointmentData.reduce(
+                  (
+                    total,
+                    [, count]
+                  ) =>
+                    total +
+                    count,
+                  0
+                )
+              }
             </span>
           </div>
 
-          <div className="dashboard-activity-list">
-            {appointments.slice(0, 6).map(
-              (appointment) => (
-                <div
-                  className="activity-row compact-activity"
-                  key={appointment.id}
-                >
-                  <div>
-                    <strong>
-                      {appointment.title ||
-                        "Appointment"}
-                    </strong>
-
-                    <span>
-                      {appointment.date} ·{" "}
-                      {appointment.time}
-                    </span>
-                  </div>
-
-                  <span className="tag">
-                    {appointment.status}
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-
-          {appointments.length === 0 && (
-            <p className="muted dashboard-empty">
-              No appointments scheduled.
-            </p>
-          )}
+          <AssociationDiagram
+            data={
+              appointmentData
+            }
+            emptyText="No appointments for this month."
+          />
         </section>
       </div>
     </div>

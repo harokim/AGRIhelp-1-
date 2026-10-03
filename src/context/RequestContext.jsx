@@ -18,6 +18,9 @@ import { useAuth } from "./AuthContext";
 
 const RequestContext = createContext(null);
 
+const MAX_DOCUMENT_SIZE =
+  5 * 1024 * 1024;
+
 function mapSnapshot(snapshot) {
   return {
     id: snapshot.id,
@@ -64,8 +67,14 @@ async function notifyClient(
 export function RequestProvider({ children }) {
   const { user } = useAuth();
 
-  const [requests, setRequests] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const [requests, setRequests] =
+    useState([]);
+
+  const [documents, setDocuments] =
+    useState([]);
+
+  const [reportDocuments, setReportDocuments] =
+    useState([]);
 
   useEffect(() => {
     if (
@@ -75,6 +84,7 @@ export function RequestProvider({ children }) {
     ) {
       setRequests([]);
       setDocuments([]);
+      setReportDocuments([]);
       return;
     }
 
@@ -153,9 +163,35 @@ export function RequestProvider({ children }) {
         }
       );
 
+    let unsubReportDocs =
+      () => {};
+
+    if (user.role === "engineer") {
+      unsubReportDocs =
+        onSnapshot(
+          collection(
+            db,
+            "reportDocuments"
+          ),
+          (snapshot) => {
+            setReportDocuments(
+              snapshot.docs.map(
+                mapSnapshot
+              )
+            );
+          },
+          () => {
+            setReportDocuments([]);
+          }
+        );
+    } else {
+      setReportDocuments([]);
+    }
+
     return () => {
       unsubRequests();
       unsubDocs();
+      unsubReportDocs();
     };
   }, [
     user?.id,
@@ -185,6 +221,17 @@ export function RequestProvider({ children }) {
       );
     }
 
+    const requestType =
+      String(
+        data?.requestType || ""
+      ).trim();
+
+    if (!requestType) {
+      throw new Error(
+        "A type of request is required."
+      );
+    }
+
     const referenceNumber =
       `REQ-${Date.now()
         .toString()
@@ -193,6 +240,7 @@ export function RequestProvider({ children }) {
     const requestData = {
       ...data,
       details,
+      requestType,
       referenceNumber,
       status: "Submitted",
       notes: "",
@@ -429,6 +477,39 @@ export function RequestProvider({ children }) {
       )
     );
 
+    const reportDocumentQuery =
+      query(
+        collection(
+          db,
+          "reportDocuments"
+        ),
+        where(
+          "requestId",
+          "==",
+          id
+        )
+      );
+
+    const reportDocumentSnapshot =
+      await getDocs(
+        reportDocumentQuery
+      );
+
+    await Promise.all(
+      reportDocumentSnapshot.docs.map(
+        (
+          reportDocumentSnapshot
+        ) =>
+          deleteDoc(
+            doc(
+              db,
+              "reportDocuments",
+              reportDocumentSnapshot.id
+            )
+          )
+      )
+    );
+
     await deleteDoc(
       doc(
         db,
@@ -438,15 +519,247 @@ export function RequestProvider({ children }) {
     );
   };
 
+  const addReportDocument =
+    async (data) => {
+      if (
+        !firebaseConfigured ||
+        !db
+      ) {
+        throw new Error(
+          "Firebase is not configured yet."
+        );
+      }
+
+      if (
+        user?.role !==
+        "engineer"
+      ) {
+        throw new Error(
+          "Only engineers can add report documents."
+        );
+      }
+
+      const requestId =
+        String(
+          data?.requestId || ""
+        ).trim();
+
+      if (!requestId) {
+        throw new Error(
+          "A request must be selected first."
+        );
+      }
+
+      const request =
+        requests.find(
+          (item) =>
+            item.id ===
+            requestId
+        );
+
+      if (!request) {
+        throw new Error(
+          "The selected request could not be found."
+        );
+      }
+
+      if (
+        request.status !==
+        "Approved"
+      ) {
+        throw new Error(
+          "Report documents can only be added to approved requests."
+        );
+      }
+
+      const fileName =
+        String(
+          data?.fileName || ""
+        ).trim();
+
+      if (!fileName) {
+        throw new Error(
+          "A file name is required."
+        );
+      }
+
+      const fileData =
+        String(
+          data?.data || ""
+        );
+
+      if (!fileData) {
+        throw new Error(
+          "The selected file does not contain readable data."
+        );
+      }
+
+      const fileSize =
+        Number(
+          data?.fileSize || 0
+        );
+
+      if (
+        fileSize <= 0
+      ) {
+        throw new Error(
+          "The selected file has an invalid size."
+        );
+      }
+
+      if (
+        fileSize >
+        MAX_DOCUMENT_SIZE
+      ) {
+        throw new Error(
+          "The selected file is larger than the 5 MB limit."
+        );
+      }
+
+      const contentType =
+        String(
+          data?.contentType ||
+            ""
+        ).trim();
+
+      const validTypes = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+      ];
+
+      const validExtension =
+        /\.(pdf|png|jpe?g)$/i.test(
+          fileName
+        );
+
+      if (
+        !validTypes.includes(
+          contentType
+        ) &&
+        !validExtension
+      ) {
+        throw new Error(
+          "Only PDF, PNG, and JPG files can be added."
+        );
+      }
+
+      const reportDocument =
+        {
+          requestId,
+          engineerId:
+            user.id,
+          fileName,
+          contentType:
+            contentType ||
+            (
+              fileName
+                .toLowerCase()
+                .endsWith(".pdf")
+                ? "application/pdf"
+                : fileName
+                    .toLowerCase()
+                    .endsWith(".png")
+                ? "image/png"
+                : "image/jpeg"
+            ),
+          fileSize,
+          data: fileData,
+          uploadedBy:
+            user.id,
+          uploadedByName:
+            user.name ||
+            user.displayName ||
+            "Engineer",
+          createdAt:
+            serverTimestamp(),
+        };
+
+      const reportDocumentRef =
+        await addDoc(
+          collection(
+            db,
+            "reportDocuments"
+          ),
+          reportDocument
+        );
+
+      return {
+        id:
+          reportDocumentRef.id,
+        ...reportDocument,
+      };
+    };
+
+  const deleteReportDocument =
+    async (id) => {
+      if (
+        !firebaseConfigured ||
+        !db
+      ) {
+        throw new Error(
+          "Firebase is not configured yet."
+        );
+      }
+
+      if (
+        user?.role !==
+        "engineer"
+      ) {
+        throw new Error(
+          "Only engineers can remove report documents."
+        );
+      }
+
+      if (!id) {
+        throw new Error(
+          "The report document could not be identified."
+        );
+      }
+
+      const reportDocument =
+        reportDocuments.find(
+          (item) =>
+            item.id === id
+        );
+
+      if (!reportDocument) {
+        throw new Error(
+          "The report document could not be found."
+        );
+      }
+
+      if (
+        reportDocument.uploadedBy &&
+        reportDocument.uploadedBy !==
+          user.id
+      ) {
+        throw new Error(
+          "You can only remove report documents that you uploaded."
+        );
+      }
+
+      await deleteDoc(
+        doc(
+          db,
+          "reportDocuments",
+          id
+        )
+      );
+    };
+
   return (
     <RequestContext.Provider
       value={{
         requests,
         documents,
+        reportDocuments,
         createRequest,
         decide,
         updateRequest,
         deleteRequest,
+        addReportDocument,
+        deleteReportDocument,
       }}
     >
       {children}

@@ -3,73 +3,151 @@ import { useNavigate } from "react-router-dom";
 import { useRequests } from "../context/RequestContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { useAuth } from "../context/AuthContext";
-import { avatarUrl, formatDate, initials } from "../utils";
+import {
+  avatarUrl,
+  formatDate,
+  initials
+} from "../utils";
 
 export default function ClientDashboard() {
   const { user } = useAuth();
-  const { requests } = useRequests();
-  const { appointments } = useAppointments();
+  const { requests } =
+    useRequests();
 
-  const navigate = useNavigate();
+  const { appointments } =
+    useAppointments();
 
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
+  const navigate =
+    useNavigate();
 
-  const [monthFilter, setMonthFilter] = useState("All");
-  const [yearFilter, setYearFilter] = useState("All");
+  const currentDate =
+    new Date();
 
-  const mine = requests.filter(
-    (request) =>
-      request.clientId === user.id
-  );
+  const currentYear =
+    currentDate.getFullYear();
 
-  const upcoming = appointments.filter(
-    (appointment) =>
-      appointment.clientId === user.id
-  );
+  const [
+    monthFilter,
+    setMonthFilter
+  ] = useState("All");
+
+  const [
+    yearFilter,
+    setYearFilter
+  ] = useState("All");
+
+  const mine =
+    requests.filter(
+      (request) =>
+        request.clientId ===
+        user.id
+    );
+
+  const upcoming =
+    appointments.filter(
+      (appointment) =>
+        appointment.clientId ===
+        user.id &&
+        appointment.status !==
+          "Cancelled"
+    );
 
   const years = useMemo(() => {
     const values = mine
       .map((request) => {
-        const date = request.createdAt?.toDate
-          ? request.createdAt.toDate()
-          : new Date(request.createdAt);
+        const date =
+          request.createdAt?.toDate
+            ? request.createdAt.toDate()
+            : new Date(
+                request.createdAt
+              );
 
         return date.getFullYear();
       })
-      .filter((year) => !isNaN(year));
+      .filter(
+        (year) =>
+          !isNaN(year)
+      );
 
-    return [...new Set(values)].sort(
+    return [
+      ...new Set(values)
+    ].sort(
       (a, b) => b - a
     );
   }, [mine]);
 
-  const list = useMemo(() => {
-    return mine.filter((request) => {
-      if (!request.createdAt) {
-        return monthFilter === "All" &&
-          yearFilter === "All";
-      }
+  const list = useMemo(
+    () => {
+      return mine
+        .filter((request) => {
+          if (
+            !request.createdAt
+          ) {
+            return (
+              monthFilter ===
+                "All" &&
+              yearFilter ===
+                "All"
+            );
+          }
 
-      const date = request.createdAt?.toDate
-        ? request.createdAt.toDate()
-        : new Date(request.createdAt);
+          const date =
+            request.createdAt?.toDate
+              ? request.createdAt.toDate()
+              : new Date(
+                  request.createdAt
+                );
 
-      if (isNaN(date.getTime())) {
-        return false;
-      }
+          if (
+            isNaN(
+              date.getTime()
+            )
+          ) {
+            return false;
+          }
 
-      const monthMatches =
-        monthFilter === "All" ||
-        date.getMonth() === Number(monthFilter);
+          const monthMatches =
+            monthFilter ===
+              "All" ||
+            date.getMonth() ===
+              Number(
+                monthFilter
+              );
 
-      const yearMatches =
-        yearFilter === "All" ||
-        date.getFullYear() === Number(yearFilter);
+          const yearMatches =
+            yearFilter ===
+              "All" ||
+            date.getFullYear() ===
+              Number(
+                yearFilter
+              );
 
-      return monthMatches && yearMatches;
-    });
-  }, [mine, monthFilter, yearFilter]);
+          return (
+            monthMatches &&
+            yearMatches
+          );
+        })
+        .sort((a, b) =>
+          String(
+            a.association || ""
+          ).localeCompare(
+            String(
+              b.association || ""
+            ),
+            undefined,
+            {
+              sensitivity:
+                "base"
+            }
+          )
+        );
+    },
+    [
+      mine,
+      monthFilter,
+      yearFilter
+    ]
+  );
 
   return (
     <div className="container page-container">
@@ -84,7 +162,8 @@ export default function ClientDashboard() {
               Welcome,{" "}
               {user.name?.split(
                 " "
-              )[0] || "Client"}
+              )[0] ||
+                "Client"}
             </h1>
 
             <p>
@@ -97,13 +176,19 @@ export default function ClientDashboard() {
             type="button"
             className="dashboard-profile"
             onClick={() =>
-              navigate("/profile")
+              navigate(
+                "/profile"
+              )
             }
           >
             <span className="dashboard-profile-avatar">
-              {avatarUrl(user) ? (
+              {avatarUrl(
+                user
+              ) ? (
                 <img
-                  src={avatarUrl(user)}
+                  src={avatarUrl(
+                    user
+                  )}
                   alt={
                     user.name ||
                     "Profile"
@@ -157,7 +242,7 @@ export default function ClientDashboard() {
                 (request) =>
                   [
                     "Submitted",
-                    "Under Review",
+                    "Under Review"
                   ].includes(
                     request.status
                   )
@@ -202,7 +287,9 @@ export default function ClientDashboard() {
               </h3>
 
               <p>
-                Filter your submitted requests by month and year.
+                Filter your submitted
+                requests by month and
+                year.
               </p>
             </div>
           </div>
@@ -210,60 +297,65 @@ export default function ClientDashboard() {
           <div className="client-request-filters">
             <select
               className="report-filter"
-              value={monthFilter}
-              onChange={(event) =>
+              value={
+                monthFilter
+              }
+              onChange={(
+                event
+              ) =>
                 setMonthFilter(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
             >
               <option value="All">
                 All months
               </option>
-              <option value="0">
-                January
-              </option>
-              <option value="1">
-                February
-              </option>
-              <option value="2">
-                March
-              </option>
-              <option value="3">
-                April
-              </option>
-              <option value="4">
-                May
-              </option>
-              <option value="5">
-                June
-              </option>
-              <option value="6">
-                July
-              </option>
-              <option value="7">
-                August
-              </option>
-              <option value="8">
-                September
-              </option>
-              <option value="9">
-                October
-              </option>
-              <option value="10">
-                November
-              </option>
-              <option value="11">
-                December
-              </option>
+
+              {[
+                "January",
+                "February",
+                "March",
+                "April",
+                "May",
+                "June",
+                "July",
+                "August",
+                "September",
+                "October",
+                "November",
+                "December"
+              ].map(
+                (
+                  month,
+                  index
+                ) => (
+                  <option
+                    key={
+                      month
+                    }
+                    value={
+                      index
+                    }
+                  >
+                    {month}
+                  </option>
+                )
+              )}
             </select>
 
             <select
               className="report-filter"
-              value={yearFilter}
-              onChange={(event) =>
+              value={
+                yearFilter
+              }
+              onChange={(
+                event
+              ) =>
                 setYearFilter(
-                  event.target.value
+                  event.target
+                    .value
                 )
               }
             >
@@ -271,67 +363,97 @@ export default function ClientDashboard() {
                 All years
               </option>
 
-              {years.length > 0
-                ? years.map((year) => (
+              {years.length >
+              0 ? (
+                years.map(
+                  (
+                    year
+                  ) => (
                     <option
-                      key={year}
-                      value={year}
+                      key={
+                        year
+                      }
+                      value={
+                        year
+                      }
                     >
                       {year}
                     </option>
-                  ))
-                : (
-                  <option
-                    value={currentYear}
-                  >
-                    {currentYear}
-                  </option>
-                )}
+                  )
+                )
+              ) : (
+                <option
+                  value={
+                    currentYear
+                  }
+                >
+                  {
+                    currentYear
+                  }
+                </option>
+              )}
             </select>
           </div>
 
           {list
-            .slice(0, 7)
-            .map((request) => (
-              <div
-                className="activity-row"
-                key={request.id}
-              >
-                <div>
-                  <strong>
-                    {
-                      request.association
-                    }
-                  </strong>
+            .slice(
+              0,
+              7
+            )
+            .map(
+              (
+                request
+              ) => (
+                <div
+                  className="activity-row"
+                  key={
+                    request.id
+                  }
+                >
+                  <div>
+                    <strong>
+                      {
+                        request.association
+                      }
+                    </strong>
 
-                  <span>
-                    {request.referenceNumber ||
-                      request.id}{" "}
-                    ·{" "}
-                    {formatDate(
-                      request.createdAt
-                    )}
+                    <span>
+                      {request.referenceNumber ||
+                        request.id}{" "}
+                      ·{" "}
+                      {request.typeOfRequest ||
+                        "Request"}{" "}
+                      ·{" "}
+                      {formatDate(
+                        request.createdAt
+                      )}
+                    </span>
+                  </div>
+
+                  <span
+                    className={`status ${String(
+                      request.status
+                    )
+                      .toLowerCase()
+                      .replaceAll(
+                        " ",
+                        "-"
+                      )}`}
+                  >
+                    {
+                      request.status
+                    }
                   </span>
                 </div>
+              )
+            )}
 
-                <span
-                  className={`status ${String(
-                    request.status
-                  )
-                    .toLowerCase()
-                    .replaceAll(
-                      " ",
-                      "-"
-                    )}`}
-                >
-                  {request.status}
-                </span>
-              </div>
-            ))}
-
-          {list.length === 0 && (
+          {list.length ===
+            0 && (
             <p className="muted">
-              No requests found for the selected month and year.
+              No requests found
+              for the selected
+              month and year.
             </p>
           )}
         </section>
@@ -344,7 +466,9 @@ export default function ClientDashboard() {
               </h3>
 
               <p>
-                View and manage your scheduled appointments.
+                View your scheduled
+                appointments on the
+                calendar.
               </p>
             </div>
 
@@ -352,40 +476,47 @@ export default function ClientDashboard() {
               type="button"
               className="secondary-btn"
               onClick={() =>
-                navigate("/appointments")
+                navigate(
+                  "/calendar"
+                )
               }
             >
               View Appointments
             </button>
           </div>
 
-          {upcoming.length === 0 ? (
+          {upcoming.length ===
+          0 ? (
             <div className="empty-state">
-              You currently have no upcoming appointments.
+              You currently
+              have no upcoming
+              appointments.
             </div>
           ) : (
-            <div className="activity-list">
-              {upcoming
-                .slice(0, 5)
-                .map((appointment) => (
-                  <div
-                    className="activity-row"
-                    key={appointment.id}
-                  >
-                    <div>
-                      <strong>
-                        {appointment.title ||
-                          "Validation Appointment"}
-                      </strong>
+            <div className="appointment-dashboard-preview">
+              <strong>
+                You have{" "}
+                {upcoming.length}{" "}
+                scheduled
+                appointment
+                {upcoming.length !==
+                1
+                  ? "s"
+                  : ""}
+                .
+              </strong>
 
-                      <span>
-                        {appointment.date ||
-                          appointment.appointmentDate ||
-                          "Scheduled appointment"}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+              <span>
+                Click{" "}
+                <b>
+                  View
+                  Appointments
+                </b>{" "}
+                to open the
+                calendar and
+                view the details
+                for each date.
+              </span>
             </div>
           )}
         </section>

@@ -33,7 +33,8 @@ export default function CalendarGrid({
       Array.from(
         {
           length:
-            firstDay + daysInMonth
+            firstDay +
+            daysInMonth
         },
         (_, index) =>
           index < firstDay
@@ -42,11 +43,17 @@ export default function CalendarGrid({
               firstDay +
               1
       ),
-    [firstDay, daysInMonth]
+    [
+      firstDay,
+      daysInMonth
+    ]
   );
 
   const pad = (number) =>
-    String(number).padStart(2, "0");
+    String(number).padStart(
+      2,
+      "0"
+    );
 
   const previousMonth = () => {
     setMonth(
@@ -74,7 +81,9 @@ export default function CalendarGrid({
         <button
           type="button"
           className="secondary-btn calendar-nav-btn"
-          onClick={previousMonth}
+          onClick={
+            previousMonth
+          }
           aria-label="Previous month"
         >
           ‹
@@ -93,7 +102,9 @@ export default function CalendarGrid({
         <button
           type="button"
           className="secondary-btn calendar-nav-btn"
-          onClick={nextMonth}
+          onClick={
+            nextMonth
+          }
           aria-label="Next month"
         >
           ›
@@ -136,7 +147,7 @@ export default function CalendarGrid({
               appointments.filter(
                 (appointment) =>
                   appointment.date ===
-                  date &&
+                    date &&
                   appointment.status !==
                     "Cancelled"
               );
@@ -150,7 +161,8 @@ export default function CalendarGrid({
               date < todayISO();
 
             const selected =
-              selectedDate === date;
+              selectedDate ===
+              date;
 
             const classes = [
               "calendar-day",
@@ -173,15 +185,15 @@ export default function CalendarGrid({
 
             const handleDateClick =
               () => {
-                if (engineer) {
-                  if (
-                    dayAppointments.length >
-                    0
-                  ) {
-                    onSelect?.(date);
-                    return;
-                  }
+                if (
+                  dayAppointments.length >
+                  0
+                ) {
+                  onSelect?.(date);
+                  return;
+                }
 
+                if (engineer) {
                   onToggleBlocked?.(
                     date
                   );
@@ -208,18 +220,20 @@ export default function CalendarGrid({
                   (unavailable ||
                     past)
                 }
-                className={classes}
+                className={
+                  classes
+                }
                 onClick={
                   handleDateClick
                 }
                 title={
-                  unavailable
+                  dayAppointments.length >
+                  0
+                    ? "View appointments"
+                    : unavailable
                     ? "Unavailable date"
                     : past
                     ? "Past date"
-                    : dayAppointments.length >
-                      0
-                    ? "Appointments scheduled"
                     : "Available date"
                 }
               >
@@ -235,91 +249,10 @@ export default function CalendarGrid({
                   )}
                 </div>
 
-                {dayAppointments
-                  .slice(0, 2)
-                  .map(
-                    (
-                      appointment
-                    ) => (
-                      <span
-                        key={
-                          appointment.id
-                        }
-                        className={
-                          engineer
-                            ? "calendar-appointment calendar-appointment-clickable"
-                            : "calendar-appointment"
-                        }
-                        onClick={
-                          engineer
-                            ? (
-                                event
-                              ) => {
-                                event.stopPropagation();
-                                onAppointmentSelect?.(
-                                  appointment
-                                );
-                              }
-                            : undefined
-                        }
-                        role={
-                          engineer
-                            ? "button"
-                            : undefined
-                        }
-                        tabIndex={
-                          engineer
-                            ? 0
-                            : undefined
-                        }
-                        onKeyDown={
-                          engineer
-                            ? (
-                                event
-                              ) => {
-                                if (
-                                  event.key ===
-                                    "Enter" ||
-                                  event.key ===
-                                    " "
-                                ) {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  onAppointmentSelect?.(
-                                    appointment
-                                  );
-                                }
-                              }
-                            : undefined
-                        }
-                        title={
-                          engineer
-                            ? "Click to reschedule this appointment"
-                            : undefined
-                        }
-                      >
-                        <span>
-                          {
-                            appointment.time
-                          }
-                        </span>
-
-                        <span>
-                          {
-                            appointment.title
-                          }
-                        </span>
-                      </span>
-                    )
-                  )}
-
                 {dayAppointments.length >
-                  2 && (
-                  <small className="calendar-more">
-                    +
-                    {dayAppointments.length -
-                      2}{" "}
-                    more
+                  0 && (
+                  <small className="calendar-appointment-summary">
+                    You have an appointment
                   </small>
                 )}
               </button>
@@ -330,8 +263,8 @@ export default function CalendarGrid({
 
       <p className="calendar-help">
         {engineer
-          ? "Click an empty date to mark it unavailable or available. Click an appointment to reschedule it."
-          : "Red dates are unavailable and cannot be selected."}
+          ? "Click a date with an appointment to view its details. Click another date to manage availability."
+          : "Dates with appointments show 'You have an appointment'. Click the date to view the appointment details."}
       </p>
     </div>
   );
