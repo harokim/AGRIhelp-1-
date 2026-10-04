@@ -112,12 +112,46 @@ export default function Requests() {
     if (!selected.length) return;
 
     const invalid = selected.find(
-      (file) => file.size > MAX_FILE_SIZE
-    );
+  (file) =>
+    file.size <= 0 ||
+    file.size > MAX_FILE_SIZE
+);
+
+if (invalid) {
+  alert(
+    invalid.size > MAX_FILE_SIZE
+      ? `"${invalid.name}" is larger than the allowed 5 MB file size.`
+      : `"${invalid.name}" is empty.`
+  );
+
+  event.target.value = "";
+  return;
+}
+
+const unsupported = selected.find(
+  (file) =>
+    ![
+      "application/pdf",
+      "image/jpeg",
+      "image/png"
+    ].includes(file.type) &&
+    !/\.(pdf|jpe?g|png)$/i.test(
+      file.name
+    )
+);
+
+if (unsupported) {
+  alert(
+    `"${unsupported.name}" is not supported. Only PDF, JPG, and PNG files are allowed.`
+  );
+
+  event.target.value = "";
+  return;
+}
 
     if (invalid) {
       alert(
-        `"${invalid.name}" is larger than the allowed 5 MB file size.`
+        `"${invalid.name}" is larger than the allowed 5 file size.`
       );
 
       event.target.value = "";
@@ -259,10 +293,11 @@ export default function Requests() {
       alert(
         "Request submitted successfully."
       );
-    } catch (error) {
+    }  catch (error) {
       alert(
-        error?.message ||
-          "The request could not be submitted."
+        error?.userMessage ||
+          error?.message ||
+          "The request could not be submitted. Please check your information and try again."
       );
     }
   };

@@ -1,4 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState
+} from "react";
 import {
   addDoc,
   collection,
@@ -10,22 +15,59 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where,
+  where
 } from "firebase/firestore";
-import { db, firebaseConfigured } from "../firebase";
-import { sendSemaphoreSMS } from "../services/semaphoreService";
+import {
+  db,
+  firebaseConfigured
+} from "../firebase";
+import {
+  sendSemaphoreSMS
+} from "../services/semaphoreService";
+import {
+  loadDocumentData
+} from "../services/documentService";
 import { useAuth } from "./AuthContext";
 
-const RequestContext = createContext(null);
+const RequestContext =
+  createContext(null);
 
 const MAX_DOCUMENT_SIZE =
   5 * 1024 * 1024;
 
+const ALLOWED_TYPES = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg"
+];
+
+const ALLOWED_EXTENSIONS =
+  /\.(pdf|png|jpe?g)$/i;
+
 function mapSnapshot(snapshot) {
   return {
     id: snapshot.id,
-    ...snapshot.data(),
+    ...snapshot.data()
   };
+}
+
+function localDateISO() {
+  const date = new Date();
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 async function notifyClient(
@@ -34,47 +76,73 @@ async function notifyClient(
   message,
   requestId
 ) {
+  if (!clientId) {
+    return;
+  }
+
   await addDoc(
-    collection(db, "notifications"),
+    collection(
+      db,
+      "notifications"
+    ),
     {
       userId: clientId,
       title,
       message,
       requestId,
       read: false,
-      createdAt: serverTimestamp(),
+      createdAt:
+        serverTimestamp()
     }
   );
 
-  const client = await getDoc(
-    doc(db, "users", clientId)
-  );
+  try {
+    const client =
+      await getDoc(
+        doc(
+          db,
+          "users",
+          clientId
+        )
+      );
 
-  const phoneNumber = client.exists()
-    ? client.data().contactNumber
-    : "";
+    const phoneNumber =
+      client.exists()
+        ? client.data()
+            .contactNumber
+        : "";
 
-  if (phoneNumber) {
-    try {
-      await sendSemaphoreSMS({
-        phoneNumber,
-        message: `AGRIhelp: ${message}`,
-      });
-    } catch {}
-  }
+    if (phoneNumber) {
+      try {
+        await sendSemaphoreSMS({
+          phoneNumber,
+          message: `AGRIhelp: ${message}`
+        });
+      } catch {}
+    }
+  } catch {}
 }
 
-export function RequestProvider({ children }) {
-  const { user } = useAuth();
+export function RequestProvider({
+  children
+}) {
+  const { user } =
+    useAuth();
 
-  const [requests, setRequests] =
-    useState([]);
+  const [
+    requests,
+    setRequests
+  ] = useState([]);
 
-  const [documents, setDocuments] =
-    useState([]);
+  const [
+    documents,
+    setDocuments
+  ] = useState([]);
 
-  const [reportDocuments, setReportDocuments] =
-    useState([]);
+  const [
+    reportDocuments,
+    setReportDocuments
+  ] = useState([]);
 
   useEffect(() => {
     if (
@@ -89,7 +157,10 @@ export function RequestProvider({ children }) {
     }
 
     const requestsRef =
-      collection(db, "requests");
+      collection(
+        db,
+        "requests"
+      );
 
     const requestQuery =
       user.role === "engineer"
@@ -103,27 +174,29 @@ export function RequestProvider({ children }) {
             )
           );
 
-    const unsubRequests =
+    const unsubscribeRequests =
       onSnapshot(
         requestQuery,
         (snapshot) => {
-          setRequests(
+          const next =
             snapshot.docs
               .map(mapSnapshot)
-              .sort((a, b) =>
-                String(
-                  b.createdAtTimestamp ||
-                    b.createdAt ||
-                    ""
-                ).localeCompare(
+              .sort(
+                (a, b) =>
                   String(
-                    a.createdAtTimestamp ||
-                      a.createdAt ||
+                    b.createdAtTimestamp ||
+                      b.createdAt ||
                       ""
+                  ).localeCompare(
+                    String(
+                      a.createdAtTimestamp ||
+                        a.createdAt ||
+                        ""
+                    )
                   )
-                )
-              )
-          );
+              );
+
+          setRequests(next);
         },
         () => {
           setRequests([]);
@@ -148,14 +221,40 @@ export function RequestProvider({ children }) {
             )
           );
 
-    const unsubDocs =
+    const unsubscribeDocuments =
       onSnapshot(
         documentQuery,
-        (snapshot) => {
-          setDocuments(
+        async (snapshot) => {
+          const next =
             snapshot.docs.map(
               mapSnapshot
-            )
+            );
+
+          const withData =
+            await Promise.all(
+              next.map(
+                async (
+                  document
+                ) => {
+                  try {
+                    const data =
+                      await loadDocumentData(
+                        document
+                      );
+
+                    return {
+                      ...document,
+                      data
+                    };
+                  } catch {
+                    return document;
+                  }
+                }
+              )
+            );
+
+          setDocuments(
+            withData
           );
         },
         () => {
@@ -163,11 +262,13 @@ export function RequestProvider({ children }) {
         }
       );
 
-    let unsubReportDocs =
+    let unsubscribeReportDocuments =
       () => {};
 
-    if (user.role === "engineer") {
-      unsubReportDocs =
+    if (
+      user.role === "engineer"
+    ) {
+      unsubscribeReportDocuments =
         onSnapshot(
           collection(
             db,
@@ -184,90 +285,98 @@ export function RequestProvider({ children }) {
             setReportDocuments([]);
           }
         );
-    } else {
-      setReportDocuments([]);
     }
 
     return () => {
-      unsubRequests();
-      unsubDocs();
-      unsubReportDocs();
+      unsubscribeRequests();
+      unsubscribeDocuments();
+      unsubscribeReportDocuments();
     };
   }, [
     user?.id,
-    user?.role,
+    user?.role
   ]);
 
-  const createRequest = async (
-    data
-  ) => {
-    if (
-      !firebaseConfigured ||
-      !db
-    ) {
-      throw new Error(
-        "Firebase is not configured yet."
-      );
-    }
+  const createRequest =
+    async (data) => {
+      if (
+        !firebaseConfigured ||
+        !db
+      ) {
+        throw new Error(
+          "Firebase is not configured yet."
+        );
+      }
 
-    const details =
-      String(
-        data?.details || ""
-      ).trim();
+      const details =
+        String(
+          data?.details || ""
+        ).trim();
 
-    if (!details) {
-      throw new Error(
-        "A request description is required."
-      );
-    }
+      const requestType =
+        String(
+          data?.requestType ||
+            ""
+        ).trim();
 
-    const requestType =
-      String(
-        data?.requestType || ""
-      ).trim();
+      if (!details) {
+        throw new Error(
+          "A request description is required."
+        );
+      }
 
-    if (!requestType) {
-      throw new Error(
-        "A type of request is required."
-      );
-    }
+      if (!requestType) {
+        throw new Error(
+          "A request type is required."
+        );
+      }
 
-    const referenceNumber =
-      `REQ-${Date.now()
-        .toString()
-        .slice(-8)}`;
+      if (!data?.clientId) {
+        throw new Error(
+          "The client account could not be identified."
+        );
+      }
 
-    const requestData = {
-      ...data,
-      details,
-      requestType,
-      referenceNumber,
-      status: "Submitted",
-      notes: "",
-      createdAt:
-        new Date()
-          .toISOString()
-          .slice(0, 10),
-      createdAtTimestamp:
-        serverTimestamp(),
-      updatedAt:
-        serverTimestamp(),
+      if (!data?.association) {
+        throw new Error(
+          "Your account does not have an assigned association."
+        );
+      }
+
+      const referenceNumber =
+        `REQ-${Date.now()
+          .toString()
+          .slice(-8)}`;
+
+      const requestData = {
+        ...data,
+        details,
+        requestType,
+        referenceNumber,
+        status: "Submitted",
+        notes: "",
+        createdAt:
+          localDateISO(),
+        createdAtTimestamp:
+          serverTimestamp(),
+        updatedAt:
+          serverTimestamp()
+      };
+
+      const requestRef =
+        await addDoc(
+          collection(
+            db,
+            "requests"
+          ),
+          requestData
+        );
+
+      return {
+        id: requestRef.id,
+        ...requestData
+      };
     };
-
-    const requestRef =
-      await addDoc(
-        collection(
-          db,
-          "requests"
-        ),
-        requestData
-      );
-
-    return {
-      id: requestRef.id,
-      ...requestData,
-    };
-  };
 
   const decide = async (
     id,
@@ -284,7 +393,7 @@ export function RequestProvider({ children }) {
       !current ||
       ![
         "Submitted",
-        "Under Review",
+        "Under Review"
       ].includes(
         current.status
       )
@@ -295,8 +404,7 @@ export function RequestProvider({ children }) {
     const requestDocuments =
       documents.filter(
         (document) =>
-          document.requestId ===
-          id
+          document.requestId === id
       );
 
     const hasDetails =
@@ -334,7 +442,7 @@ export function RequestProvider({ children }) {
           notes:
             rejectionNote,
           updatedAt:
-            serverTimestamp(),
+            serverTimestamp()
         }
       );
 
@@ -348,6 +456,29 @@ export function RequestProvider({ children }) {
       return;
     }
 
+    const cleanNote =
+      String(
+        note || ""
+      ).trim();
+
+    if (
+      status ===
+        "Documents Pending" &&
+      !cleanNote
+    ) {
+      throw new Error(
+        "Please explain which documents or corrections are needed."
+      );
+    }
+
+    const notes =
+      status ===
+      "Documents Pending" ||
+      status === "Rejected"
+        ? cleanNote
+        : current.notes ||
+          "";
+
     await updateDoc(
       doc(
         db,
@@ -356,168 +487,197 @@ export function RequestProvider({ children }) {
       ),
       {
         status,
-        notes:
-          status ===
-          "Documents Pending"
-            ? note
-            : current.notes ||
-              "",
+        notes,
         updatedAt:
-          serverTimestamp(),
+          serverTimestamp()
       }
     );
 
-    const label =
+    let message;
+
+    if (
       status ===
       "Documents Pending"
-        ? `Additional documents are needed. ${note}`
-        : `Your request ${
-            current.referenceNumber ||
-            id
-          } is now ${status}.`;
+    ) {
+      message =
+        `Additional documents or corrections are needed: ${cleanNote}`;
+    } else if (
+      status === "Rejected"
+    ) {
+      message =
+        `Your request was rejected. Reason: ${cleanNote}`;
+    } else {
+      message =
+        `Your request ${
+          current.referenceNumber ||
+          id
+        } is now ${status}.`;
+    }
 
     await notifyClient(
       current.clientId,
       `Request ${status}`,
-      label,
+      message,
       id
     );
   };
 
-  const updateRequest = async (
-    id,
-    patch
-  ) => {
-    if (
-      !firebaseConfigured ||
-      !db
-    ) {
-      throw new Error(
-        "Firebase is not configured yet."
-      );
-    }
-
-    await updateDoc(
-      doc(
-        db,
-        "requests",
-        id
-      ),
-      {
-        ...patch,
-        updatedAt:
-          serverTimestamp(),
+  const updateRequest =
+    async (
+      id,
+      patch
+    ) => {
+      if (
+        !firebaseConfigured ||
+        !db
+      ) {
+        throw new Error(
+          "Firebase is not configured yet."
+        );
       }
-    );
-  };
 
-  const deleteRequest = async (
-    id
-  ) => {
-    if (
-      !firebaseConfigured ||
-      !db
-    ) {
-      throw new Error(
-        "Firebase is not configured yet."
-      );
-    }
-
-    const request =
-      requests.find(
-        (item) =>
-          item.id === id
-      );
-
-    if (!request) {
-      throw new Error(
-        "The request could not be found."
-      );
-    }
-
-    if (
-      user?.role !==
-        "engineer" &&
-      request.clientId !==
-        user?.id
-    ) {
-      throw new Error(
-        "You are not allowed to delete this request."
-      );
-    }
-
-    const documentQuery =
-      query(
-        collection(
+      await updateDoc(
+        doc(
           db,
-          "documents"
-        ),
-        where(
-          "requestId",
-          "==",
+          "requests",
           id
+        ),
+        {
+          ...patch,
+          updatedAt:
+            serverTimestamp()
+        }
+      );
+    };
+
+  const deleteRequest =
+    async (id) => {
+      if (
+        !firebaseConfigured ||
+        !db
+      ) {
+        throw new Error(
+          "Firebase is not configured yet."
+        );
+      }
+
+      const request =
+        requests.find(
+          (item) =>
+            item.id === id
+        );
+
+      if (!request) {
+        throw new Error(
+          "The request could not be found."
+        );
+      }
+
+      if (
+        user?.role !==
+          "engineer" &&
+        request.clientId !==
+          user?.id
+      ) {
+        throw new Error(
+          "You are not allowed to delete this request."
+        );
+      }
+
+      const documentSnapshot =
+        await getDocs(
+          query(
+            collection(
+              db,
+              "documents"
+            ),
+            where(
+              "requestId",
+              "==",
+              id
+            )
+          )
+        );
+
+      await Promise.all(
+        documentSnapshot.docs.map(
+          async (
+            documentSnapshot
+          ) => {
+            const chunkSnapshot =
+              await getDocs(
+                collection(
+                  db,
+                  "documents",
+                  documentSnapshot.id,
+                  "chunks"
+                )
+              );
+
+            await Promise.all(
+              chunkSnapshot.docs.map(
+                (chunk) =>
+                  deleteDoc(
+                    doc(
+                      db,
+                      "documents",
+                      documentSnapshot.id,
+                      "chunks",
+                      chunk.id
+                    )
+                  )
+              )
+            );
+
+            await deleteDoc(
+              doc(
+                db,
+                "documents",
+                documentSnapshot.id
+              )
+            );
+          }
         )
       );
 
-    const documentSnapshot =
-      await getDocs(
-        documentQuery
-      );
-
-    await Promise.all(
-      documentSnapshot.docs.map(
-        (documentSnapshot) =>
-          deleteDoc(
-            doc(
+      const reportSnapshot =
+        await getDocs(
+          query(
+            collection(
               db,
-              "documents",
-              documentSnapshot.id
+              "reportDocuments"
+            ),
+            where(
+              "requestId",
+              "==",
+              id
             )
           )
-      )
-    );
+        );
 
-    const reportDocumentQuery =
-      query(
-        collection(
-          db,
-          "reportDocuments"
-        ),
-        where(
-          "requestId",
-          "==",
-          id
+      await Promise.all(
+        reportSnapshot.docs.map(
+          (
+            snapshot
+          ) =>
+            deleteDoc(
+              doc(
+                db,
+                "reportDocuments",
+                snapshot.id
+              )
+            )
         )
       );
 
-    const reportDocumentSnapshot =
-      await getDocs(
-        reportDocumentQuery
+      await deleteDoc(
+        doc(
+          db,
+          "requests",
+          id
+        )
       );
-
-    await Promise.all(
-      reportDocumentSnapshot.docs.map(
-        (
-          reportDocumentSnapshot
-        ) =>
-          deleteDoc(
-            doc(
-              db,
-              "reportDocuments",
-              reportDocumentSnapshot.id
-            )
-          )
-      )
-    );
-
-    await deleteDoc(
-      doc(
-        db,
-        "requests",
-        id
-      )
-    );
-  };
+    };
 
   const addReportDocument =
     async (data) => {
@@ -553,8 +713,7 @@ export function RequestProvider({ children }) {
       const request =
         requests.find(
           (item) =>
-            item.id ===
-            requestId
+            item.id === requestId
         );
 
       if (!request) {
@@ -577,44 +736,15 @@ export function RequestProvider({ children }) {
           data?.fileName || ""
         ).trim();
 
-      if (!fileName) {
-        throw new Error(
-          "A file name is required."
-        );
-      }
-
       const fileData =
         String(
           data?.data || ""
         );
 
-      if (!fileData) {
-        throw new Error(
-          "The selected file does not contain readable data."
-        );
-      }
-
       const fileSize =
         Number(
           data?.fileSize || 0
         );
-
-      if (
-        fileSize <= 0
-      ) {
-        throw new Error(
-          "The selected file has an invalid size."
-        );
-      }
-
-      if (
-        fileSize >
-        MAX_DOCUMENT_SIZE
-      ) {
-        throw new Error(
-          "The selected file is larger than the 5 MB limit."
-        );
-      }
 
       const contentType =
         String(
@@ -622,21 +752,40 @@ export function RequestProvider({ children }) {
             ""
         ).trim();
 
-      const validTypes = [
-        "application/pdf",
-        "image/png",
-        "image/jpeg",
-      ];
+      if (!fileName) {
+        throw new Error(
+          "A file name is required."
+        );
+      }
+
+      if (!fileData) {
+        throw new Error(
+          "The selected file could not be read."
+        );
+      }
+
+      if (
+        fileSize <= 0 ||
+        fileSize >
+          MAX_DOCUMENT_SIZE
+      ) {
+        throw new Error(
+          "The selected file must be between 1 byte and 5 MB."
+        );
+      }
+
+      const validType =
+        ALLOWED_TYPES.includes(
+          contentType
+        );
 
       const validExtension =
-        /\.(pdf|png|jpe?g)$/i.test(
+        ALLOWED_EXTENSIONS.test(
           fileName
         );
 
       if (
-        !validTypes.includes(
-          contentType
-        ) &&
+        !validType &&
         !validExtension
       ) {
         throw new Error(
@@ -644,38 +793,59 @@ export function RequestProvider({ children }) {
         );
       }
 
-      const reportDocument =
-        {
-          requestId,
-          engineerId:
-            user.id,
-          fileName,
-          contentType:
-            contentType ||
-            (
-              fileName
-                .toLowerCase()
-                .endsWith(".pdf")
-                ? "application/pdf"
-                : fileName
-                    .toLowerCase()
-                    .endsWith(".png")
-                ? "image/png"
-                : "image/jpeg"
-            ),
-          fileSize,
-          data: fileData,
-          uploadedBy:
-            user.id,
-          uploadedByName:
-            user.name ||
-            user.displayName ||
-            "Engineer",
-          createdAt:
-            serverTimestamp(),
-        };
+      const separator =
+        fileData.indexOf(",");
 
-      const reportDocumentRef =
+      if (
+        separator === -1
+      ) {
+        throw new Error(
+          "The selected file could not be processed."
+        );
+      }
+
+      const header =
+        fileData.slice(
+          0,
+          separator
+        );
+
+      const body =
+        fileData.slice(
+          separator + 1
+        );
+
+      const chunkSize =
+        500 * 1024;
+
+      const chunkCount =
+        Math.ceil(
+          body.length /
+            chunkSize
+        );
+
+      const reportDocument = {
+        requestId,
+        engineerId:
+          user.id,
+        fileName,
+        contentType:
+          contentType ||
+          "application/octet-stream",
+        fileSize,
+        dataHeader: header,
+        chunkCount,
+        uploadedBy:
+          user.id,
+        uploadedByName:
+          user.name ||
+          user.displayName ||
+          "Engineer",
+        createdAt:
+          serverTimestamp()
+      };
+
+      const reportRef =
         await addDoc(
           collection(
             db,
@@ -684,10 +854,49 @@ export function RequestProvider({ children }) {
           reportDocument
         );
 
+      for (
+        let index = 0;
+        index < chunkCount;
+        index++
+      ) {
+        const start =
+          index *
+          chunkSize;
+
+        await updateDoc(
+          doc(
+            db,
+            "reportDocuments",
+            reportRef.id
+          ),
+          {
+            updatedAt:
+              serverTimestamp()
+          }
+        );
+
+        await addDoc(
+          collection(
+            db,
+            "reportDocuments",
+            reportRef.id,
+            "chunks"
+          ),
+          {
+            index,
+            data: body.slice(
+              start,
+              start +
+                chunkSize
+            )
+          }
+        );
+      }
+
       return {
         id:
-          reportDocumentRef.id,
-        ...reportDocument,
+          reportRef.id,
+        ...reportDocument
       };
     };
 
@@ -711,33 +920,52 @@ export function RequestProvider({ children }) {
         );
       }
 
-      if (!id) {
-        throw new Error(
-          "The report document could not be identified."
-        );
-      }
-
-      const reportDocument =
+      const report =
         reportDocuments.find(
           (item) =>
             item.id === id
         );
 
-      if (!reportDocument) {
+      if (!report) {
         throw new Error(
           "The report document could not be found."
         );
       }
 
       if (
-        reportDocument.uploadedBy &&
-        reportDocument.uploadedBy !==
+        report.uploadedBy &&
+        report.uploadedBy !==
           user.id
       ) {
         throw new Error(
           "You can only remove report documents that you uploaded."
         );
       }
+
+      const chunks =
+        await getDocs(
+          collection(
+            db,
+            "reportDocuments",
+            id,
+            "chunks"
+          )
+        );
+
+      await Promise.all(
+        chunks.docs.map(
+          (chunk) =>
+            deleteDoc(
+              doc(
+                db,
+                "reportDocuments",
+                id,
+                "chunks",
+                chunk.id
+              )
+            )
+        )
+      );
 
       await deleteDoc(
         doc(
@@ -759,7 +987,7 @@ export function RequestProvider({ children }) {
         updateRequest,
         deleteRequest,
         addReportDocument,
-        deleteReportDocument,
+        deleteReportDocument
       }}
     >
       {children}
