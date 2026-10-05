@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { todayISO } from "../utils";
 
 export default function CalendarGrid({
@@ -7,26 +7,31 @@ export default function CalendarGrid({
   onToggleBlocked,
   engineer = false,
   selectedDate,
-  onSelect,
-  onAppointmentSelect
+  onSelect
 }) {
-  const [month, setMonth] =
-    useState(new Date());
+  const month =
+    arguments[0].monthState ||
+    new Date();
 
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth();
+  const year =
+    month.getFullYear();
 
-  const daysInMonth = new Date(
-    year,
-    monthIndex + 1,
-    0
-  ).getDate();
+  const monthIndex =
+    month.getMonth();
 
-  const firstDay = new Date(
-    year,
-    monthIndex,
-    1
-  ).getDay();
+  const daysInMonth =
+    new Date(
+      year,
+      monthIndex + 1,
+      0
+    ).getDate();
+
+  const firstDay =
+    new Date(
+      year,
+      monthIndex,
+      1
+    ).getDay();
 
   const cells = useMemo(
     () =>
@@ -40,40 +45,47 @@ export default function CalendarGrid({
           index < firstDay
             ? null
             : index -
-              firstDay +
+                firstDay +
               1
       ),
-    [
-      firstDay,
-      daysInMonth
-    ]
+    [firstDay, daysInMonth]
   );
 
   const pad = (number) =>
-    String(number).padStart(
-      2,
-      "0"
-    );
+    String(number).padStart(2, "0");
 
   const previousMonth = () => {
-    setMonth(
-      new Date(
-        year,
-        monthIndex - 1,
-        1
-      )
+    const event = new CustomEvent(
+      "agrihelp-calendar-change",
+      {
+        detail: {
+          direction: -1
+        }
+      }
     );
+
+    window.dispatchEvent(event);
   };
 
   const nextMonth = () => {
-    setMonth(
-      new Date(
-        year,
-        monthIndex + 1,
-        1
-      )
+    const event = new CustomEvent(
+      "agrihelp-calendar-change",
+      {
+        detail: {
+          direction: 1
+        }
+      }
     );
+
+    window.dispatchEvent(event);
   };
+
+  const selectedAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.date ===
+        selectedDate
+    );
 
   return (
     <div className="calendar-wrap">
@@ -81,10 +93,7 @@ export default function CalendarGrid({
         <button
           type="button"
           className="secondary-btn calendar-nav-btn"
-          onClick={
-            previousMonth
-          }
-          aria-label="Previous month"
+          onClick={previousMonth}
         >
           ‹
         </button>
@@ -102,10 +111,7 @@ export default function CalendarGrid({
         <button
           type="button"
           className="secondary-btn calendar-nav-btn"
-          onClick={
-            nextMonth
-          }
-          aria-label="Next month"
+          onClick={nextMonth}
         >
           ›
         </button>
@@ -128,143 +134,239 @@ export default function CalendarGrid({
       </div>
 
       <div className="calendar-grid">
-        {cells.map(
-          (day, index) => {
-            if (!day) {
-              return (
-                <div
-                  className="calendar-day empty"
-                  key={`empty-${index}`}
-                />
-              );
-            }
+        {cells.map((day, index) => {
+          if (!day) {
+            return (
+              <div
+                className="calendar-day empty"
+                key={`empty-${index}`}
+              />
+            );
+          }
 
-            const date = `${year}-${pad(
+          const date =
+            `${year}-${pad(
               monthIndex + 1
             )}-${pad(day)}`;
 
-            const dayAppointments =
-              appointments.filter(
-                (appointment) =>
-                  appointment.date ===
-                    date &&
-                  appointment.status !==
-                    "Cancelled"
-              );
-
-            const unavailable =
-              blockedDates.includes(
+          const dayAppointments =
+            appointments.filter(
+              (appointment) =>
+                appointment.date ===
                 date
-              );
+            );
 
-            const past =
-              date < todayISO();
+          const unavailable =
+            blockedDates.includes(
+              date
+            );
 
-            const selected =
-              selectedDate ===
-              date;
+          const past =
+            date < todayISO();
 
-            const classes = [
-              "calendar-day",
-              selected
-                ? "selected"
-                : "",
-              unavailable
-                ? "blocked"
-                : "",
-              past
-                ? "past"
-                : "",
-              dayAppointments.length >
-              0
-                ? "has-appointments"
-                : ""
-            ]
-              .filter(Boolean)
-              .join(" ");
+          const selected =
+            selectedDate === date;
 
-            const handleDateClick =
-              () => {
-                if (
-                  dayAppointments.length >
-                  0
-                ) {
-                  onSelect?.(date);
-                  return;
-                }
+          const classes = [
+            "calendar-day",
+            selected
+              ? "selected"
+              : "",
+            unavailable
+              ? "blocked"
+              : "",
+            past
+              ? "past"
+              : "",
+            dayAppointments.length
+              ? "has-appointments"
+              : ""
+          ]
+            .filter(Boolean)
+            .join(" ");
 
-                if (engineer) {
-                  onToggleBlocked?.(
-                    date
-                  );
+          const handleClick = () => {
+            if (
+              !engineer &&
+              (unavailable || past)
+            ) {
+              return;
+            }
 
-                  return;
-                }
+            onSelect?.(date);
+          };
 
-                if (
-                  unavailable ||
-                  past
-                ) {
-                  return;
-                }
+          return (
+            <button
+              type="button"
+              key={date}
+              className={classes}
+              onClick={handleClick}
+            >
+              <div className="calendar-day-top">
+                <strong>
+                  {day}
+                </strong>
 
-                onSelect?.(date);
-              };
+                {unavailable && (
+                  <span className="calendar-unavailable-badge">
+                    Unavailable
+                  </span>
+                )}
+              </div>
 
-            return (
+              {dayAppointments
+                .slice(0, 2)
+                .map((appointment) => (
+                  <small
+                    key={
+                      appointment.id
+                    }
+                    className="calendar-appointment"
+                  >
+                    <span>
+                      {appointment.time}
+                    </span>
+
+                    <span>
+                      {appointment.title}
+                    </span>
+                  </small>
+                ))}
+
+              {dayAppointments.length >
+                2 && (
+                <small className="calendar-more">
+                  +
+                  {dayAppointments.length -
+                    2}{" "}
+                  more
+                </small>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedDate && (
+        <div className="calendar-popup">
+          <div className="calendar-popup-header">
+            <div>
+              <span>
+                SELECTED DATE
+              </span>
+
+              <strong>
+                {selectedDate}
+              </strong>
+            </div>
+
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() =>
+                onSelect?.("")
+              }
+            >
+              Close
+            </button>
+          </div>
+
+          {selectedAppointments.length >
+          0 ? (
+            <div className="calendar-popup-list">
+              {selectedAppointments.map(
+                (appointment) => (
+                  <div
+                    className="calendar-popup-item"
+                    key={appointment.id}
+                  >
+                    <div>
+                      <strong>
+                        {
+                          appointment.title
+                        }
+                      </strong>
+
+                      <span>
+                        {
+                          appointment.time
+                        }
+                      </span>
+
+                      {engineer && (
+                        <small>
+                          {appointment.clientName ||
+                            "Client"}
+                        </small>
+                      )}
+                    </div>
+
+                    {engineer &&
+                      onToggleBlocked && (
+                        <button
+                          type="button"
+                          className="danger-btn small"
+                          onClick={() =>
+                            onToggleBlocked(
+                              selectedDate
+                            )
+                          }
+                        >
+                          Mark unavailable
+                        </button>
+                      )}
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="calendar-popup-empty">
+              No appointments for this date.
+            </div>
+          )}
+
+          {engineer &&
+            onToggleBlocked &&
+            !blockedDates.includes(
+              selectedDate
+            ) && (
               <button
                 type="button"
-                key={date}
-                disabled={
-                  !engineer &&
-                  (unavailable ||
-                    past)
-                }
-                className={
-                  classes
-                }
-                onClick={
-                  handleDateClick
-                }
-                title={
-                  dayAppointments.length >
-                  0
-                    ? "View appointments"
-                    : unavailable
-                    ? "Unavailable date"
-                    : past
-                    ? "Past date"
-                    : "Available date"
+                className="secondary-btn"
+                onClick={() =>
+                  onToggleBlocked(
+                    selectedDate
+                  )
                 }
               >
-                <div className="calendar-day-top">
-                  <strong>
-                    {day}
-                  </strong>
-
-                  {unavailable && (
-                    <span className="calendar-unavailable-badge">
-                      Unavailable
-                    </span>
-                  )}
-                </div>
-
-                {dayAppointments.length >
-                  0 && (
-                  <small className="calendar-appointment-summary">
-                    You have an appointment
-                  </small>
-                )}
+                Mark this date unavailable
               </button>
-            );
-          }
-        )}
-      </div>
+            )}
+
+          {engineer &&
+            blockedDates.includes(
+              selectedDate
+            ) && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  onToggleBlocked(
+                    selectedDate
+                  )
+                }
+              >
+                Make this date available
+              </button>
+            )}
+        </div>
+      )}
 
       <p className="calendar-help">
         {engineer
-          ? "Click a date with an appointment to view its details. Click another date to manage availability."
-          : "Dates with appointments show 'You have an appointment'. Click the date to view the appointment details."}
+          ? "Click any date to view its appointments."
+          : "Red dates are unavailable and cannot be selected."}
       </p>
     </div>
   );

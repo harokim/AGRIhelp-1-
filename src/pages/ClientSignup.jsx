@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { ASSOCIATIONS } from "../utils";
+import {
+  ASSOCIATIONS,
+  isStrongPassword
+} from "../utils";
 
-const PSGC_API = "https://psgc.cloud/api/v2";
+const PSGC_API =
+  "https://psgc.cloud/api/v2";
 
 const empty = {
   firstName: "",
@@ -21,11 +25,15 @@ const empty = {
   region: "",
   province: "",
   municipality: "",
-  barangay: "",
+  barangay: ""
 };
 
-async function getLocations(path) {
-  const response = await fetch(`${PSGC_API}${path}`);
+async function getLocations(
+  path
+) {
+  const response = await fetch(
+    `${PSGC_API}${path}`
+  );
 
   if (!response.ok) {
     throw new Error(
@@ -33,43 +41,86 @@ async function getLocations(path) {
     );
   }
 
-  const json = await response.json();
+  const json =
+    await response.json();
 
   return json.data || [];
 }
 
 export default function ClientSignup() {
-  const navigate = useNavigate();
-  const { registerClient } = useAuth();
+  const navigate =
+    useNavigate();
 
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState(empty);
-  const [regions, setRegions] = useState([]);
-  const [provinces, setProvinces] = useState([]);
-  const [municipalities, setMunicipalities] = useState([]);
-  const [barangays, setBarangays] = useState([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
-  const [locationError, setLocationError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [creatingAccount, setCreatingAccount] = useState(false);
+  const {
+    registerClient
+  } = useAuth();
 
-  const updateField = (name, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+  const [step, setStep] =
+    useState(1);
+
+  const [form, setForm] =
+    useState(empty);
+
+  const [regions, setRegions] =
+    useState([]);
+
+  const [provinces, setProvinces] =
+    useState([]);
+
+  const [municipalities, setMunicipalities] =
+    useState([]);
+
+  const [barangays, setBarangays] =
+    useState([]);
+
+  const [
+    loadingLocations,
+    setLoadingLocations
+  ] = useState(false);
+
+  const [
+    locationError,
+    setLocationError
+  ] = useState("");
+
+  const [
+    formError,
+    setFormError
+  ] = useState("");
+
+  const [
+    creatingAccount,
+    setCreatingAccount
+  ] = useState(false);
+
+  const updateField = (
+    name,
+    value
+  ) => {
+    setForm(
+      (previous) => ({
+        ...previous,
+        [name]: value
+      })
+    );
 
     setFormError("");
   };
 
-  const calculateAge = (birthday) => {
-    if (!birthday) return "";
+  const calculateAge = (
+    birthday
+  ) => {
+    if (!birthday) {
+      return "";
+    }
 
-    const birthDate = new Date(
-      `${birthday}T00:00:00`
-    );
+    const birthDate =
+      new Date(
+        `${birthday}T00:00:00`
+      );
 
-    const today = new Date();
+    const today =
+      new Date();
 
     let calculatedAge =
       today.getFullYear() -
@@ -83,7 +134,8 @@ export default function ClientSignup() {
       monthDifference < 0 ||
       (
         monthDifference === 0 &&
-        today.getDate() < birthDate.getDate()
+        today.getDate() <
+          birthDate.getDate()
       )
     ) {
       calculatedAge--;
@@ -92,7 +144,10 @@ export default function ClientSignup() {
     return calculatedAge;
   };
 
-  const age = calculateAge(form.birthday);
+  const age =
+    calculateAge(
+      form.birthday
+    );
 
   useEffect(() => {
     let mounted = true;
@@ -103,7 +158,9 @@ export default function ClientSignup() {
         setLocationError("");
 
         const data =
-          await getLocations("/regions");
+          await getLocations(
+            "/regions"
+          );
 
         if (mounted) {
           setRegions(data);
@@ -116,7 +173,9 @@ export default function ClientSignup() {
         }
       } finally {
         if (mounted) {
-          setLoadingLocations(false);
+          setLoadingLocations(
+            false
+          );
         }
       }
     }
@@ -138,11 +197,14 @@ export default function ClientSignup() {
 
     const selectedRegion =
       regions.find(
-        (region) =>
-          region.name === form.region
+        (item) =>
+          item.name ===
+          form.region
       );
 
-    if (!selectedRegion) return;
+    if (!selectedRegion) {
+      return;
+    }
 
     let mounted = true;
 
@@ -169,7 +231,9 @@ export default function ClientSignup() {
         }
       } finally {
         if (mounted) {
-          setLoadingLocations(false);
+          setLoadingLocations(
+            false
+          );
         }
       }
     }
@@ -179,7 +243,10 @@ export default function ClientSignup() {
     return () => {
       mounted = false;
     };
-  }, [form.region, regions]);
+  }, [
+    form.region,
+    regions
+  ]);
 
   useEffect(() => {
     if (
@@ -193,14 +260,16 @@ export default function ClientSignup() {
 
     const selectedRegion =
       regions.find(
-        (region) =>
-          region.name === form.region
+        (item) =>
+          item.name ===
+          form.region
       );
 
     const selectedProvince =
       provinces.find(
-        (province) =>
-          province.name === form.province
+        (item) =>
+          item.name ===
+          form.province
       );
 
     if (
@@ -237,7 +306,9 @@ export default function ClientSignup() {
         }
       } finally {
         if (mounted) {
-          setLoadingLocations(false);
+          setLoadingLocations(
+            false
+          );
         }
       }
     }
@@ -251,7 +322,7 @@ export default function ClientSignup() {
     form.region,
     form.province,
     regions,
-    provinces,
+    provinces
   ]);
 
   useEffect(() => {
@@ -266,12 +337,14 @@ export default function ClientSignup() {
 
     const selectedMunicipality =
       municipalities.find(
-        (municipality) =>
-          municipality.name ===
+        (item) =>
+          item.name ===
           form.municipality
       );
 
-    if (!selectedMunicipality) return;
+    if (!selectedMunicipality) {
+      return;
+    }
 
     let mounted = true;
 
@@ -298,7 +371,9 @@ export default function ClientSignup() {
         }
       } finally {
         if (mounted) {
-          setLoadingLocations(false);
+          setLoadingLocations(
+            false
+          );
         }
       }
     }
@@ -312,15 +387,19 @@ export default function ClientSignup() {
     form.region,
     form.province,
     form.municipality,
-    municipalities,
+    municipalities
   ]);
 
-  const isValidEmail = (email) =>
+  const isValidEmail = (
+    email
+  ) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(
       email.trim()
     );
 
-  const isValidName = (name) =>
+  const isValidName = (
+    name
+  ) =>
     /^[A-Za-zÑñ .'-]+$/.test(
       name.trim()
     );
@@ -329,20 +408,24 @@ export default function ClientSignup() {
     setFormError("");
 
     if (step === 1) {
-      const birthDate = form.birthday
-        ? new Date(
-            `${form.birthday}T00:00:00`
-          )
-        : null;
+      const birthDate =
+        form.birthday
+          ? new Date(
+              `${form.birthday}T00:00:00`
+            )
+          : null;
 
       const validBirthDate =
         birthDate &&
         !Number.isNaN(
           birthDate.getTime()
         ) &&
-        birthDate <= new Date();
+        birthDate <=
+          new Date();
 
-      if (!form.firstName.trim()) {
+      if (
+        !form.firstName.trim()
+      ) {
         setFormError(
           "Please enter your first name."
         );
@@ -355,12 +438,14 @@ export default function ClientSignup() {
         )
       ) {
         setFormError(
-          "First name can only contain letters, spaces, periods, apostrophes, or hyphens."
+          "First name contains invalid characters."
         );
         return false;
       }
 
-      if (!form.lastName.trim()) {
+      if (
+        !form.lastName.trim()
+      ) {
         setFormError(
           "Please enter your last name."
         );
@@ -373,7 +458,7 @@ export default function ClientSignup() {
         )
       ) {
         setFormError(
-          "Last name can only contain letters, spaces, periods, apostrophes, or hyphens."
+          "Last name contains invalid characters."
         );
         return false;
       }
@@ -445,10 +530,12 @@ export default function ClientSignup() {
       }
 
       if (
-        form.password.length < 6
+        !isStrongPassword(
+          form.password
+        )
       ) {
         setFormError(
-          "Your password must contain at least 6 characters."
+          "Password must contain at least 8 characters, including uppercase, lowercase, number, and special character."
         );
         return false;
       }
@@ -462,13 +549,11 @@ export default function ClientSignup() {
     }
 
     if (step === 3) {
-      const members = Number(
-        form.members
-      );
+      const members =
+        Number(form.members);
 
-      const year = Number(
-        form.year
-      );
+      const year =
+        Number(form.year);
 
       const currentYear =
         new Date().getFullYear();
@@ -544,22 +629,24 @@ export default function ClientSignup() {
       return;
     }
 
-    setStep((previous) =>
-      Math.min(
-        previous + 1,
-        4
-      )
+    setStep(
+      (previous) =>
+        Math.min(
+          previous + 1,
+          4
+        )
     );
   };
 
   const previousStep = () => {
     setFormError("");
 
-    setStep((previous) =>
-      Math.max(
-        previous - 1,
-        1
-      )
+    setStep(
+      (previous) =>
+        Math.max(
+          previous - 1,
+          1
+        )
     );
   };
 
@@ -568,7 +655,9 @@ export default function ClientSignup() {
   ) => {
     event.preventDefault();
 
-    if (creatingAccount) {
+    if (
+      creatingAccount
+    ) {
       return;
     }
 
@@ -579,12 +668,14 @@ export default function ClientSignup() {
     const fullName = [
       form.firstName.trim(),
       form.middleName.trim(),
-      form.lastName.trim(),
+      form.lastName.trim()
     ]
       .filter(Boolean)
       .join(" ");
 
-    setCreatingAccount(true);
+    setCreatingAccount(
+      true
+    );
 
     try {
       await registerClient({
@@ -609,7 +700,7 @@ export default function ClientSignup() {
         year:
           Number(form.year),
         age,
-        name: fullName,
+        name: fullName
       });
 
       alert(
@@ -617,45 +708,17 @@ export default function ClientSignup() {
       );
 
       navigate("/", {
-        replace: true,
+        replace: true
       });
     } catch (error) {
-      if (
-        error?.code ===
-        "auth/email-already-in-use"
-      ) {
-        setFormError(
-          "This email address is already registered. Please use another email address."
-        );
-      } else if (
-        error?.code ===
-        "auth/invalid-email"
-      ) {
-        setFormError(
-          "The email address is not valid."
-        );
-      } else if (
-        error?.code ===
-        "auth/weak-password"
-      ) {
-        setFormError(
-          "The password is too weak. Please use at least 6 characters."
-        );
-      } else if (
-        error?.code ===
-        "auth/configuration-not-found"
-      ) {
-        setFormError(
-          "Firebase Authentication is not configured for this project. Enable Email/Password sign-in in the Firebase Console."
-        );
-      } else {
-        setFormError(
-          error?.message ||
-            "Account creation failed. Please try again."
-        );
-      }
+      setFormError(
+        error?.message ||
+          "Account creation failed. Please try again."
+      );
     } finally {
-      setCreatingAccount(false);
+      setCreatingAccount(
+        false
+      );
     }
   };
 
@@ -678,15 +741,14 @@ export default function ClientSignup() {
           </h1>
 
           <p>
-            Register the association representative account used
-            to submit requests and coordinate appointments.
+            Register the association representative account used to submit requests and coordinate appointments.
           </p>
 
           {[
             "Personal information",
             "Contact & association",
             "Association details",
-            "Verification & address",
+            "Verification & address"
           ].map(
             (title, index) => {
               const number =
@@ -711,9 +773,11 @@ export default function ClientSignup() {
                     </strong>
 
                     <small>
-                      {step > number
+                      {step >
+                      number
                         ? "Completed"
-                        : step === number
+                        : step ===
+                          number
                         ? "Current step"
                         : "Upcoming"}
                     </small>
@@ -726,7 +790,9 @@ export default function ClientSignup() {
 
         <form
           className="signup-card"
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
           noValidate
         >
           <div className="signup-card-header">
@@ -841,7 +907,7 @@ export default function ClientSignup() {
                   "Single",
                   "Married",
                   "Widowed",
-                  "Separated",
+                  "Separated"
                 ]}
               />
             </div>
@@ -876,7 +942,6 @@ export default function ClientSignup() {
                 inputMode="numeric"
                 placeholder="09XXXXXXXXX"
                 maxLength={11}
-                pattern="09[0-9]{9}"
               />
 
               <Field
@@ -893,20 +958,34 @@ export default function ClientSignup() {
                 placeholder="example@gmail.com"
               />
 
-              <Field
-                label="Password"
-                name="password"
-                type="password"
-                value={
-                  form.password
-                }
-                onChange={
-                  updateField
-                }
-                required
-                minLength={6}
-                placeholder="At least 6 characters"
-              />
+              <div className="field">
+                <label>
+                  Password *
+                </label>
+
+                <input
+                  name="password"
+                  type="password"
+                  value={
+                    form.password
+                  }
+                  onChange={(
+                    event
+                  ) =>
+                    updateField(
+                      "password",
+                      event.target
+                        .value
+                    )
+                  }
+                  required
+                  placeholder="At least 8 characters"
+                />
+
+                <small>
+                  8+ characters with uppercase, lowercase, number, and special character.
+                </small>
+              </div>
 
               <div className="field wide">
                 <label>
@@ -917,7 +996,9 @@ export default function ClientSignup() {
                   value={
                     form.association
                   }
-                  onChange={(event) =>
+                  onChange={(
+                    event
+                  ) =>
                     updateField(
                       "association",
                       event.target
@@ -1000,7 +1081,7 @@ export default function ClientSignup() {
                   "Secretary",
                   "Treasurer",
                   "Representative",
-                  "Other",
+                  "Other"
                 ]}
               />
             </div>
@@ -1027,7 +1108,7 @@ export default function ClientSignup() {
                       province: "",
                       municipality:
                         "",
-                      barangay: "",
+                      barangay: ""
                     })
                   );
 
@@ -1058,7 +1139,7 @@ export default function ClientSignup() {
                         value,
                       municipality:
                         "",
-                      barangay: "",
+                      barangay: ""
                     })
                   );
 
@@ -1087,7 +1168,7 @@ export default function ClientSignup() {
                       ...previous,
                       municipality:
                         value,
-                      barangay: "",
+                      barangay: ""
                     })
                   );
 
@@ -1135,7 +1216,9 @@ export default function ClientSignup() {
               type="button"
               className="secondary-btn"
               onClick={() => {
-                if (step === 1) {
+                if (
+                  step === 1
+                ) {
                   navigate("/");
                 } else {
                   previousStep();
@@ -1152,7 +1235,9 @@ export default function ClientSignup() {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={nextStep}
+                onClick={
+                  nextStep
+                }
                 disabled={
                   creatingAccount
                 }
@@ -1191,9 +1276,7 @@ function Field({
   placeholder,
   min,
   max,
-  maxLength,
-  pattern,
-  minLength,
+  maxLength
 }) {
   return (
     <div className="field">
@@ -1219,8 +1302,6 @@ function Field({
         min={min}
         max={max}
         maxLength={maxLength}
-        pattern={pattern}
-        minLength={minLength}
       />
     </div>
   );
@@ -1232,7 +1313,7 @@ function SelectField({
   value = "",
   onChange,
   options = [],
-  required = false,
+  required = false
 }) {
   return (
     <div className="field">
@@ -1277,7 +1358,7 @@ function LocationSelect({
   items,
   disabled,
   onChange,
-  required = false,
+  required = false
 }) {
   return (
     <div className="field">

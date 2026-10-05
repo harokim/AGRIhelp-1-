@@ -14,24 +14,53 @@ import agriPhoto4 from "../assets/agri-photo-4.png";
 
 export default function Login() {
   const { login } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+  const {
+    theme,
+    toggleTheme
+  } = useTheme();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [cover, setCover] = useState("");
+  const navigate =
+    useNavigate();
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [
+    showPassword,
+    setShowPassword
+  ] = useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [cover, setCover] =
+    useState("");
+
+  const [
+    submitting,
+    setSubmitting
+  ] = useState(false);
 
   useEffect(() => {
     let active = true;
 
     async function loadCover() {
       try {
-        const savedCover = await getMedia("site-cover");
+        const savedCover =
+          await getMedia(
+            "site-cover"
+          );
 
-        if (active && savedCover) {
-          setCover(savedCover);
+        if (
+          active &&
+          savedCover
+        ) {
+          setCover(
+            savedCover
+          );
         }
       } catch {
         if (active) {
@@ -47,45 +76,73 @@ export default function Login() {
     };
   }, []);
 
-  async function handleLogin(event) {
+  async function handleLogin(
+    event
+  ) {
     event.preventDefault();
-    setError("");
 
-    if (!email.trim() || !password.trim()) {
-      setError("Please enter your email and password.");
+    if (submitting) {
       return;
     }
 
-    try {
-      const loggedInUser = await login(
-        email.trim(),
-        password
+    setError("");
+
+    if (
+      !email.trim() ||
+      !password
+    ) {
+      setError(
+        "Please enter your email and password."
       );
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const loggedInUser =
+        await login(
+          email.trim(),
+          password
+        );
 
       if (!loggedInUser) {
-        setError("Invalid email or password.");
+        setError(
+          "The email or password is incorrect."
+        );
         return;
       }
 
-      if (loggedInUser.role === "engineer") {
-        navigate("/engineer");
+      if (
+        loggedInUser.role ===
+        "engineer"
+      ) {
+        navigate(
+          "/engineer"
+        );
       } else {
-        navigate("/client");
+        navigate(
+          "/client"
+        );
       }
-    } catch (err) {
-      console.error(err);
-
+    } catch (error) {
       setError(
-        err?.message ||
-          "Login failed. Please check your email and password."
+        error?.message ||
+          "The email or password is incorrect."
       );
+    } finally {
+      setSubmitting(false);
     }
   }
 
   function scrollToLogin() {
     document
-      .getElementById("login-section")
-      ?.scrollIntoView({ behavior: "smooth" });
+      .getElementById(
+        "login-section"
+      )
+      ?.scrollIntoView({
+        behavior: "smooth"
+      });
   }
 
   return (
@@ -93,37 +150,43 @@ export default function Login() {
       <button
         type="button"
         className="floating-theme-toggle"
-        onClick={toggleTheme}
-        aria-label={
-          theme === "light"
-            ? "Switch to dark mode"
-            : "Switch to light mode"
+        onClick={
+          toggleTheme
         }
-        title={
+        aria-label={
           theme === "light"
             ? "Switch to dark mode"
             : "Switch to light mode"
         }
       >
         <span>
-          {theme === "light" ? "☾" : "☀"}
+          {theme === "light"
+            ? "☾"
+            : "☀"}
         </span>
       </button>
 
       <section
         className="landing-hero"
         style={{
-          backgroundImage: `url(${cover || bgFallback})`,
+          backgroundImage: `url(${
+            cover ||
+            bgFallback
+          })`
         }}
       >
         <div className="hero-overlay"></div>
 
         <div className="hero-content">
           <div className="hero-brand">
-            <div className="hero-logo">AG</div>
+            <div className="hero-logo">
+              AG
+            </div>
 
             <div>
-              <strong>AGRIhelp</strong>
+              <strong>
+                AGRIhelp
+              </strong>
 
               <small>
                 Agricultural Request and Information Management System
@@ -141,15 +204,15 @@ export default function Login() {
             </h1>
 
             <p>
-              AGRIhelp provides a centralized platform for managing
-              agricultural requests, required documents, validation
-              activities, and appointments.
+              AGRIhelp provides a centralized platform for managing agricultural requests, required documents, validation activities, and appointments.
             </p>
 
             <button
               type="button"
               className="hero-login-button"
-              onClick={scrollToLogin}
+              onClick={
+                scrollToLogin
+              }
             >
               Login to AGRIhelp
             </button>
@@ -157,7 +220,9 @@ export default function Login() {
 
           <div className="scroll-indicator">
             <b>↓</b>
-            <span>Scroll to explore</span>
+            <span>
+              Scroll to explore
+            </span>
           </div>
         </div>
       </section>
@@ -168,39 +233,41 @@ export default function Login() {
       >
         <div className="landing-login-wrapper">
           <div className="login-introduction">
-            <span className="section-label">
-              
-            </span>
-
             <h2>
               Manage agricultural requests in one place.
             </h2>
 
             <p>
-              Login to access your AGRIhelp account and manage your
-              agricultural requests, documents, schedules, and other
-              services provided by the office.
+              Login to access your AGRIhelp account and manage your agricultural requests, documents, schedules, and other services provided by the office.
             </p>
 
             <div className="login-info-list">
               <div>
                 <span>✓</span>
-                <p>Submit and monitor agricultural requests</p>
+                <p>
+                  Submit and monitor agricultural requests
+                </p>
               </div>
 
               <div>
                 <span>✓</span>
-                <p>Upload and manage required documents</p>
+                <p>
+                  Upload and manage required documents
+                </p>
               </div>
 
               <div>
                 <span>✓</span>
-                <p>Track request and document status</p>
+                <p>
+                  Track request and document status
+                </p>
               </div>
 
               <div>
                 <span>✓</span>
-                <p>View validation appointments and schedules</p>
+                <p>
+                  View validation appointments and schedules
+                </p>
               </div>
             </div>
           </div>
@@ -208,43 +275,55 @@ export default function Login() {
           <div className="login-form-card">
             {!firebaseConfigured && (
               <div className="login-error">
-                Firebase is not configured yet. Login and database
-                features will not work until Firebase is configured.
+                The system is not configured yet. Please configure Firebase before signing in.
               </div>
             )}
 
             <div className="login-form-header">
-              <div className="login-form-logo">AG</div>
+              <div className="login-form-logo">
+                AG
+              </div>
 
               <div>
-                <h2>Sign in</h2>
-                <p>Access your AGRIhelp account</p>
+                <h2>
+                  Sign in
+                </h2>
+
+                <p>
+                  Access your AGRIhelp account
+                </p>
               </div>
             </div>
 
-            <form onSubmit={handleLogin}>
-              <label htmlFor="login-email">
+            <form
+              onSubmit={
+                handleLogin
+              }
+            >
+              <label>
                 Email Address
               </label>
 
               <input
-                id="login-email"
                 type="email"
                 placeholder="Enter your email"
                 value={email}
                 onChange={(event) =>
-                  setEmail(event.target.value)
+                  setEmail(
+                    event.target
+                      .value
+                  )
                 }
                 autoComplete="email"
+                required
               />
 
-              <label htmlFor="login-password">
+              <label>
                 Password
               </label>
 
               <div className="password-wrapper">
                 <input
-                  id="login-password"
                   type={
                     showPassword
                       ? "text"
@@ -253,9 +332,13 @@ export default function Login() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(event) =>
-                    setPassword(event.target.value)
+                    setPassword(
+                      event.target
+                        .value
+                    )
                   }
                   autoComplete="current-password"
+                  required
                 />
 
                 <button
@@ -263,11 +346,14 @@ export default function Login() {
                   className="password-toggle"
                   onClick={() =>
                     setShowPassword(
-                      (value) => !value
+                      (value) =>
+                        !value
                     )
                   }
                 >
-                  {showPassword ? "HIDE" : "SHOW"}
+                  {showPassword
+                    ? "HIDE"
+                    : "SHOW"}
                 </button>
               </div>
 
@@ -280,10 +366,28 @@ export default function Login() {
               <button
                 type="submit"
                 className="login-submit-button"
+                disabled={
+                  submitting
+                }
               >
-                Login
+                {submitting
+                  ? "Signing in..."
+                  : "Login"}
               </button>
             </form>
+
+            <div className="forgot-password-link">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    "/forgot-password"
+                  )
+                }
+              >
+                Forgot Password?
+              </button>
+            </div>
 
             <div className="login-register">
               <span>
@@ -293,7 +397,9 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/signup")
+                  navigate(
+                    "/signup"
+                  )
                 }
               >
                 Create a Client Account
@@ -306,7 +412,9 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/engineer-signup")
+                  navigate(
+                    "/engineer-signup"
+                  )
                 }
               >
                 Create an Engineer Account
@@ -331,10 +439,7 @@ export default function Login() {
           </h2>
 
           <p>
-            AGRIhelp helps agricultural clients and engineering
-            personnel organize requests, documents, validation
-            activities, and appointments through one centralized
-            system.
+            AGRIhelp helps agricultural clients and engineering personnel organize requests, documents, validation activities, and appointments through one centralized system.
           </p>
         </div>
       </section>
@@ -350,8 +455,7 @@ export default function Login() {
           </h2>
 
           <p>
-            AGRIhelp is designed to support efficient and organized
-            agricultural service delivery.
+            AGRIhelp is designed to support efficient and organized agricultural service delivery.
           </p>
         </div>
 
@@ -370,12 +474,7 @@ export default function Login() {
             </h3>
 
             <p>
-              TO LIVE AND UPHOLD THE VALUES OF RESPECT FOR GOD,
-              HUMAN LIFE AND DIGNITY, THE ENVIRONMENT, AND ITS
-              HERITAGE, TO PROMOTE INTEGRITY IN PUBLIC SERVICE
-              THAT WILL HELP TO TRANSFORM BULAN INTO EMPOWERED,
-              PEACEFUL, PROSPEROUS, RESILIENT AND
-              INVESTMENT-FRIENDLY COMMUNITY.
+              TO LIVE AND UPHOLD THE VALUES OF RESPECT FOR GOD, HUMAN LIFE AND DIGNITY, THE ENVIRONMENT, AND ITS HERITAGE, TO PROMOTE INTEGRITY IN PUBLIC SERVICE THAT WILL HELP TO TRANSFORM BULAN INTO EMPOWERED, PEACEFUL, PROSPEROUS, RESILIENT AND INVESTMENT-FRIENDLY COMMUNITY.
             </p>
           </article>
 
@@ -393,11 +492,7 @@ export default function Login() {
             </h3>
 
             <p>
-              A PREMIER INVESTMENT CENTRE WITH EMPOWERED AND
-              RESILIENT COMMUNITY. PROGRESS ECONOMY,
-              SUSTAINABLE ENVIRONMENT AND PRESERVED HERITAGE
-              ANCHORED ON TRANSFORMATIONAL AND RESPONSIVE
-              GOVERNANCE.
+              A PREMIER INVESTMENT CENTRE WITH EMPOWERED AND RESILIENT COMMUNITY. PROGRESS ECONOMY, SUSTAINABLE ENVIRONMENT AND PRESERVED HERITAGE ANCHORED ON TRANSFORMATIONAL AND RESPONSIVE GOVERNANCE.
             </p>
           </article>
         </div>
@@ -414,8 +509,7 @@ export default function Login() {
           </h2>
 
           <p>
-            Explore the agricultural activities and communities
-            that AGRIhelp aims to support.
+            Explore the agricultural activities and communities that AGRIhelp aims to support.
           </p>
         </div>
 
@@ -432,8 +526,7 @@ export default function Login() {
               </span>
 
               <p>
-                Supporting agricultural communities through
-                organized and accessible services.
+                Supporting agricultural communities through organized and accessible services.
               </p>
             </div>
           </article>
@@ -450,8 +543,7 @@ export default function Login() {
               </span>
 
               <p>
-                Connecting agricultural communities with the
-                services they need.
+                Connecting agricultural communities with the services they need.
               </p>
             </div>
           </article>
@@ -468,8 +560,7 @@ export default function Login() {
               </span>
 
               <p>
-                Helping improve agricultural processes and
-                field-related services.
+                Helping improve agricultural processes and field-related services.
               </p>
             </div>
           </article>
@@ -486,8 +577,7 @@ export default function Login() {
               </span>
 
               <p>
-                Helping connect agricultural communities with
-                better service coordination.
+                Helping connect agricultural communities with better service coordination.
               </p>
             </div>
           </article>
@@ -506,23 +596,15 @@ export default function Login() {
             </span>
 
             <h2>
-              A centralized platform for agricultural request
-              management.
+              A centralized platform for agricultural request management.
             </h2>
 
             <p>
-              AGRIhelp is a web-based system designed to help
-              agricultural clients and engineers manage requests,
-              documents, validation activities, and appointments
-              in a more organized way.
+              AGRIhelp is a web-based system designed to help agricultural clients and engineers manage requests, documents, validation activities, and appointments in a more organized way.
             </p>
 
             <p>
-              Instead of relying on disconnected paperwork and
-              manual coordination, the system provides a central
-              location where users can submit information, monitor
-              request progress, and coordinate with the responsible
-              agricultural engineering personnel.
+              Instead of relying on disconnected paperwork and manual coordination, the system provides a central location where users can submit information, monitor request progress, and coordinate with the responsible agricultural engineering personnel.
             </p>
           </div>
         </div>
@@ -538,14 +620,15 @@ export default function Login() {
         </h2>
 
         <p>
-          Login to your account or create a client account to
-          begin using the system.
+          Login to your account or create a client account to begin using the system.
         </p>
 
         <button
           type="button"
           className="hero-login-button"
-          onClick={scrollToLogin}
+          onClick={
+            scrollToLogin
+          }
         >
           Login Now
         </button>
@@ -553,7 +636,9 @@ export default function Login() {
 
       <footer className="landing-footer">
         <div>
-          <strong>AGRIhelp</strong>
+          <strong>
+            AGRIhelp
+          </strong>
 
           <span>
             Agricultural Request and Information Management System

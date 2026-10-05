@@ -25,6 +25,7 @@ import {
   sendSemaphoreSMS
 } from "../services/semaphoreService";
 import {
+  deleteDocumentWithChunks,
   loadDocumentData
 } from "../services/documentService";
 import { useAuth } from "./AuthContext";
@@ -54,20 +55,26 @@ function mapSnapshot(snapshot) {
 function localDateISO() {
   const date = new Date();
 
-  const year =
-    date.getFullYear();
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1
+  ).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
 
-  const month =
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0");
+function friendlyError(error) {
+  const code = error?.code || "";
 
-  const day =
-    String(
-      date.getDate()
-    ).padStart(2, "0");
+  if (
+    code === "permission-denied" ||
+    code === "PERMISSION_DENIED"
+  ) {
+    return new Error(
+      "You do not have permission to perform this action."
+    );
+  }
 
-  return `${year}-${month}-${day}`;
+  return error;
 }
 
 async function notifyClient(
@@ -80,21 +87,23 @@ async function notifyClient(
     return;
   }
 
-  await addDoc(
-    collection(
-      db,
-      "notifications"
-    ),
-    {
-      userId: clientId,
-      title,
-      message,
-      requestId,
-      read: false,
-      createdAt:
-        serverTimestamp()
-    }
-  );
+  try {
+    await addDoc(
+      collection(
+        db,
+        "notifications"
+      ),
+      {
+        userId: clientId,
+        title,
+        message,
+        requestId,
+        read: false,
+        createdAt:
+          serverTimestamp()
+      }
+    );
+  } catch {}
 
   try {
     const client =
@@ -116,7 +125,8 @@ async function notifyClient(
       try {
         await sendSemaphoreSMS({
           phoneNumber,
-          message: `AGRIhelp: ${message}`
+          message:
+            `AGRIhelp: ${message}`
         });
       } catch {}
     }
@@ -153,7 +163,7 @@ export function RequestProvider({
       setRequests([]);
       setDocuments([]);
       setReportDocuments([]);
-      return;
+      return undefined;
     }
 
     const requestsRef =
@@ -181,6 +191,10 @@ export function RequestProvider({
           const next =
             snapshot.docs
               .map(mapSnapshot)
+              .filter(
+                (item) =>
+                  item.clientId
+              )
               .sort(
                 (a, b) =>
                   String(
@@ -203,17 +217,17 @@ export function RequestProvider({
         }
       );
 
+    const documentsRef =
+      collection(
+        db,
+        "documents"
+      );
+
     const documentQuery =
       user.role === "engineer"
-        ? collection(
-            db,
-            "documents"
-          )
+        ? documentsRef
         : query(
-            collection(
-              db,
-              "documents"
-            ),
+            documentsRef,
             where(
               "clientId",
               "==",
@@ -228,6 +242,19 @@ export function RequestProvider({
           const next =
             snapshot.docs.map(
               mapSnapshot
+            );
+
+          const validRequestIds =
+            new Set(
+              requests
+                .filter(
+                  (item) =>
+                    item.clientId
+                )
+                .map(
+                  (item) =>
+                    item.id
+                )
             );
 
           const withData =
@@ -254,7 +281,20 @@ export function RequestProvider({
             );
 
           setDocuments(
-            withData
+            user.role ===
+              "engineer"
+              ? withData
+              : withData.filter(
+                  (item) =>
+                    item.clientId ===
+                      user.id &&
+                    (
+                      !item.requestId ||
+                      validRequestIds.has(
+                        item.requestId
+                      )
+                    )
+                )
           );
         },
         () => {
@@ -349,11 +389,15 @@ export function RequestProvider({
           .slice(-8)}`;
 
       const requestData = {
-        ...data,
-        details,
+        clientId:
+          data.clientId,
+        association:
+          data.association,
         requestType,
+        details,
         referenceNumber,
-        status: "Submitted",
+        status:
+          "Submitted",
         notes: "",
         createdAt:
           localDateISO(),
@@ -363,19 +407,26 @@ export function RequestProvider({
           serverTimestamp()
       };
 
-      const requestRef =
-        await addDoc(
-          collection(
-            db,
-            "requests"
-          ),
-          requestData
-        );
+      try {
+        const requestRef =
+          await addDoc(
+            collection(
+              db,
+              "requests"
+            ),
+            requestData
+          );
 
-      return {
-        id: requestRef.id,
-        ...requestData
-      };
+        return {
+          id:
+            requestRef.id,
+          ...requestData
+        };
+      } catch (error) {
+        throw friendlyError(
+          error
+        );
+      }
     };
 
   const decide = async (
@@ -401,61 +452,6 @@ export function RequestProvider({
       return;
     }
 
-    const requestDocuments =
-      documents.filter(
-        (document) =>
-          document.requestId === id
-      );
-
-    const hasDetails =
-      Boolean(
-        String(
-          current.details || ""
-        ).trim()
-      );
-
-    const hasDocuments =
-      requestDocuments.length >
-      0;
-
-    if (
-      status === "Approved" &&
-      (!hasDetails ||
-        !hasDocuments)
-    ) {
-      const rejectionNote =
-        !hasDetails &&
-        !hasDocuments
-          ? "The application was rejected because it has no request description and no attached documents."
-          : !hasDetails
-          ? "The application was rejected because no request description was provided."
-          : "The application was rejected because no supporting documents were attached.";
-
-      await updateDoc(
-        doc(
-          db,
-          "requests",
-          id
-        ),
-        {
-          status: "Rejected",
-          notes:
-            rejectionNote,
-          updatedAt:
-            serverTimestamp()
-        }
-      );
-
-      await notifyClient(
-        current.clientId,
-        "Request Rejected",
-        rejectionNote,
-        id
-      );
-
-      return;
-    }
-
     const cleanNote =
       String(
         note || ""
@@ -473,53 +469,60 @@ export function RequestProvider({
 
     const notes =
       status ===
-      "Documents Pending" ||
-      status === "Rejected"
+        "Documents Pending" ||
+      status ===
+        "Rejected"
         ? cleanNote
         : current.notes ||
           "";
 
-    await updateDoc(
-      doc(
-        db,
-        "requests",
-        id
-      ),
-      {
-        status,
-        notes,
-        updatedAt:
-          serverTimestamp()
-      }
-    );
+    try {
+      await updateDoc(
+        doc(
+          db,
+          "requests",
+          id
+        ),
+        {
+          status,
+          notes,
+          updatedAt:
+            serverTimestamp()
+        }
+      );
 
-    let message;
-
-    if (
-      status ===
-      "Documents Pending"
-    ) {
-      message =
-        `Additional documents or corrections are needed: ${cleanNote}`;
-    } else if (
-      status === "Rejected"
-    ) {
-      message =
-        `Your request was rejected. Reason: ${cleanNote}`;
-    } else {
-      message =
+      let message =
         `Your request ${
           current.referenceNumber ||
           id
         } is now ${status}.`;
-    }
 
-    await notifyClient(
-      current.clientId,
-      `Request ${status}`,
-      message,
-      id
-    );
+      if (
+        status ===
+        "Documents Pending"
+      ) {
+        message =
+          `Additional documents or corrections are needed: ${cleanNote}`;
+      }
+
+      if (
+        status === "Rejected"
+      ) {
+        message =
+          `Your request was rejected. Reason: ${cleanNote}`;
+      }
+
+      await notifyClient(
+        current.clientId,
+        `Request ${status}`,
+        message,
+        id
+      );
+    } catch (error) {
+      throw friendlyError(
+        error
+      );
+    }
   };
 
   const updateRequest =
@@ -536,18 +539,24 @@ export function RequestProvider({
         );
       }
 
-      await updateDoc(
-        doc(
-          db,
-          "requests",
-          id
-        ),
-        {
-          ...patch,
-          updatedAt:
-            serverTimestamp()
-        }
-      );
+      try {
+        await updateDoc(
+          doc(
+            db,
+            "requests",
+            id
+          ),
+          {
+            ...patch,
+            updatedAt:
+              serverTimestamp()
+          }
+        );
+      } catch (error) {
+        throw friendlyError(
+          error
+        );
+      }
     };
 
   const deleteRequest =
@@ -584,99 +593,96 @@ export function RequestProvider({
         );
       }
 
-      const documentSnapshot =
-        await getDocs(
-          query(
-            collection(
-              db,
-              "documents"
-            ),
-            where(
-              "requestId",
-              "==",
-              id
-            )
-          )
-        );
-
-      await Promise.all(
-        documentSnapshot.docs.map(
-          async (
-            documentSnapshot
-          ) => {
-            const chunkSnapshot =
-              await getDocs(
-                collection(
-                  db,
-                  "documents",
-                  documentSnapshot.id,
-                  "chunks"
-                )
-              );
-
-            await Promise.all(
-              chunkSnapshot.docs.map(
-                (chunk) =>
-                  deleteDoc(
-                    doc(
-                      db,
-                      "documents",
-                      documentSnapshot.id,
-                      "chunks",
-                      chunk.id
-                    )
-                  )
-              )
-            );
-
-            await deleteDoc(
-              doc(
+      try {
+        const documentSnapshot =
+          await getDocs(
+            query(
+              collection(
                 db,
-                "documents",
-                documentSnapshot.id
+                "documents"
+              ),
+              where(
+                "requestId",
+                "==",
+                id
               )
-            );
-          }
-        )
-      );
-
-      const reportSnapshot =
-        await getDocs(
-          query(
-            collection(
-              db,
-              "reportDocuments"
-            ),
-            where(
-              "requestId",
-              "==",
-              id
             )
-          )
-        );
+          );
 
-      await Promise.all(
-        reportSnapshot.docs.map(
-          (
-            snapshot
-          ) =>
-            deleteDoc(
-              doc(
+        for (
+          const document
+          of documentSnapshot.docs
+        ) {
+          await deleteDocumentWithChunks(
+            document.id
+          );
+        }
+
+        const reportSnapshot =
+          await getDocs(
+            query(
+              collection(
+                db,
+                "reportDocuments"
+              ),
+              where(
+                "requestId",
+                "==",
+                id
+              )
+            )
+          );
+
+        for (
+          const report
+          of reportSnapshot.docs
+        ) {
+          const chunks =
+            await getDocs(
+              collection(
                 db,
                 "reportDocuments",
-                snapshot.id
+                report.id,
+                "chunks"
               )
-            )
-        )
-      );
+            );
 
-      await deleteDoc(
-        doc(
-          db,
-          "requests",
-          id
-        )
-      );
+          await Promise.all(
+            chunks.docs.map(
+              (chunk) =>
+                deleteDoc(
+                  doc(
+                    db,
+                    "reportDocuments",
+                    report.id,
+                    "chunks",
+                    chunk.id
+                  )
+                )
+            )
+          );
+
+          await deleteDoc(
+            doc(
+              db,
+              "reportDocuments",
+              report.id
+            )
+          );
+        }
+
+        await deleteDoc(
+          doc(
+            db,
+            "requests",
+            id
+          )
+        );
+      } catch (error) {
+        throw friendlyError(
+          error
+        );
+      }
     };
 
   const addReportDocument =
@@ -703,12 +709,6 @@ export function RequestProvider({
         String(
           data?.requestId || ""
         ).trim();
-
-      if (!requestId) {
-        throw new Error(
-          "A request must be selected first."
-        );
-      }
 
       const request =
         requests.find(
@@ -774,19 +774,13 @@ export function RequestProvider({
         );
       }
 
-      const validType =
-        ALLOWED_TYPES.includes(
-          contentType
-        );
-
-      const validExtension =
-        ALLOWED_EXTENSIONS.test(
-          fileName
-        );
-
       if (
-        !validType &&
-        !validExtension
+        !ALLOWED_TYPES.includes(
+          contentType
+        ) &&
+        !ALLOWED_EXTENSIONS.test(
+          fileName
+        )
       ) {
         throw new Error(
           "Only PDF, PNG, and JPG files can be added."
@@ -833,7 +827,8 @@ export function RequestProvider({
           contentType ||
           "application/octet-stream",
         fileSize,
-        dataHeader: header,
+        dataHeader:
+          header,
         chunkCount,
         uploadedBy:
           user.id,
@@ -845,59 +840,54 @@ export function RequestProvider({
           serverTimestamp()
       };
 
-      const reportRef =
-        await addDoc(
-          collection(
-            db,
-            "reportDocuments"
-          ),
-          reportDocument
-        );
+      try {
+        const reportRef =
+          await addDoc(
+            collection(
+              db,
+              "reportDocuments"
+            ),
+            reportDocument
+          );
 
-      for (
-        let index = 0;
-        index < chunkCount;
-        index++
-      ) {
-        const start =
-          index *
-          chunkSize;
+        for (
+          let index = 0;
+          index < chunkCount;
+          index++
+        ) {
+          const start =
+            index *
+            chunkSize;
 
-        await updateDoc(
-          doc(
-            db,
-            "reportDocuments",
-            reportRef.id
-          ),
-          {
-            updatedAt:
-              serverTimestamp()
-          }
-        );
+          await addDoc(
+            collection(
+              db,
+              "reportDocuments",
+              reportRef.id,
+              "chunks"
+            ),
+            {
+              index,
+              data:
+                body.slice(
+                  start,
+                  start +
+                    chunkSize
+                )
+            }
+          );
+        }
 
-        await addDoc(
-          collection(
-            db,
-            "reportDocuments",
+        return {
+          id:
             reportRef.id,
-            "chunks"
-          ),
-          {
-            index,
-            data: body.slice(
-              start,
-              start +
-                chunkSize
-            )
-          }
+          ...reportDocument
+        };
+      } catch (error) {
+        throw friendlyError(
+          error
         );
       }
-
-      return {
-        id:
-          reportRef.id,
-        ...reportDocument
-      };
     };
 
   const deleteReportDocument =

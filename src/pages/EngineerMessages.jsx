@@ -3,92 +3,127 @@ import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessageContext";
 import { Avatar } from "./ClientMessages";
 
+function messageTime(value) {
+  if (!value) return "";
+
+  const date = value?.toDate
+    ? value.toDate()
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
 export default function EngineerMessages() {
   const { user, users } = useAuth();
+
   const {
     messages,
     sendMessage,
-    unsendMessage
+    markConversationAsRead,
+    getUnreadConversationCount,
+    unreadMessageCount
   } = useMessages();
 
-  const clients = users.filter(
-    (item) =>
-      item.role === "client" &&
-      item.status !== "inactive"
+  const clients = useMemo(
+    () =>
+      users.filter(
+        (item) =>
+          item.role === "client" &&
+          item.status !== "inactive"
+      ),
+    [users]
   );
 
-  const [selected, setSelected] = useState(
-    clients[0]?.id || ""
-  );
-
+  const [selected, setSelected] = useState("");
+  const [search, setSearch] = useState("");
   const [text, setText] = useState("");
-  const [clientSearch, setClientSearch] = useState("");
-  const [messageSearch, setMessageSearch] = useState("");
 
   useEffect(() => {
-    if (
-      selected &&
-      clients.some((client) => client.id === selected)
-    ) {
-      return;
+    if (!selected && clients.length > 0) {
+      setSelected(clients[0].id);
     }
 
-    setSelected(clients[0]?.id || "");
+    if (
+      selected &&
+      !clients.some(
+        (client) => client.id === selected
+      )
+    ) {
+      setSelected(clients[0]?.id || "");
+    }
   }, [clients, selected]);
 
-  const filteredClients = useMemo(() => {
-    const searchValue = clientSearch
-      .trim()
-      .toLowerCase();
-
-    return clients.filter((client) => {
-      if (!searchValue) return true;
-
-      return `${client.name || ""} ${
-        client.email || ""
-      } ${client.association || ""}`
-        .toLowerCase()
-        .includes(searchValue);
-    });
-  }, [clients, clientSearch]);
-
-  const peer = clients.find(
-    (client) => client.id === selected
+  const filteredClients = clients.filter((client) =>
+    `${client.name || ""} ${
+      client.email || ""
+    } ${client.association || ""}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
-  const thread = useMemo(() => {
-    if (!peer) return [];
+  const peer = clients.find(
+    (item) => item.id === selected
+  );
 
-    const searchValue = messageSearch
-      .trim()
-      .toLowerCase();
-
-    return messages
-      .filter(
+  const thread = peer
+    ? messages.filter(
         (message) =>
           (message.from === user.id &&
             message.to === peer.id) ||
           (message.from === peer.id &&
             message.to === user.id)
       )
-      .filter((message) =>
-        searchValue
-          ? String(message.text || "")
-              .toLowerCase()
-              .includes(searchValue)
-          : true
+    : [];
+
+  const handleSelectClient = async (clientId) => {
+    setSelected(clientId);
+
+    try {
+      await markConversationAsRead(clientId);
+    } catch (error) {
+      console.error(
+        "Unable to mark conversation as read:",
+        error
       );
-  }, [
-    messages,
-    user?.id,
-    peer?.id,
-    messageSearch
-  ]);
+    }
+  };
+
+  useEffect(() => {
+    if (!selected) return;
+
+    const selectedClientExists = clients.some(
+      (client) => client.id === selected
+    );
+
+    if (!selectedClientExists) return;
+
+    const markSelectedConversation = async () => {
+      try {
+        await markConversationAsRead(selected);
+      } catch (error) {
+        console.error(
+          "Unable to mark conversation as read:",
+          error
+        );
+      }
+    };
+
+    markSelectedConversation();
+  }, [selected]);
 
   const submit = async (event) => {
     event.preventDefault();
 
-    if (!peer || !text.trim()) return;
+    if (!peer || !text.trim()) {
+      return;
+    }
 
     try {
       await sendMessage(
@@ -106,201 +141,232 @@ export default function EngineerMessages() {
     }
   };
 
-  const handleUnsend = async (messageId) => {
-    const confirmed = window.confirm(
-      "Unsend this message?"
-    );
-
-    if (!confirmed) return;
-
-    try {
-      await unsendMessage(messageId);
-    } catch (error) {
-      alert(
-        error?.message ||
-          "The message could not be unsent."
-      );
-    }
-  };
-
   return (
     <div className="container page-container">
       <div className="page-header">
         <div>
-          <span className="eyebrow">MESSENGER</span>
+          <span className="eyebrow">
+            MESSENGER
+          </span>
 
-          <h1>Client messages</h1>
+          <h1>Messages</h1>
 
           <p>
-            Pick a client and switch conversations whenever
-            you need.
+            Communicate directly with
+            registered clients.
           </p>
         </div>
       </div>
 
-      <div className="messenger-layout card">
-        <aside className="conversation-list">
-          <div className="conversation-title">
-            <strong>Clients</strong>
-            <span>{clients.length}</span>
+      <div className="ig-messenger">
+        <aside className="ig-sidebar">
+          <div className="ig-sidebar-header">
+            <strong>Messages</strong>
+
+            {unreadMessageCount > 0 ? (
+              <span className="ig-unread-total">
+                {unreadMessageCount > 99
+                  ? "99+"
+                  : unreadMessageCount}
+              </span>
+            ) : (
+              <span>
+                {clients.length}
+              </span>
+            )}
           </div>
 
-          <div className="conversation-search">
+          <div className="ig-search">
             <input
-              type="search"
-              value={clientSearch}
+              value={search}
               onChange={(event) =>
-                setClientSearch(event.target.value)
+                setSearch(event.target.value)
               }
-              placeholder="Search clients..."
+              placeholder="Search"
             />
           </div>
 
-          {filteredClients.length > 0 ? (
-            filteredClients.map((client) => (
-              <button
-                type="button"
-                className={
-                  selected === client.id
-                    ? "conversation-item selected"
-                    : "conversation-item"
-                }
-                key={client.id}
-                onClick={() => {
-                  setSelected(client.id);
-                  setMessageSearch("");
-                }}
-              >
-                <Avatar u={client} />
+          <div className="ig-conversation-list">
+            {filteredClients.length > 0 ? (
+              filteredClients.map((client) => {
+                const unreadCount =
+                  getUnreadConversationCount
+                    ? getUnreadConversationCount(
+                        client.id
+                      )
+                    : messages.filter(
+                        (message) =>
+                          message.from ===
+                            client.id &&
+                          message.to ===
+                            user.id &&
+                          message.read === false
+                      ).length;
 
-                <span className="conversation-info">
-                  <strong>{client.name}</strong>
+                return (
+                  <button
+                    type="button"
+                    key={client.id}
+                    className={`ig-conversation ${
+                      selected === client.id
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      handleSelectClient(
+                        client.id
+                      )
+                    }
+                  >
+                    <Avatar u={client} />
 
-                  <small>
-                    {client.association || "Client"}
-                  </small>
-                </span>
-              </button>
-            ))
-          ) : (
-            <div className="conversation-empty">
-              No clients found.
-            </div>
-          )}
+                    <span className="ig-conversation-info">
+                      <strong>
+                        {client.name}
+                      </strong>
+
+                      <small>
+                        {client.association ||
+                          client.email}
+                      </small>
+                    </span>
+
+                    {unreadCount > 0 && (
+                      <span className="ig-unread-badge">
+                        {unreadCount > 99
+                          ? "99+"
+                          : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="ig-empty-sidebar">
+                No clients found.
+              </div>
+            )}
+          </div>
         </aside>
 
-        <section className="chat-pane">
+        <section className="ig-chat">
           {peer ? (
             <>
-              <div className="chat-head">
+              <header className="ig-chat-header">
                 <Avatar u={peer} />
 
-                <div className="chat-person">
-                  <strong>{peer.name}</strong>
+                <div>
+                  <strong>
+                    {peer.name}
+                  </strong>
 
                   <span>
-                    {peer.association || "Client"}
+                    {peer.association ||
+                      "Client"}
                   </span>
                 </div>
-              </div>
+              </header>
 
-              <div className="message-search">
-                <input
-                  type="search"
-                  value={messageSearch}
-                  onChange={(event) =>
-                    setMessageSearch(event.target.value)
-                  }
-                  placeholder="Search messages..."
-                />
-              </div>
+              <div className="ig-chat-body">
+                <div className="ig-profile-intro">
+                  <Avatar
+                    u={peer}
+                    small
+                  />
 
-              <div className="chat-body">
-                {thread.length > 0 ? (
-                  thread.map((message) => {
-                    const mine =
-                      message.from === user.id ||
-                      message.senderId === user.id;
+                  <strong>
+                    {peer.name}
+                  </strong>
 
-                    return (
-                      <div
-                        key={message.id}
-                        className={`message-bubble-row ${
-                          mine
-                            ? "message-bubble-mine"
-                            : ""
-                        }`}
-                      >
-                        <div
-                          className={`bubble ${
-                            mine
-                              ? "mine"
-                              : "theirs"
-                          }`}
-                        >
-                          <p>{message.text}</p>
+                  <span>
+                    {peer.email}
+                  </span>
+                </div>
 
-                          {mine && (
-                            <button
-                              type="button"
-                              className="unsend-message-btn"
-                              onClick={() =>
-                                handleUnsend(
-                                  message.id
-                                )
-                              }
-                            >
-                              Unsend
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="empty-state">
+                {thread.length === 0 ? (
+                  <div className="ig-no-messages">
+                    <div className="ig-message-icon">
+                      ✉
+                    </div>
+
                     <strong>
-                      {messageSearch
-                        ? "No matching messages"
-                        : "No messages yet"}
+                      Start a conversation
                     </strong>
 
                     <span>
-                      {messageSearch
-                        ? "Try another search."
-                        : "Start the conversation with this client."}
+                      Send a message to this
+                      client.
                     </span>
                   </div>
+                ) : (
+                  thread.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`ig-message-row ${
+                        message.from === user.id
+                          ? "mine"
+                          : "theirs"
+                      }`}
+                    >
+                      {message.from !==
+                        user.id && (
+                        <Avatar
+                          u={peer}
+                          small
+                        />
+                      )}
+
+                      <div>
+                        <div className="ig-bubble">
+                          {message.text}
+                        </div>
+
+                        <small className="ig-time">
+                          {messageTime(
+                            message.createdAt
+                          )}
+                        </small>
+                      </div>
+                    </div>
+                  ))
                 )}
               </div>
 
               <form
-                className="message-compose"
+                className="ig-compose"
                 onSubmit={submit}
               >
                 <input
                   value={text}
                   onChange={(event) =>
-                    setText(event.target.value)
+                    setText(
+                      event.target.value
+                    )
                   }
-                  placeholder="Write a message..."
+                  placeholder="Message..."
                 />
 
                 <button
                   type="submit"
-                  className="primary-btn"
+                  disabled={!text.trim()}
                 >
                   Send
                 </button>
               </form>
             </>
           ) : (
-            <div className="empty-state">
-              <strong>Select a client</strong>
+            <div className="ig-no-messages">
+              <div className="ig-message-icon">
+                ✉
+              </div>
+
+              <strong>
+                Select a conversation
+              </strong>
 
               <span>
-                Choose a client from the list to open the
-                conversation.
+                Choose a client to start
+                messaging.
               </span>
             </div>
           )}
@@ -309,3 +375,4 @@ export default function EngineerMessages() {
     </div>
   );
 }
+
