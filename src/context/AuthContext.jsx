@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -800,6 +801,17 @@ export function AuthProvider({
             profile.status ===
             "inactive"
           ) {
+            if (
+              profile.role ===
+              "client"
+            ) {
+              try {
+                await deleteClientData(
+                  firebaseUser.uid
+                );
+              } catch {}
+            }
+
             await signOut(auth);
             setUser(null);
           } else {
@@ -844,15 +856,18 @@ export function AuthProvider({
 
     return onSnapshot(
       userQuery,
-      (snapshot) => {
+      async (snapshot) => {
+        const mappedUsers =
+          snapshot.docs.map(
+            mapUser
+          );
+
         setUsers(
-          snapshot.docs
-            .map(mapUser)
-            .filter(
-              (item) =>
-                item.status !==
-                "inactive"
-            )
+          mappedUsers.filter(
+            (item) =>
+              item.status !==
+              "inactive"
+          )
         );
       },
       () => {
@@ -912,6 +927,17 @@ export function AuthProvider({
         profile.status ===
         "inactive"
       ) {
+        if (
+          profile.role ===
+          "client"
+        ) {
+          try {
+            await deleteClientData(
+              credential.user.uid
+            );
+          } catch {}
+        }
+
         await signOut(auth);
 
         throw new Error(
@@ -1068,6 +1094,44 @@ export function AuthProvider({
     }
 
     try {
+      const targetSnapshot =
+        await getDoc(
+          doc(
+            db,
+            "users",
+            id
+          )
+        );
+
+      if (
+        !targetSnapshot.exists()
+      ) {
+        throw new Error(
+          "The account could not be found."
+        );
+      }
+
+      const target =
+        targetSnapshot.data();
+
+      if (
+        target.role === "client" &&
+        patch.status === "inactive"
+      ) {
+        await deleteClientData(
+          id
+        );
+      }
+
+      if (
+        target.role === "engineer" &&
+        patch.status === "inactive"
+      ) {
+        await deleteEngineerData(
+          id
+        );
+      }
+
       await updateDoc(
         doc(
           db,

@@ -55,9 +55,7 @@ const MINIMUM_REQUIREMENTS = [
 ];
 
 export default function Requests() {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
 
   const {
     requests,
@@ -65,219 +63,130 @@ export default function Requests() {
     deleteRequest
   } = useRequests();
 
-  const [
-    form,
-    setForm
-  ] = useState({
+  const [form, setForm] = useState({
     requestType: "",
     details: ""
   });
 
-  const [
-    files,
-    setFiles
-  ] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [requirementsRead, setRequirementsRead] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [monthFilter, setMonthFilter] = useState("All");
+  const [yearFilter, setYearFilter] = useState("All");
+  const [previewFile, setPreviewFile] = useState(null);
 
-  const [
-    previews,
-    setPreviews
-  ] = useState([]);
-
-  const [
-    requirementsRead,
-    setRequirementsRead
-  ] = useState(false);
-
-  const [
-    search,
-    setSearch
-  ] = useState("");
-
-  const [
-    statusFilter,
-    setStatusFilter
-  ] = useState("All");
-
-  const [
-    monthFilter,
-    setMonthFilter
-  ] = useState("All");
-
-  const [
-    yearFilter,
-    setYearFilter
-  ] = useState("All");
-
-  const [
-    previewFile,
-    setPreviewFile
-  ] = useState(null);
-
-  const updateForm = (
-    name,
-    value
-  ) => {
-    setForm(
-      (previous) => ({
-        ...previous,
-        [name]: value
-      })
-    );
+  const updateForm = (name, value) => {
+    setForm((previous) => ({
+      ...previous,
+      [name]: value
+    }));
   };
 
-  const changeFiles = async (
-    event
-  ) => {
-    const selected =
-      Array.from(
-        event.target.files ||
-          []
-      );
+  const changeFiles = async (event) => {
+    const selected = Array.from(event.target.files || []);
 
-    if (
-      !selected.length
-    ) {
+    if (!selected.length) {
       return;
     }
 
-    const invalid =
-      selected.find(
-        (file) =>
-          file.size <= 0 ||
-          file.size >
-            MAX_FILE_SIZE
-      );
+    const invalid = selected.find(
+      (file) =>
+        file.size <= 0 ||
+        file.size > MAX_FILE_SIZE
+    );
 
     if (invalid) {
       alert(
-        invalid.size >
-          MAX_FILE_SIZE
+        invalid.size > MAX_FILE_SIZE
           ? `"${invalid.name}" is larger than the allowed 5 MB file size.`
           : `"${invalid.name}" is empty.`
       );
 
-      event.target.value =
-        "";
-
+      event.target.value = "";
       return;
     }
 
-    const unsupported =
-      selected.find(
-        (file) =>
-          ![
-            "application/pdf",
-            "image/jpeg",
-            "image/png"
-          ].includes(
-            file.type
-          ) &&
-          !/\.(pdf|jpe?g|png)$/i.test(
-            file.name
-          )
-      );
+    const unsupported = selected.find(
+      (file) =>
+        ![
+          "application/pdf",
+          "image/jpeg",
+          "image/png"
+        ].includes(file.type) &&
+        !/\.(pdf|jpe?g|png)$/i.test(file.name)
+    );
 
     if (unsupported) {
       alert(
         `"${unsupported.name}" is not supported. Only PDF, JPG, and PNG files are allowed.`
       );
 
-      event.target.value =
-        "";
-
+      event.target.value = "";
       return;
     }
 
-    const fresh =
-      selected.filter(
-        (file) =>
-          !files.some(
-            (old) =>
-              old.name ===
-                file.name &&
-              old.size ===
-                file.size
-          )
-      );
+    const fresh = selected.filter(
+      (file) =>
+        !files.some(
+          (old) =>
+            old.name === file.name &&
+            old.size === file.size
+        )
+    );
 
     if (!fresh.length) {
       alert(
         "The selected files are already in the list."
       );
 
-      event.target.value =
-        "";
-
+      event.target.value = "";
       return;
     }
 
-    const nextPreviews =
-      [];
+    const nextPreviews = [];
 
-    for (
-      const file of fresh
-    ) {
+    for (const file of fresh) {
       let url = null;
 
       try {
-        url =
-          await fileToDataURL(
-            file
-          );
+        url = await fileToDataURL(file);
       } catch {
         url = null;
       }
 
       nextPreviews.push({
-        name:
-          file.name,
-        type:
-          file.type,
+        name: file.name,
+        type: file.type,
         url
       });
     }
 
-    setFiles(
-      (previous) => [
-        ...previous,
-        ...fresh
-      ]
-    );
+    setFiles((previous) => [
+      ...previous,
+      ...fresh
+    ]);
 
-    setPreviews(
-      (previous) => [
-        ...previous,
-        ...nextPreviews
-      ]
-    );
+    setPreviews((previous) => [
+      ...previous,
+      ...nextPreviews
+    ]);
 
-    event.target.value =
-      "";
+    event.target.value = "";
   };
 
-  const removeFile = (
-    index
-  ) => {
-    setFiles(
-      (previous) =>
-        previous.filter(
-          (_, i) =>
-            i !== index
-        )
+  const removeFile = (index) => {
+    setFiles((previous) =>
+      previous.filter((_, i) => i !== index)
     );
 
-    setPreviews(
-      (previous) =>
-        previous.filter(
-          (_, i) =>
-            i !== index
-        )
+    setPreviews((previous) =>
+      previous.filter((_, i) => i !== index)
     );
   };
 
-  const submit = async (
-    event
-  ) => {
+  const submit = async (event) => {
     event.preventDefault();
 
     if (!requirementsRead) {
@@ -288,9 +197,7 @@ export default function Requests() {
     }
 
     if (!user?.id) {
-      alert(
-        "Please sign in again."
-      );
+      alert("Please sign in again.");
       return;
     }
 
@@ -302,9 +209,7 @@ export default function Requests() {
     }
 
     if (!form.requestType) {
-      alert(
-        "Please select a request type."
-      );
+      alert("Please select a request type.");
       return;
     }
 
@@ -318,34 +223,23 @@ export default function Requests() {
     let request = null;
 
     try {
-      request =
-        await createRequest({
-          clientId:
-            user.id,
-          association:
-            user.association,
-          requestType:
-            form.requestType,
-          details:
-            form.details.trim()
-        });
+      request = await createRequest({
+        clientId: user.id,
+        association: user.association,
+        requestType: form.requestType,
+        details: form.details.trim()
+      });
 
-      for (
-        const file of files
-      ) {
+      for (const file of files) {
         try {
           await saveDocument({
             file,
-            requestId:
-              request.id,
-            clientId:
-              user.id
+            requestId: request.id,
+            clientId: user.id
           });
         } catch (fileError) {
           try {
-            await deleteRequest(
-              request.id
-            );
+            await deleteRequest(request.id);
           } catch {}
 
           throw new Error(
@@ -362,13 +256,9 @@ export default function Requests() {
 
       setFiles([]);
       setPreviews([]);
-      setRequirementsRead(
-        false
-      );
+      setRequirementsRead(false);
 
-      alert(
-        "Request submitted successfully."
-      );
+      alert("Request submitted successfully.");
     } catch (error) {
       alert(
         error?.userMessage ||
@@ -378,167 +268,192 @@ export default function Requests() {
     }
   };
 
-  const years = useMemo(
-    () => {
-      const values =
-        requests
-          .filter(
-            (request) =>
-              request.clientId ===
-              user?.id
-          )
-          .map(
-            (request) =>
-              String(
-                request.createdAt ||
-                  ""
-              ).slice(
-                0,
-                4
-              )
-          )
-          .filter(Boolean);
+  const getCreatedDate = (request) => {
+    const value =
+      request.createdAt ||
+      request.createdAtTimestamp;
 
-      return [
-        ...new Set(values)
-      ].sort(
-        (a, b) =>
-          Number(b) -
-          Number(a)
+    if (!value) {
+      return null;
+    }
+
+    if (
+      typeof value === "object" &&
+      typeof value.toDate === "function"
+    ) {
+      return value.toDate();
+    }
+
+    if (
+      typeof value === "object" &&
+      typeof value.seconds === "number"
+    ) {
+      return new Date(value.seconds * 1000);
+    }
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+      ? null
+      : date;
+  };
+
+  const formatCreatedDate = (request) => {
+    const date = getCreatedDate(request);
+
+    if (!date) {
+      return String(request.createdAt || "Date not available");
+    }
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  };
+
+  const getRejectionReason = (request) => {
+    const values = [
+      request.rejectionReason,
+      request.rejectionNote,
+      request.engineerRemarks,
+      request.notes
+    ];
+
+    const reason = values.find(
+      (value) =>
+        typeof value === "string" &&
+        value.trim()
+    );
+
+    return reason ? reason.trim() : "";
+  };
+
+  const years = useMemo(() => {
+    const values = requests
+      .filter(
+        (request) =>
+          request.clientId === user?.id
+      )
+      .map((request) => {
+        const date = getCreatedDate(request);
+        return date
+          ? String(date.getFullYear())
+          : "";
+      })
+      .filter(Boolean);
+
+    return [...new Set(values)].sort(
+      (a, b) => Number(b) - Number(a)
+    );
+  }, [requests, user?.id]);
+
+  const mine = useMemo(() => {
+    const searchValue =
+      search.trim().toLowerCase();
+
+    return requests
+      .filter(
+        (request) =>
+          request.clientId === user?.id
+      )
+      .filter(
+        (request) =>
+          statusFilter === "All" ||
+          request.status === statusFilter
+      )
+      .filter((request) => {
+        if (monthFilter === "All") {
+          return true;
+        }
+
+        const date = getCreatedDate(request);
+
+        if (!date) {
+          return false;
+        }
+
+        return (
+          String(
+            date.getMonth() + 1
+          ).padStart(2, "0") ===
+          monthFilter
+        );
+      })
+      .filter((request) => {
+        if (yearFilter === "All") {
+          return true;
+        }
+
+        const date = getCreatedDate(request);
+
+        if (!date) {
+          return false;
+        }
+
+        return (
+          String(date.getFullYear()) ===
+          yearFilter
+        );
+      })
+      .filter((request) => {
+        if (!searchValue) {
+          return true;
+        }
+
+        return `${request.referenceNumber || ""} ${
+          request.association || ""
+        } ${request.requestType || ""} ${
+          request.details || ""
+        } ${getRejectionReason(request)}`
+          .toLowerCase()
+          .includes(searchValue);
+      })
+      .sort((a, b) => {
+        const dateA = getCreatedDate(a);
+        const dateB = getCreatedDate(b);
+
+        return (
+          (dateB?.getTime() || 0) -
+          (dateA?.getTime() || 0)
+        );
+      });
+  }, [
+    requests,
+    user?.id,
+    search,
+    statusFilter,
+    monthFilter,
+    yearFilter
+  ]);
+
+  const handleDelete = async (request) => {
+    if (request.clientId !== user?.id) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete request ${
+        request.referenceNumber ||
+        request.id
+      }? This will also remove its uploaded documents.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteRequest(request.id);
+
+      alert("Request deleted successfully.");
+    } catch (error) {
+      alert(
+        error?.message ||
+          "The request could not be deleted."
       );
-    },
-    [
-      requests,
-      user?.id
-    ]
-  );
-
-  const mine = useMemo(
-    () => {
-      const searchValue =
-        search
-          .trim()
-          .toLowerCase();
-
-      return requests
-        .filter(
-          (request) =>
-            request.clientId ===
-            user?.id
-        )
-        .filter(
-          (request) =>
-            statusFilter ===
-              "All" ||
-            request.status ===
-              statusFilter
-        )
-        .filter(
-          (request) =>
-            monthFilter ===
-              "All" ||
-            String(
-              request.createdAt ||
-                ""
-            ).slice(
-              5,
-              7
-            ) ===
-              monthFilter
-        )
-        .filter(
-          (request) =>
-            yearFilter ===
-              "All" ||
-            String(
-              request.createdAt ||
-                ""
-            ).slice(
-              0,
-              4
-            ) ===
-              yearFilter
-        )
-        .filter(
-          (request) => {
-            if (
-              !searchValue
-            ) {
-              return true;
-            }
-
-            return `${request.referenceNumber || ""} ${
-              request.association || ""
-            } ${request.requestType || ""} ${
-              request.details || ""
-            }`
-              .toLowerCase()
-              .includes(
-                searchValue
-              );
-          }
-        )
-        .sort(
-          (a, b) =>
-            String(
-              b.createdAt ||
-                ""
-            ).localeCompare(
-              String(
-                a.createdAt ||
-                  ""
-              )
-            )
-        );
-    },
-    [
-      requests,
-      user?.id,
-      search,
-      statusFilter,
-      monthFilter,
-      yearFilter
-    ]
-  );
-
-  const handleDelete =
-    async (
-      request
-    ) => {
-      if (
-        request.clientId !==
-        user?.id
-      ) {
-        return;
-      }
-
-      const confirmed =
-        window.confirm(
-          `Delete request ${
-            request.referenceNumber ||
-            request.id
-          }? This will also remove its uploaded documents.`
-        );
-
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        await deleteRequest(
-          request.id
-        );
-
-        alert(
-          "Request deleted successfully."
-        );
-      } catch (error) {
-        alert(
-          error?.message ||
-            "The request could not be deleted."
-        );
-      }
-    };
+    }
+  };
 
   return (
     <div className="page request-page">
@@ -547,13 +462,10 @@ export default function Requests() {
           SERVICE REQUESTS
         </span>
 
-        <h1>
-          My Requests
-        </h1>
+        <h1>My Requests</h1>
 
         <p>
-          Submit requests and
-          keep your documents
+          Submit requests and keep your documents
           organized.
         </p>
       </div>
@@ -565,16 +477,11 @@ export default function Requests() {
         >
           <div className="request-form-heading">
             <div>
-              <h3>
-                New service
-                request
-              </h3>
+              <h3>New service request</h3>
 
               <p>
-                Review the
-                documentary
-                requirements before
-                submitting.
+                Review the documentary requirements
+                before submitting.
               </p>
             </div>
 
@@ -586,26 +493,18 @@ export default function Requests() {
           <div className="request-requirements-panel">
             <div className="request-requirements-header">
               <span className="eyebrow">
-                DOCUMENTARY
-                REQUIREMENTS
+                DOCUMENTARY REQUIREMENTS
               </span>
 
-              <h3>
-                Minimum Requirements
-              </h3>
+              <h3>Minimum Requirements</h3>
             </div>
 
             <div className="request-requirements-list">
               {MINIMUM_REQUIREMENTS.map(
-                (
-                  requirement,
-                  index
-                ) => (
+                (requirement, index) => (
                   <div
                     className="request-requirement-item"
-                    key={
-                      requirement.title
-                    }
+                    key={requirement.title}
                   >
                     <div className="request-requirement-number">
                       {index + 1}
@@ -620,22 +519,14 @@ export default function Requests() {
                       </strong>
 
                       <p>
-                        {
-                          requirement.text
-                        }
+                        {requirement.text}
                       </p>
 
                       {requirement.items && (
                         <ol>
                           {requirement.items.map(
-                            (
-                              item
-                            ) => (
-                              <li
-                                key={
-                                  item
-                                }
-                              >
+                            (item) => (
+                              <li key={item}>
                                 {item}
                               </li>
                             )
@@ -651,32 +542,23 @@ export default function Requests() {
             <label className="requirements-checkbox">
               <input
                 type="checkbox"
-                checked={
-                  requirementsRead
-                }
-                onChange={(
-                  event
-                ) =>
+                checked={requirementsRead}
+                onChange={(event) =>
                   setRequirementsRead(
-                    event.target
-                      .checked
+                    event.target.checked
                   )
                 }
               />
 
               <span>
-                I have read and
-                understand the
-                minimum documentary
-                requirements.
+                I have read and understand the
+                minimum documentary requirements.
               </span>
             </label>
           </div>
 
           <div className="assigned-association">
-            <span>
-              Assigned association
-            </span>
+            <span>Assigned association</span>
 
             <strong>
               {user?.association ||
@@ -684,21 +566,14 @@ export default function Requests() {
             </strong>
           </div>
 
-          <label>
-            Request type
-          </label>
+          <label>Request type</label>
 
           <select
-            value={
-              form.requestType
-            }
-            onChange={(
-              event
-            ) =>
+            value={form.requestType}
+            onChange={(event) =>
               updateForm(
                 "requestType",
-                event.target
-                  .value
+                event.target.value
               )
             }
             required
@@ -716,38 +591,27 @@ export default function Requests() {
             </option>
           </select>
 
-          <label>
-            Request details
-          </label>
+          <label>Request details</label>
 
           <textarea
             rows="7"
-            value={
-              form.details
-            }
-            onChange={(
-              event
-            ) =>
+            value={form.details}
+            onChange={(event) =>
               updateForm(
                 "details",
-                event.target
-                  .value
+                event.target.value
               )
             }
             placeholder="Describe your request..."
             required
           />
 
-          <label>
-            Supporting documents
-          </label>
+          <label>Supporting documents</label>
 
           <p className="upload-help">
-            Supporting documents
-            are optional during
-            initial submission.
-            Each file must be
-            5 MB or smaller.
+            Supporting documents are optional during
+            initial submission. Each file must be 5 MB
+            or smaller.
           </p>
 
           <label className="file-upload-box">
@@ -756,33 +620,27 @@ export default function Requests() {
             </span>
 
             <strong>
-              Click to select
-              documents
+              Click to select documents
             </strong>
 
             <small>
-              Optional · PDF, JPG,
-              PNG · Maximum 5 MB
-              per file
+              Optional · PDF, JPG, PNG · Maximum
+              5 MB per file
             </small>
 
             <input
               type="file"
               multiple
               accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              onChange={
-                changeFiles
-              }
+              onChange={changeFiles}
             />
           </label>
 
-          {files.length >
-            0 && (
+          {files.length > 0 && (
             <div className="upload-section">
               <div className="upload-section-header">
                 <strong>
-                  Selected documents (
-                  {files.length})
+                  Selected documents ({files.length})
                 </strong>
 
                 <button
@@ -798,100 +656,78 @@ export default function Requests() {
               </div>
 
               <div className="upload-file-list">
-                {files.map(
-                  (
-                    file,
-                    index
-                  ) => {
-                    const preview =
-                      previews[
-                        index
-                      ];
+                {files.map((file, index) => {
+                  const preview =
+                    previews[index];
 
-                    const image =
-                      file.type.startsWith(
-                        "image/"
-                      );
+                  const image =
+                    file.type.startsWith(
+                      "image/"
+                    );
 
-                    return (
-                      <div
-                        className="upload-file-item"
-                        key={`${file.name}-${file.size}-${index}`}
-                      >
-                        <div className="upload-thumbnail">
-                          {image &&
-                          preview?.url ? (
-                            <img
-                              src={
-                                preview.url
-                              }
-                              alt={
-                                file.name
-                              }
-                            />
-                          ) : (
-                            <span className="file-type-icon">
-                              {file.type ===
-                              "application/pdf"
-                                ? "PDF"
-                                : "FILE"}
-                            </span>
-                          )}
-                        </div>
+                  return (
+                    <div
+                      className="upload-file-item"
+                      key={`${file.name}-${file.size}-${index}`}
+                    >
+                      <div className="upload-thumbnail">
+                        {image &&
+                        preview?.url ? (
+                          <img
+                            src={preview.url}
+                            alt={file.name}
+                          />
+                        ) : (
+                          <span className="file-type-icon">
+                            {file.type ===
+                            "application/pdf"
+                              ? "PDF"
+                              : "FILE"}
+                          </span>
+                        )}
+                      </div>
 
-                        <div className="upload-file-info">
-                          <strong
-                            title={
-                              file.name
-                            }
-                          >
-                            {
-                              file.name
-                            }
-                          </strong>
+                      <div className="upload-file-info">
+                        <strong title={file.name}>
+                          {file.name}
+                        </strong>
 
-                          <small>
-                            {(
-                              file.size /
-                              1024
-                            ).toFixed(
-                              0
-                            )}{" "}
-                            KB
-                          </small>
-                        </div>
+                        <small>
+                          {(
+                            file.size / 1024
+                          ).toFixed(0)}{" "}
+                          KB
+                        </small>
+                      </div>
 
-                        <div className="upload-file-actions">
-                          {preview?.url && (
-                            <button
-                              type="button"
-                              className="secondary-btn small"
-                              onClick={() =>
-                                setPreviewFile(
-                                  preview
-                                )
-                              }
-                            >
-                              Preview
-                            </button>
-                          )}
-
+                      <div className="upload-file-actions">
+                        {preview?.url && (
                           <button
                             type="button"
-                            className="danger-btn small"
+                            className="secondary-btn small"
                             onClick={() =>
-                              removeFile(
-                                index
+                              setPreviewFile(
+                                preview
                               )
                             }
                           >
-                            Remove
+                            Preview
                           </button>
-                        </div>
+                        )}
+
+                        <button
+                          type="button"
+                          className="danger-btn small"
+                          onClick={() =>
+                            removeFile(index)
+                          }
+                        >
+                          Remove
+                        </button>
                       </div>
-                    );
-                  }
-                )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -907,13 +743,10 @@ export default function Requests() {
         <section className="card request-list-card">
           <div className="request-list-heading">
             <div>
-              <h3>
-                Submitted requests
-              </h3>
+              <h3>Submitted requests</h3>
 
               <p>
-                Search and manage
-                your submitted
+                Search and manage your submitted
                 requests.
               </p>
             </div>
@@ -925,26 +758,16 @@ export default function Requests() {
               type="search"
               placeholder="Search requests..."
               value={search}
-              onChange={(
-                event
-              ) =>
-                setSearch(
-                  event.target
-                    .value
-                )
+              onChange={(event) =>
+                setSearch(event.target.value)
               }
             />
 
             <select
-              value={
-                statusFilter
-              }
-              onChange={(
-                event
-              ) =>
+              value={statusFilter}
+              onChange={(event) =>
                 setStatusFilter(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
             >
@@ -969,15 +792,10 @@ export default function Requests() {
             </select>
 
             <select
-              value={
-                monthFilter
-              }
-              onChange={(
-                event
-              ) =>
+              value={monthFilter}
+              onChange={(event) =>
                 setMonthFilter(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
             >
@@ -998,44 +816,30 @@ export default function Requests() {
                 "10",
                 "11",
                 "12"
-              ].map(
-                (month) => (
-                  <option
-                    value={
-                      month
+              ].map((month) => (
+                <option
+                  value={month}
+                  key={month}
+                >
+                  {new Date(
+                    2000,
+                    Number(month) - 1,
+                    1
+                  ).toLocaleDateString(
+                    undefined,
+                    {
+                      month: "long"
                     }
-                    key={
-                      month
-                    }
-                  >
-                    {new Date(
-                      2000,
-                      Number(
-                        month
-                      ) - 1,
-                      1
-                    ).toLocaleDateString(
-                      undefined,
-                      {
-                        month:
-                          "long"
-                      }
-                    )}
-                  </option>
-                )
-              )}
+                  )}
+                </option>
+              ))}
             </select>
 
             <select
-              value={
-                yearFilter
-              }
-              onChange={(
-                event
-              ) =>
+              value={yearFilter}
+              onChange={(event) =>
                 setYearFilter(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
             >
@@ -1043,97 +847,103 @@ export default function Requests() {
                 All years
               </option>
 
-              {years.map(
-                (year) => (
-                  <option
-                    value={
-                      year
-                    }
-                    key={
-                      year
-                    }
-                  >
-                    {year}
-                  </option>
-                )
-              )}
+              {years.map((year) => (
+                <option
+                  value={year}
+                  key={year}
+                >
+                  {year}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="request-list">
-            {mine.map(
-              (request) => (
+            {mine.map((request) => {
+              const rejectionReason =
+                getRejectionReason(request);
+
+              const isRejected =
+                request.status === "Rejected";
+
+              return (
                 <article
-                  className="card request-row"
-                  key={
-                    request.id
-                  }
+                  className={`card request-row ${
+                    isRejected
+                      ? "request-row-rejected"
+                      : ""
+                  }`}
+                  key={request.id}
                 >
                   <div className="request-row-content">
                     <div className="request-reference">
-                      {
-                        request.referenceNumber ||
-                        request.id
-                      }
+                      {request.referenceNumber ||
+                        request.id}
                     </div>
 
                     <h3>
-                      {
-                        request.requestType
-                      }
+                      {request.requestType}
                     </h3>
 
                     <p>
-                      {
-                        request.details
-                      }
+                      {request.details}
                     </p>
 
                     <small>
-                      {
-                        request.association
-                      }{" "}
-                      ·{" "}
-                      {
-                        request.createdAt
-                      }
+                      {request.association} ·{" "}
+                      {formatCreatedDate(request)}
                     </small>
+
+                    {isRejected && (
+                      <div className="request-rejection-reason">
+                        <div className="request-rejection-header">
+                          <strong>
+                            Reason for Rejection
+                          </strong>
+                        </div>
+
+                        <p>
+                          {rejectionReason ||
+                            "No rejection reason was provided."}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="request-row-actions">
-                    <span className="tag">
-                      {
-                        request.status
-                      }
+                    <span
+                      className={`tag ${
+                        isRejected
+                          ? "request-rejected-tag"
+                          : ""
+                      }`}
+                    >
+                      {request.status}
                     </span>
 
                     <button
                       type="button"
                       className="danger-btn small"
                       onClick={() =>
-                        handleDelete(
-                          request
-                        )
+                        handleDelete(request)
                       }
                     >
                       Delete
                     </button>
                   </div>
                 </article>
-              )
-            )}
+              );
+            })}
 
-            {mine.length ===
-              0 && (
+            {mine.length === 0 && (
               <div className="empty-state">
                 <strong>
                   No requests found.
                 </strong>
 
                 <span>
-                  Try changing your
-                  filters or submit
-                  your first request.
+                  Try changing your filters or
+                  submit your first request.
                 </span>
               </div>
             )}
@@ -1145,16 +955,12 @@ export default function Requests() {
         <div
           className="modal-overlay"
           onClick={() =>
-            setPreviewFile(
-              null
-            )
+            setPreviewFile(null)
           }
         >
           <div
             className="modal-card request-preview-modal"
-            onClick={(
-              event
-            ) =>
+            onClick={(event) =>
               event.stopPropagation()
             }
           >
@@ -1165,9 +971,7 @@ export default function Requests() {
                 </span>
 
                 <h2>
-                  {
-                    previewFile.name
-                  }
+                  {previewFile.name}
                 </h2>
               </div>
 
@@ -1175,9 +979,7 @@ export default function Requests() {
                 type="button"
                 className="modal-close"
                 onClick={() =>
-                  setPreviewFile(
-                    null
-                  )
+                  setPreviewFile(null)
                 }
               >
                 ×
@@ -1189,22 +991,14 @@ export default function Requests() {
             ) ? (
               <img
                 className="request-preview-image"
-                src={
-                  previewFile.url
-                }
-                alt={
-                  previewFile.name
-                }
+                src={previewFile.url}
+                alt={previewFile.name}
               />
             ) : (
               <iframe
                 className="request-preview-frame"
-                src={
-                  previewFile.url
-                }
-                title={
-                  previewFile.name
-                }
+                src={previewFile.url}
+                title={previewFile.name}
               />
             )}
           </div>
@@ -1213,3 +1007,4 @@ export default function Requests() {
     </div>
   );
 }
+

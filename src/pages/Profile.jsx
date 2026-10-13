@@ -62,9 +62,50 @@ export default function Profile({
     );
   };
 
+  const validateFullName = (value) => {
+    const name = value.trim();
+
+    if (!name) {
+      return "Full name is required.";
+    }
+
+    if (name.length < 5) {
+      return "Please enter your complete full name.";
+    }
+
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[ '-][A-Za-zÀ-ÖØ-öø-ÿ]+)+$/.test(name)) {
+      return "Please enter a valid full name with at least a first and last name.";
+    }
+
+    const parts = name
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (parts.length < 2) {
+      return "Please enter at least a first name and last name.";
+    }
+
+    if (
+      parts.some(
+        (part) =>
+          part.replace(
+            /[^A-Za-zÀ-ÖØ-öø-ÿ]/g,
+            ""
+          ).length < 2
+      )
+    ) {
+      return "Each name must contain at least 2 letters.";
+    }
+
+    return "";
+  };
+
   const save = async () => {
     const name =
       form.name?.trim();
+
+    const nameError =
+      validateFullName(name || "");
 
     const contactNumber =
       String(
@@ -75,10 +116,8 @@ export default function Profile({
         ""
       );
 
-    if (!name) {
-      alert(
-        "Full name is required."
-      );
+    if (nameError) {
+      alert(nameError);
       return;
     }
 
@@ -460,3 +499,4 @@ function Field({
     </div>
   );
 }
+
