@@ -15,89 +15,61 @@ export default function Calendar() {
     user
   } = useAuth();
 
-  const [search, setSearch] =
-    useState("");
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const [popupSearch, setPopupSearch] = useState("");
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date()
+  );
 
-  const [date, setDate] =
-    useState("");
+  const isEngineer = user?.role === "engineer";
 
-  const [popupSearch, setPopupSearch] =
-    useState("");
-
-  const isEngineer =
-    user?.role === "engineer";
-
-  const filtered =
-    appointments.filter(
-      (appointment) => {
-        const client =
-          users.find(
-            (item) =>
-              item.id ===
-              appointment.clientId
-          );
-
-        const searchText = `
-          ${appointment.title || ""}
-          ${appointment.clientName || ""}
-          ${client?.name || ""}
-          ${client?.association || ""}
-        `.toLowerCase();
-
-        return (
-          searchText.includes(
-            search
-              .toLowerCase()
-          ) &&
-          (
-            date
-              ? appointment.date ===
-                date
-              : true
-          )
-        );
-      }
+  const filtered = appointments.filter((appointment) => {
+    const client = users.find(
+      (item) => item.id === appointment.clientId
     );
 
-  const selectedAppointments =
-    date
-      ? appointments.filter(
-          (appointment) =>
-            appointment.date ===
-              date &&
-            appointment.status !==
-              "Cancelled"
-        )
-      : [];
+    const searchText = `
+      ${appointment.title || ""}
+      ${appointment.clientName || ""}
+      ${client?.name || ""}
+      ${client?.association || ""}
+    `.toLowerCase();
 
-  const popupAppointments =
-    selectedAppointments.filter(
-      (appointment) => {
-        const client =
-          users.find(
-            (item) =>
-              item.id ===
-              appointment.clientId
-          );
-
-        const searchText = `
-          ${appointment.title || ""}
-          ${appointment.clientName || ""}
-          ${client?.name || ""}
-          ${client?.association || ""}
-          ${appointment.time || ""}
-        `.toLowerCase();
-
-        return searchText.includes(
-          popupSearch
-            .toLowerCase()
-        );
-      }
+    return (
+      searchText.includes(search.toLowerCase()) &&
+      (date ? appointment.date === date : true)
     );
+  });
+
+  const selectedAppointments = date
+    ? appointments.filter(
+        (appointment) =>
+          appointment.date === date &&
+          appointment.status !== "Cancelled"
+      )
+    : [];
+
+  const popupAppointments = selectedAppointments.filter(
+    (appointment) => {
+      const client = users.find(
+        (item) => item.id === appointment.clientId
+      );
+
+      const searchText = `
+        ${appointment.title || ""}
+        ${appointment.clientName || ""}
+        ${client?.name || ""}
+        ${client?.association || ""}
+        ${appointment.time || ""}
+      `.toLowerCase();
+
+      return searchText.includes(popupSearch.toLowerCase());
+    }
+  );
 
   const selectedDateUnavailable =
-    date &&
-    blockedDates.includes(date);
+    date && blockedDates.includes(date);
 
   const closePopup = () => {
     setDate("");
@@ -107,97 +79,63 @@ export default function Calendar() {
   return (
     <div className="container page-container calendar-screen">
       <div className="page-header">
-        <span className="eyebrow">
-          SCHEDULE
-        </span>
+        <span className="eyebrow">SCHEDULE</span>
 
         <h1>Calendar</h1>
 
         <p>
-          View appointments in a full
-          calendar layout and search the
-          schedule.
+          View appointments in a full calendar layout and search
+          the schedule.
         </p>
       </div>
 
       <div className="calendar-status-legend">
         <div>
           <span className="calendar-legend-dot unavailable"></span>
-
-          <span>
-            Unavailable
-          </span>
+          <span>Unavailable</span>
         </div>
 
         <div>
           <span className="calendar-legend-dot appointment"></span>
-
-          <span>
-            Appointment
-          </span>
+          <span>Appointment</span>
         </div>
       </div>
 
       <CalendarGrid
         engineer={isEngineer}
-        appointments={
-          appointments
-        }
-        blockedDates={
-          blockedDates
-        }
+        appointments={appointments}
+        blockedDates={blockedDates}
         selectedDate={date}
+        monthState={calendarMonth}
+        onMonthChange={setCalendarMonth}
         onSelect={(selectedDate) => {
-          setDate(
-            selectedDate
-          );
-
+          setDate(selectedDate);
           setPopupSearch("");
         }}
         onToggleBlocked={
           isEngineer
-            ? async (
-                selectedDate
-              ) => {
+            ? async (selectedDate) => {
                 try {
-                  const result =
-                    await toggleBlocked(
-                      selectedDate
-                    );
+                  const result = await toggleBlocked(selectedDate);
 
-                  if (
-                    result?.error ===
-                    "appointment"
-                  ) {
+                  if (result?.error === "appointment") {
                     alert(
                       "This date already has an appointment and cannot be marked unavailable."
                     );
-
                     return;
                   }
 
-                  if (
-                    result?.error ===
-                    "past"
-                  ) {
+                  if (result?.error === "past") {
                     alert(
                       "Past dates cannot be marked unavailable."
                     );
-
                     return;
                   }
 
-                  if (
-                    result?.error ===
-                    "date"
-                  ) {
-                    alert(
-                      "Please select a valid date."
-                    );
+                  if (result?.error === "date") {
+                    alert("Please select a valid date.");
                   }
-                } catch (
-                  error
-                ) {
+                } catch (error) {
                   alert(
                     error?.message ||
                       "Could not update date availability."
@@ -209,16 +147,12 @@ export default function Calendar() {
       />
 
       {selectedDateUnavailable &&
-        selectedAppointments.length ===
-          0 && (
+        selectedAppointments.length === 0 && (
           <div className="calendar-unavailable-notice">
-            <strong>
-              Unavailable date
-            </strong>
+            <strong>Unavailable date</strong>
 
             <span>
-              The selected date is
-              currently unavailable for
+              The selected date is currently unavailable for
               appointments.
             </span>
           </div>
@@ -229,20 +163,14 @@ export default function Calendar() {
           className="search-input"
           placeholder="Search appointments..."
           value={search}
-          onChange={(event) =>
-            setSearch(
-              event.target.value
-            )
-          }
+          onChange={(event) => setSearch(event.target.value)}
         />
 
         {date && (
           <button
             type="button"
             className="secondary-btn"
-            onClick={
-              closePopup
-            }
+            onClick={closePopup}
           >
             Show all dates
           </button>
@@ -250,239 +178,168 @@ export default function Calendar() {
       </div>
 
       <div className="request-list calendar-results">
-        {filtered.map(
-          (appointment) => {
-            const client =
-              users.find(
-                (item) =>
-                  item.id ===
-                  appointment.clientId
-              );
+        {filtered.map((appointment) => {
+          const client = users.find(
+            (item) => item.id === appointment.clientId
+          );
 
-            return (
-              <div
-                className="card activity-row"
-                key={
-                  appointment.id
-                }
-              >
-                <div>
-                  <strong>
-                    {appointment.title ||
-                      "Appointment"}
-                  </strong>
+          return (
+            <div
+              className="card activity-row"
+              key={appointment.id}
+            >
+              <div>
+                <strong>
+                  {appointment.title || "Appointment"}
+                </strong>
 
-                  <span>
-                    {
-                      appointment.date
-                    }{" "}
-                    ·{" "}
-                    {
-                      appointment.time
-                    }{" "}
-                    ·{" "}
-                    {client?.name ||
-                      appointment.clientName ||
-                      "Client"}
-                  </span>
-                </div>
-
-                <span className="tag">
-                  {client?.association ||
-                    ""}
+                <span>
+                  {appointment.date} · {appointment.time} ·{" "}
+                  {client?.name ||
+                    appointment.clientName ||
+                    "Client"}
                 </span>
               </div>
-            );
-          }
-        )}
 
-        {filtered.length ===
-          0 && (
+              <span className="tag">
+                {client?.association || ""}
+              </span>
+            </div>
+          );
+        })}
+
+        {filtered.length === 0 && (
           <div className="empty-state">
-            <strong>
-              No matching appointments.
-            </strong>
+            <strong>No matching appointments.</strong>
 
             <span>
-              Try another search or
-              select a different date.
+              Try another search or select a different date.
             </span>
           </div>
         )}
       </div>
 
-      {date &&
-        selectedAppointments.length >
-          0 && (
+      {date && selectedAppointments.length > 0 && (
+        <div
+          className="appointment-popup-backdrop"
+          onClick={closePopup}
+        >
           <div
-            className="appointment-popup-backdrop"
-            onClick={
-              closePopup
-            }
+            className="appointment-popup"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div
-              className="appointment-popup"
-              onClick={(event) =>
-                event.stopPropagation()
-              }
-            >
-              <div className="appointment-popup-header">
-                <div>
-                  <span className="eyebrow">
-                    APPOINTMENTS
-                  </span>
+            <div className="appointment-popup-header">
+              <div>
+                <span className="eyebrow">APPOINTMENTS</span>
 
-                  <h2>
-                    {new Date(
-                      `${date}T00:00:00`
-                    ).toLocaleDateString(
-                      undefined,
-                      {
-                        month:
-                          "long",
-                        day: "numeric",
-                        year:
-                          "numeric"
-                      }
-                    )}
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  className="appointment-popup-close"
-                  onClick={
-                    closePopup
-                  }
-                  aria-label="Close appointments"
-                >
-                  ×
-                </button>
+                <h2>
+                  {new Date(`${date}T00:00:00`).toLocaleDateString(
+                    undefined,
+                    {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric"
+                    }
+                  )}
+                </h2>
               </div>
 
-              <div className="appointment-popup-search">
-                <input
-                  className="search-input"
-                  type="search"
-                  placeholder="Search appointments..."
-                  value={
-                    popupSearch
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setPopupSearch(
-                      event.target
-                        .value
-                    )
-                  }
-                />
-              </div>
+              <button
+                type="button"
+                className="appointment-popup-close"
+                onClick={closePopup}
+                aria-label="Close appointments"
+              >
+                ×
+              </button>
+            </div>
 
-              <div className="appointment-popup-list">
-                {popupAppointments.map(
-                  (
-                    appointment
-                  ) => {
-                    const client =
-                      users.find(
-                        (item) =>
-                          item.id ===
-                          appointment.clientId
-                      );
+            <div className="appointment-popup-search">
+              <input
+                className="search-input"
+                type="search"
+                placeholder="Search appointments..."
+                value={popupSearch}
+                onChange={(event) =>
+                  setPopupSearch(event.target.value)
+                }
+              />
+            </div>
 
-                    return (
-                      <div
-                        className="appointment-popup-item"
-                        key={
-                          appointment.id
-                        }
-                      >
-                        <div className="appointment-popup-time">
-                          {
-                            appointment.time
-                          }
-                        </div>
+            <div className="appointment-popup-list">
+              {popupAppointments.map((appointment) => {
+                const client = users.find(
+                  (item) => item.id === appointment.clientId
+                );
 
-                        <div className="appointment-popup-details">
-                          <strong>
-                            {appointment.title ||
-                              "Validation Appointment"}
-                          </strong>
+                return (
+                  <div
+                    className="appointment-popup-item"
+                    key={appointment.id}
+                  >
+                    <div className="appointment-popup-time">
+                      {appointment.time}
+                    </div>
 
-                          {isEngineer ? (
-                            <>
-                              <span>
-                                {client?.association ||
-                                  appointment.clientName ||
-                                  "Association"}
-                              </span>
+                    <div className="appointment-popup-details">
+                      <strong>
+                        {appointment.title ||
+                          "Validation Appointment"}
+                      </strong>
 
-                              {client?.name && (
-                                <small>
-                                  Client:{" "}
-                                  {
-                                    client.name
-                                  }
-                                </small>
-                              )}
-                            </>
-                          ) : (
-                            <span>
-                              You have an
-                              appointment
-                            </span>
-                          )}
+                      {isEngineer ? (
+                        <>
+                          <span>
+                            {client?.association ||
+                              appointment.clientName ||
+                              "Association"}
+                          </span>
 
-                          {appointment.location && (
+                          {client?.name && (
                             <small>
-                              Location:{" "}
-                              {
-                                appointment.location
-                              }
+                              Client: {client.name}
                             </small>
                           )}
+                        </>
+                      ) : (
+                        <span>You have an appointment</span>
+                      )}
 
-                          {appointment.purpose && (
-                            <small>
-                              Purpose:{" "}
-                              {
-                                appointment.purpose
-                              }
-                            </small>
-                          )}
+                      {appointment.location && (
+                        <small>
+                          Location: {appointment.location}
+                        </small>
+                      )}
 
-                          {appointment.notes && (
-                            <small>
-                              Notes:{" "}
-                              {
-                                appointment.notes
-                              }
-                            </small>
-                          )}
-                        </div>
+                      {appointment.purpose && (
+                        <small>
+                          Purpose: {appointment.purpose}
+                        </small>
+                      )}
 
-                        <span className="tag">
-                          {
-                            appointment.status
-                          }
-                        </span>
-                      </div>
-                    );
-                  }
-                )}
+                      {appointment.notes && (
+                        <small>
+                          Notes: {appointment.notes}
+                        </small>
+                      )}
+                    </div>
 
-                {popupAppointments.length ===
-                  0 && (
-                  <div className="empty-state">
-                    No matching
-                    appointments.
+                    <span className="tag">
+                      {appointment.status}
+                    </span>
                   </div>
-                )}
-              </div>
+                );
+              })}
+
+              {popupAppointments.length === 0 && (
+                <div className="empty-state">
+                  No matching appointments.
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }

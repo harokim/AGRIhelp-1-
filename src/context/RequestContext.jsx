@@ -559,131 +559,75 @@ export function RequestProvider({
       }
     };
 
-  const deleteRequest =
-    async (id) => {
-      if (
-        !firebaseConfigured ||
-        !db
-      ) {
-        throw new Error(
-          "Firebase is not configured yet."
+  
+  const deleteRequest = async (id) => {
+    if (!firebaseConfigured || !db) {
+      throw new Error("Firebase is not configured yet.");
+    }
+
+    const request = requests.find((item) => item.id === id);
+
+    if (!request) {
+      throw new Error("The request could not be found.");
+    }
+
+    const isEngineer = user?.role === "engineer";
+
+    if (!isEngineer && request.clientId !== user?.id) {
+      throw new Error("You are not allowed to delete this request.");
+    }
+
+    try {
+      if (isEngineer) {
+        const documentSnapshot = await getDocs(
+          query(
+            collection(db, "documents"),
+            where("requestId", "==", id)
+          )
         );
-      }
 
-      const request =
-        requests.find(
-          (item) =>
-            item.id === id
-        );
-
-      if (!request) {
-        throw new Error(
-          "The request could not be found."
-        );
-      }
-
-      if (
-        user?.role !==
-          "engineer" &&
-        request.clientId !==
-          user?.id
-      ) {
-        throw new Error(
-          "You are not allowed to delete this request."
-        );
-      }
-
-      try {
-        const documentSnapshot =
-          await getDocs(
-            query(
-              collection(
-                db,
-                "documents"
-              ),
-              where(
-                "requestId",
-                "==",
-                id
-              )
-            )
-          );
-
-        for (
-          const document
-          of documentSnapshot.docs
-        ) {
-          await deleteDocumentWithChunks(
-            document.id
-          );
+        for (const document of documentSnapshot.docs) {
+          await deleteDocumentWithChunks(document.id);
         }
 
-        const reportSnapshot =
-          await getDocs(
-            query(
-              collection(
-                db,
-                "reportDocuments"
-              ),
-              where(
-                "requestId",
-                "==",
-                id
-              )
-            )
+        const reportSnapshot = await getDocs(
+          query(
+            collection(db, "reportDocuments"),
+            where("requestId", "==", id)
+          )
+        );
+
+        for (const report of reportSnapshot.docs) {
+          const chunks = await getDocs(
+            collection(db, "reportDocuments", report.id, "chunks")
           );
 
-        for (
-          const report
-          of reportSnapshot.docs
-        ) {
-          const chunks =
-            await getDocs(
-              collection(
-                db,
-                "reportDocuments",
-                report.id,
-                "chunks"
-              )
-            );
-
           await Promise.all(
-            chunks.docs.map(
-              (chunk) =>
-                deleteDoc(
-                  doc(
-                    db,
-                    "reportDocuments",
-                    report.id,
-                    "chunks",
-                    chunk.id
-                  )
+            chunks.docs.map((chunk) =>
+              deleteDoc(
+                doc(
+                  db,
+                  "reportDocuments",
+                  report.id,
+                  "chunks",
+                  chunk.id
                 )
+              )
             )
           );
 
           await deleteDoc(
-            doc(
-              db,
-              "reportDocuments",
-              report.id
-            )
+            doc(db, "reportDocuments", report.id)
           );
         }
-
-        await deleteDoc(
-          doc(
-            db,
-            "requests",
-            id
-          )
-        );
-      } catch (error) {
-        throw friendlyError(
-          error
-        );
       }
-    };
+
+      await deleteDoc(doc(db, "requests", id));
+    } catch (error) {
+      throw friendlyError(error);
+    }
+  };
+
 
   const addReportDocument =
     async (data) => {

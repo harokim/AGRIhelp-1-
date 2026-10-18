@@ -7,46 +7,37 @@ export default function CalendarGrid({
   onToggleBlocked,
   engineer = false,
   selectedDate,
-  onSelect
+  onSelect,
+  monthState = new Date(),
+  onMonthChange
 }) {
-  const month =
-    arguments[0].monthState ||
-    new Date();
+  const month = monthState;
 
-  const year =
-    month.getFullYear();
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
 
-  const monthIndex =
-    month.getMonth();
+  const daysInMonth = new Date(
+    year,
+    monthIndex + 1,
+    0
+  ).getDate();
 
-  const daysInMonth =
-    new Date(
-      year,
-      monthIndex + 1,
-      0
-    ).getDate();
-
-  const firstDay =
-    new Date(
-      year,
-      monthIndex,
-      1
-    ).getDay();
+  const firstDay = new Date(
+    year,
+    monthIndex,
+    1
+  ).getDay();
 
   const cells = useMemo(
     () =>
       Array.from(
         {
-          length:
-            firstDay +
-            daysInMonth
+          length: firstDay + daysInMonth
         },
         (_, index) =>
           index < firstDay
             ? null
-            : index -
-                firstDay +
-              1
+            : index - firstDay + 1
       ),
     [firstDay, daysInMonth]
   );
@@ -55,36 +46,27 @@ export default function CalendarGrid({
     String(number).padStart(2, "0");
 
   const previousMonth = () => {
-    const event = new CustomEvent(
-      "agrihelp-calendar-change",
-      {
-        detail: {
-          direction: -1
-        }
-      }
-    );
+  console.log("Previous month clicked");
+  console.log("Current month:", month.toDateString());
 
-    window.dispatchEvent(event);
-  };
+  onMonthChange(
+    new Date(year, monthIndex - 1, 1)
+  );
+};
 
-  const nextMonth = () => {
-    const event = new CustomEvent(
-      "agrihelp-calendar-change",
-      {
-        detail: {
-          direction: 1
-        }
-      }
-    );
+const nextMonth = () => {
+  console.log("Next month clicked");
+  console.log("Current month:", month.toDateString());
 
-    window.dispatchEvent(event);
-  };
+  onMonthChange(
+    new Date(year, monthIndex + 1, 1)
+  );
+};
 
   const selectedAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.date ===
-        selectedDate
+        appointment.date === selectedDate
     );
 
   return (
@@ -94,6 +76,7 @@ export default function CalendarGrid({
           type="button"
           className="secondary-btn calendar-nav-btn"
           onClick={previousMonth}
+          aria-label="Previous month"
         >
           ‹
         </button>
@@ -112,6 +95,7 @@ export default function CalendarGrid({
           type="button"
           className="secondary-btn calendar-nav-btn"
           onClick={nextMonth}
+          aria-label="Next month"
         >
           ›
         </button>
@@ -127,9 +111,7 @@ export default function CalendarGrid({
           "Fri",
           "Sat"
         ].map((day) => (
-          <b key={day}>
-            {day}
-          </b>
+          <b key={day}>{day}</b>
         ))}
       </div>
 
@@ -145,39 +127,26 @@ export default function CalendarGrid({
           }
 
           const date =
-            `${year}-${pad(
-              monthIndex + 1
-            )}-${pad(day)}`;
+            `${year}-${pad(monthIndex + 1)}-${pad(day)}`;
 
           const dayAppointments =
             appointments.filter(
               (appointment) =>
-                appointment.date ===
-                date
+                appointment.date === date
             );
 
           const unavailable =
-            blockedDates.includes(
-              date
-            );
+            blockedDates.includes(date);
 
-          const past =
-            date < todayISO();
+          const past = date < todayISO();
 
-          const selected =
-            selectedDate === date;
+          const selected = selectedDate === date;
 
           const classes = [
             "calendar-day",
-            selected
-              ? "selected"
-              : "",
-            unavailable
-              ? "blocked"
-              : "",
-            past
-              ? "past"
-              : "",
+            selected ? "selected" : "",
+            unavailable ? "blocked" : "",
+            past ? "past" : "",
             dayAppointments.length
               ? "has-appointments"
               : ""
@@ -204,9 +173,7 @@ export default function CalendarGrid({
               onClick={handleClick}
             >
               <div className="calendar-day-top">
-                <strong>
-                  {day}
-                </strong>
+                <strong>{day}</strong>
 
                 {unavailable && (
                   <span className="calendar-unavailable-badge">
@@ -219,28 +186,17 @@ export default function CalendarGrid({
                 .slice(0, 2)
                 .map((appointment) => (
                   <small
-                    key={
-                      appointment.id
-                    }
+                    key={appointment.id}
                     className="calendar-appointment"
                   >
-                    <span>
-                      {appointment.time}
-                    </span>
-
-                    <span>
-                      {appointment.title}
-                    </span>
+                    <span>{appointment.time}</span>
+                    <span>{appointment.title}</span>
                   </small>
                 ))}
 
-              {dayAppointments.length >
-                2 && (
+              {dayAppointments.length > 2 && (
                 <small className="calendar-more">
-                  +
-                  {dayAppointments.length -
-                    2}{" "}
-                  more
+                  +{dayAppointments.length - 2} more
                 </small>
               )}
             </button>
@@ -252,28 +208,20 @@ export default function CalendarGrid({
         <div className="calendar-popup">
           <div className="calendar-popup-header">
             <div>
-              <span>
-                SELECTED DATE
-              </span>
-
-              <strong>
-                {selectedDate}
-              </strong>
+              <span>SELECTED DATE</span>
+              <strong>{selectedDate}</strong>
             </div>
 
             <button
               type="button"
               className="text-btn"
-              onClick={() =>
-                onSelect?.("")
-              }
+              onClick={() => onSelect?.("")}
             >
               Close
             </button>
           </div>
 
-          {selectedAppointments.length >
-          0 ? (
+          {selectedAppointments.length > 0 ? (
             <div className="calendar-popup-list">
               {selectedAppointments.map(
                 (appointment) => (
@@ -283,39 +231,29 @@ export default function CalendarGrid({
                   >
                     <div>
                       <strong>
-                        {
-                          appointment.title
-                        }
+                        {appointment.title}
                       </strong>
 
-                      <span>
-                        {
-                          appointment.time
-                        }
-                      </span>
+                      <span>{appointment.time}</span>
 
                       {engineer && (
                         <small>
-                          {appointment.clientName ||
-                            "Client"}
+                          {appointment.clientName || "Client"}
                         </small>
                       )}
                     </div>
 
-                    {engineer &&
-                      onToggleBlocked && (
-                        <button
-                          type="button"
-                          className="danger-btn small"
-                          onClick={() =>
-                            onToggleBlocked(
-                              selectedDate
-                            )
-                          }
-                        >
-                          Mark unavailable
-                        </button>
-                      )}
+                    {engineer && onToggleBlocked && (
+                      <button
+                        type="button"
+                        className="danger-btn small"
+                        onClick={() =>
+                          onToggleBlocked(selectedDate)
+                        }
+                      >
+                        Mark unavailable
+                      </button>
+                    )}
                   </div>
                 )
               )}
@@ -328,16 +266,12 @@ export default function CalendarGrid({
 
           {engineer &&
             onToggleBlocked &&
-            !blockedDates.includes(
-              selectedDate
-            ) && (
+            !blockedDates.includes(selectedDate) && (
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() =>
-                  onToggleBlocked(
-                    selectedDate
-                  )
+                  onToggleBlocked(selectedDate)
                 }
               >
                 Mark this date unavailable
@@ -345,16 +279,13 @@ export default function CalendarGrid({
             )}
 
           {engineer &&
-            blockedDates.includes(
-              selectedDate
-            ) && (
+            onToggleBlocked &&
+            blockedDates.includes(selectedDate) && (
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() =>
-                  onToggleBlocked(
-                    selectedDate
-                  )
+                  onToggleBlocked(selectedDate)
                 }
               >
                 Make this date available

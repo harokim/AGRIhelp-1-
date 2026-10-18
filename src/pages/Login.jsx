@@ -5,6 +5,8 @@ import { useTheme } from "../context/ThemeContext";
 import { getMedia } from "../mediaStore";
 import { OFFICE_NAME } from "../utils";
 import { firebaseConfigured } from "../firebase";
+import "../styles.css";
+import "../login-layout.css";
 
 import bgFallback from "../assets/login-bg.jpg";
 import agriPhoto1 from "../assets/agri-photo-1.png";

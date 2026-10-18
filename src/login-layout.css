@@ -1,0 +1,323 @@
+
+.landing-page {
+  position: relative;
+  overflow: clip;
+}
+
+.landing-hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  height: auto;
+  display: flex;
+  align-items: stretch;
+  background-size: cover;
+  background-position: center;
+}
+
+.landing-hero .hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(4, 30, 19, 0.91) 0%,
+    rgba(4, 30, 19, 0.76) 43%,
+    rgba(4, 30, 19, 0.35) 72%,
+    rgba(4, 30, 19, 0.2) 100%
+  );
+}
+
+.landing-hero .hero-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 30px 46% 44px 4.2%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.landing-hero .hero-brand {
+  flex-shrink: 0;
+}
+
+.landing-hero .hero-text {
+  width: 100%;
+  max-width: 760px;
+  margin: 30px 0;
+}
+
+.landing-hero .hero-text h1 {
+  color: #ffffff;
+  font-size: clamp(2.8rem, 5.2vw, 5.8rem);
+  line-height: 0.99;
+  letter-spacing: -0.045em;
+  font-weight: 850;
+  max-width: 760px;
+  margin: 22px 0;
+  text-wrap: balance;
+}
+
+.landing-hero .hero-text p {
+  color: #f4f5ef;
+  max-width: 690px;
+  font-size: clamp(0.95rem, 1.15vw, 1.15rem);
+  line-height: 1.7;
+}
+
+.landing-hero .hero-label {
+  color: #f0c526;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  font-size: 0.76rem;
+}
+
+.landing-hero .hero-login-button,
+.landing-hero .scroll-indicator {
+  display: none;
+}
+
+.landing-login-section {
+  position: absolute;
+  z-index: 5;
+  top: 60px;
+  right: 0;
+  width: 43%;
+  height: 100vh;
+  height: 100svh;
+  min-height: 600px;
+  padding: 28px 4.2% 28px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent !important;
+  scroll-margin-top: 0;
+}
+
+.landing-login-wrapper {
+  width: 100%;
+  max-width: 560px;
+  margin: 0;
+  display: block;
+}
+
+.landing-login-wrapper .login-introduction {
+  display: none !important;
+}
+
+.landing-login-wrapper .login-form-card {
+  width: 100%;
+  max-width: none;
+  max-height: calc(100svh - 56px);
+  overflow-y: auto;
+  padding: clamp(24px, 3vw, 42px);
+  border: 1px solid rgba(236, 202, 85, 0.68);
+  border-radius: 24px;
+  background: rgba(8, 36, 24, 0.48) !important;
+  color: #ffffff;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.login-form-card .login-form-header h2,
+.login-form-card .login-form-header p,
+.login-form-card label,
+.login-form-card .login-register span,
+.login-form-card .login-office {
+  color: #ffffff;
+}
+
+.login-form-card .login-form-header {
+  margin-bottom: 28px;
+}
+
+.login-form-card input {
+  width: 100%;
+  min-height: 48px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 10px;
+}
+
+.login-form-card input::placeholder {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.login-form-card input:focus {
+  outline: 2px solid #edc62f;
+  outline-offset: 2px;
+}
+
+.login-form-card .password-wrapper {
+  background: transparent;
+}
+
+.login-form-card .password-toggle {
+  color: #f5d24b;
+}
+
+.login-form-card .login-submit-button {
+  width: 100%;
+  min-height: 49px;
+  margin-top: 18px;
+  color: #102b1d;
+  background: #edc443;
+  border: 1px solid #edc443;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.login-form-card .login-submit-button:hover {
+  background: #f6d66b;
+}
+
+.login-form-card .login-submit-button:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.login-form-card .forgot-password-link button,
+.login-form-card .login-register button {
+  color: #f5d04b;
+}
+
+.login-form-card .forgot-password-link button:hover,
+.login-form-card .login-register button:hover {
+  color: #ffe68b;
+}
+
+.login-form-card .login-register {
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+
+.login-form-card .login-office {
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+.floating-theme-toggle {
+  z-index: 10;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card {
+  background: rgba(4, 20, 14, 0.62) !important;
+}
+
+@media (min-width: 1500px) {
+  .landing-login-section {
+    width: 42%;
+    padding-right: 5%;
+  }
+
+  .landing-hero .hero-content {
+    padding-left: 4.2%;
+    padding-right: 46%;
+  }
+}
+
+@media (max-width: 1000px) {
+  .landing-hero .hero-content {
+    padding-right: 45%;
+  }
+
+  .landing-hero .hero-text h1 {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .landing-login-section {
+    width: 46%;
+    padding-right: 3%;
+  }
+
+  .landing-login-wrapper .login-form-card {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 700px) {
+  .landing-hero {
+    min-height: auto;
+    background-position: center;
+  }
+
+  .landing-hero .hero-content {
+    min-height: 0;
+    padding: 26px 22px 38px;
+    gap: 36px;
+  }
+
+  .landing-hero .hero-text {
+    margin: 28px 0;
+  }
+
+  .landing-hero .hero-text h1 {
+    font-size: clamp(2.7rem, 11vw, 4.2rem);
+    line-height: 1;
+  }
+
+  .landing-login-section {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 28px 18px 40px;
+    background: #0c2b1b !important;
+  }
+
+  .landing-login-wrapper {
+    max-width: 500px;
+  }
+
+  .landing-login-wrapper .login-form-card {
+    max-height: none;
+    padding: 26px 22px;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .landing-hero .hero-login-button,
+  .landing-hero .scroll-indicator {
+    display: none;
+  }
+
+  .floating-theme-toggle {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+  }
+}
+
+@media (max-height: 680px) and (min-width: 701px) {
+  .landing-login-section {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .landing-login-wrapper .login-form-card {
+    max-height: calc(100svh - 24px);
+    padding: 20px 26px;
+  }
+
+  .login-form-card .login-form-header {
+    margin-bottom: 16px;
+  }
+
+  .login-form-card .login-register {
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+
+  .login-form-card .login-office {
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+}
