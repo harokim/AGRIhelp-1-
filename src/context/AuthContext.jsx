@@ -534,21 +534,40 @@ export function AuthProvider({ children }) {
         }
 
         try {
-          const snapshot = await getDoc(
-            doc(db, "users", firebaseUser.uid)
-          );
+          const snapshot =
+            await getDoc(
+              doc(
+                db,
+                "users",
+                firebaseUser.uid
+              )
+            );
 
-         
-          if (!snapshot.exists()) {
-            await signOut(auth);
-            setUser(null);
-            return;
-          }
+          const profile =
+            snapshot.exists()
+              ? mapUser(snapshot)
+              : {
+                  id:
+                    firebaseUser.uid,
+                  email:
+                    firebaseUser.email,
+                  name:
+                    firebaseUser.displayName ||
+                    "User",
+                  role:
+                    "client",
+                  status:
+                    "active"
+                };
 
-          const profile = mapUser(snapshot);
-
-          if (profile.status === "inactive") {
-            if (profile.role === "client") {
+          if (
+            profile.status ===
+            "inactive"
+          ) {
+            if (
+              profile.role ===
+              "client"
+            ) {
               try {
                 await deleteClientData(firebaseUser.uid);
               } catch (error) {
@@ -556,7 +575,7 @@ export function AuthProvider({ children }) {
                   "Failed to clean up inactive client data:",
                   error
                 );
-              }
+            }
             }
 
             await signOut(auth);
