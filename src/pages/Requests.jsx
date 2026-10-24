@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRequests } from "../context/RequestContext";
@@ -6,6 +7,8 @@ import {
   saveDocument,
   fileToDataURL
 } from "../services/documentService";
+import DocumentCompleteness from "../components/DocumentCompleteness";
+import { DOCUMENT_REQUIREMENTS } from "../utils/documentRequirements";
 
 const MINIMUM_REQUIREMENTS = [
   {
@@ -70,12 +73,17 @@ export default function Requests() {
 
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
-  const [requirementsRead, setRequirementsRead] = useState(false);
+  const [fileTypes, setFileTypes] = useState([]);
+
+  const [requirementsRead, setRequirementsRead] =
+    useState(false);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [monthFilter, setMonthFilter] = useState("All");
   const [yearFilter, setYearFilter] = useState("All");
   const [previewFile, setPreviewFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateForm = (name, value) => {
     setForm((previous) => ({
@@ -85,7 +93,9 @@ export default function Requests() {
   };
 
   const changeFiles = async (event) => {
-    const selected = Array.from(event.target.files || []);
+    const selected = Array.from(
+      event.target.files || []
+    );
 
     if (!selected.length) {
       return;
@@ -100,7 +110,9 @@ export default function Requests() {
     if (invalid) {
       alert(
         invalid.size > MAX_FILE_SIZE
-          ? `"${invalid.name}" is larger than the allowed 5 MB file size.`
+          ? `"${invalid.name}" exceeds the maximum allowed file size of ${
+              MAX_FILE_SIZE / (1024 * 1024)
+            } MB.`
           : `"${invalid.name}" is empty.`
       );
 
@@ -173,6 +185,11 @@ export default function Requests() {
       ...nextPreviews
     ]);
 
+    setFileTypes((previous) => [
+      ...previous,
+      ...fresh.map(() => "")
+    ]);
+
     event.target.value = "";
   };
 
@@ -184,10 +201,32 @@ export default function Requests() {
     setPreviews((previous) =>
       previous.filter((_, i) => i !== index)
     );
+
+    setFileTypes((previous) =>
+      previous.filter((_, i) => i !== index)
+    );
+  };
+
+  const clearSelectedFiles = () => {
+    setFiles([]);
+    setPreviews([]);
+    setFileTypes([]);
+  };
+
+  const updateFileType = (index, documentType) => {
+    setFileTypes((previous) =>
+      previous.map((type, i) =>
+        i === index ? documentType : type
+      )
+    );
   };
 
   const submit = async (event) => {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
 
     if (!requirementsRead) {
       alert(
@@ -220,6 +259,8 @@ export default function Requests() {
       return;
     }
 
+    setIsSubmitting(true);
+
     let request = null;
 
     try {
@@ -230,17 +271,32 @@ export default function Requests() {
         details: form.details.trim()
       });
 
-      for (const file of files) {
+      for (
+        let index = 0;
+        index < files.length;
+        index += 1
+      ) {
+        const file = files[index];
+
+        const documentType =
+          fileTypes[index] || "Supporting Document";
+
         try {
           await saveDocument({
             file,
             requestId: request.id,
-            clientId: user.id
+            clientId: user.id,
+            documentType
           });
         } catch (fileError) {
           try {
             await deleteRequest(request.id);
-          } catch {}
+          } catch (cleanupError) {
+            console.error(
+              "Could not clean up the failed request:",
+              cleanupError
+            );
+          }
 
           throw new Error(
             fileError?.message ||
@@ -254,8 +310,7 @@ export default function Requests() {
         details: ""
       });
 
-      setFiles([]);
-      setPreviews([]);
+      clearSelectedFiles();
       setRequirementsRead(false);
 
       alert("Request submitted successfully.");
@@ -265,6 +320,8 @@ export default function Requests() {
           error?.message ||
           "The request could not be submitted. Please try again."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -302,10 +359,13 @@ export default function Requests() {
     const date = getCreatedDate(request);
 
     if (!date) {
-      return String(request.createdAt || "Date not available");
+      return String(
+        request.createdAt || "Date not available"
+      );
     }
 
-    return date.toLocaleDateString("en-US", {
+    return date.toLocaleDateString("en-PH", {
+      timeZone: "Asia/Manila",
       month: "short",
       day: "numeric",
       year: "numeric"
@@ -337,6 +397,7 @@ export default function Requests() {
       )
       .map((request) => {
         const date = getCreatedDate(request);
+
         return date
           ? String(date.getFullYear())
           : "";
@@ -376,8 +437,7 @@ export default function Requests() {
         return (
           String(
             date.getMonth() + 1
-          ).padStart(2, "0") ===
-          monthFilter
+          ).padStart(2, "0") === monthFilter
         );
       })
       .filter((request) => {
@@ -392,8 +452,7 @@ export default function Requests() {
         }
 
         return (
-          String(date.getFullYear()) ===
-          yearFilter
+          String(date.getFullYear()) === yearFilter
         );
       })
       .filter((request) => {
@@ -434,8 +493,7 @@ export default function Requests() {
 
     const confirmed = window.confirm(
       `Delete request ${
-        request.referenceNumber ||
-        request.id
+        request.referenceNumber || request.id
       }? This will also remove its uploaded documents.`
     );
 
@@ -518,9 +576,7 @@ export default function Requests() {
                         )}
                       </strong>
 
-                      <p>
-                        {requirement.text}
-                      </p>
+                      <p>{requirement.text}</p>
 
                       {requirement.items && (
                         <ol>
@@ -566,9 +622,12 @@ export default function Requests() {
             </strong>
           </div>
 
-          <label>Request type</label>
+          <label htmlFor="request-type">
+            Request type
+          </label>
 
           <select
+            id="request-type"
             value={form.requestType}
             onChange={(event) =>
               updateForm(
@@ -591,9 +650,12 @@ export default function Requests() {
             </option>
           </select>
 
-          <label>Request details</label>
+          <label htmlFor="request-details">
+            Request details
+          </label>
 
           <textarea
+            id="request-details"
             rows="7"
             value={form.details}
             onChange={(event) =>
@@ -610,8 +672,10 @@ export default function Requests() {
 
           <p className="upload-help">
             Supporting documents are optional during
-            initial submission. Each file must be 5 MB
-            or smaller.
+            initial submission. Each file must be{" "}
+            {MAX_FILE_SIZE / (1024 * 1024)} MB or smaller.
+            Assign a requirement category to each file
+            to update the completeness indicator.
           </p>
 
           <label className="file-upload-box">
@@ -624,8 +688,8 @@ export default function Requests() {
             </strong>
 
             <small>
-              Optional · PDF, JPG, PNG · Maximum
-              5 MB per file
+              Optional · PDF, JPG, PNG · Maximum{" "}
+              {MAX_FILE_SIZE / (1024 * 1024)} MB per file
             </small>
 
             <input
@@ -646,10 +710,7 @@ export default function Requests() {
                 <button
                   type="button"
                   className="text-btn"
-                  onClick={() => {
-                    setFiles([]);
-                    setPreviews([]);
-                  }}
+                  onClick={clearSelectedFiles}
                 >
                   Clear all
                 </button>
@@ -657,13 +718,10 @@ export default function Requests() {
 
               <div className="upload-file-list">
                 {files.map((file, index) => {
-                  const preview =
-                    previews[index];
+                  const preview = previews[index];
 
                   const image =
-                    file.type.startsWith(
-                      "image/"
-                    );
+                    file.type.startsWith("image/");
 
                   return (
                     <div
@@ -671,16 +729,14 @@ export default function Requests() {
                       key={`${file.name}-${file.size}-${index}`}
                     >
                       <div className="upload-thumbnail">
-                        {image &&
-                        preview?.url ? (
+                        {image && preview?.url ? (
                           <img
                             src={preview.url}
                             alt={file.name}
                           />
                         ) : (
                           <span className="file-type-icon">
-                            {file.type ===
-                            "application/pdf"
+                            {file.type === "application/pdf"
                               ? "PDF"
                               : "FILE"}
                           </span>
@@ -693,11 +749,42 @@ export default function Requests() {
                         </strong>
 
                         <small>
-                          {(
-                            file.size / 1024
-                          ).toFixed(0)}{" "}
-                          KB
+                          {(file.size / 1024).toFixed(0)} KB
                         </small>
+                      </div>
+
+                      <div className="upload-file-category">
+                        <label
+                          htmlFor={`document-type-${index}`}
+                        >
+                          Requirement category
+                        </label>
+
+                        <select
+                          id={`document-type-${index}`}
+                          value={fileTypes[index] || ""}
+                          onChange={(event) =>
+                            updateFileType(
+                              index,
+                              event.target.value
+                            )
+                          }
+                        >
+                          <option value="">
+                            Select requirement
+                          </option>
+
+                          {DOCUMENT_REQUIREMENTS.map(
+                            (requirement) => (
+                              <option
+                                key={requirement.id}
+                                value={requirement.id}
+                              >
+                                {requirement.label}
+                              </option>
+                            )
+                          )}
+                        </select>
                       </div>
 
                       <div className="upload-file-actions">
@@ -706,9 +793,7 @@ export default function Requests() {
                             type="button"
                             className="secondary-btn small"
                             onClick={() =>
-                              setPreviewFile(
-                                preview
-                              )
+                              setPreviewFile(preview)
                             }
                           >
                             Preview
@@ -718,9 +803,7 @@ export default function Requests() {
                         <button
                           type="button"
                           className="danger-btn small"
-                          onClick={() =>
-                            removeFile(index)
-                          }
+                          onClick={() => removeFile(index)}
                         >
                           Remove
                         </button>
@@ -732,11 +815,22 @@ export default function Requests() {
             </div>
           )}
 
+          <DocumentCompleteness
+            title="Selected document completeness"
+            documents={files.map((file, index) => ({
+              fileName: file.name,
+              documentType: fileTypes[index] || ""
+            }))}
+          />
+
           <button
             className="primary-btn full"
             type="submit"
+            disabled={isSubmitting}
           >
-            Submit request
+            {isSubmitting
+              ? "Submitting request..."
+              : "Submit request"}
           </button>
         </form>
 
@@ -764,44 +858,30 @@ export default function Requests() {
             />
 
             <select
+              aria-label="Filter by status"
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(
-                  event.target.value
-                )
+                setStatusFilter(event.target.value)
               }
             >
-              <option value="All">
-                All statuses
-              </option>
-              <option value="Submitted">
-                Submitted
-              </option>
-              <option value="Under Review">
-                Under Review
-              </option>
+              <option value="All">All statuses</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Under Review">Under Review</option>
               <option value="Documents Pending">
                 Documents Pending
               </option>
-              <option value="Approved">
-                Approved
-              </option>
-              <option value="Rejected">
-                Rejected
-              </option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
             </select>
 
             <select
+              aria-label="Filter by month"
               value={monthFilter}
               onChange={(event) =>
-                setMonthFilter(
-                  event.target.value
-                )
+                setMonthFilter(event.target.value)
               }
             >
-              <option value="All">
-                All months
-              </option>
+              <option value="All">All months</option>
 
               {[
                 "01",
@@ -817,41 +897,29 @@ export default function Requests() {
                 "11",
                 "12"
               ].map((month) => (
-                <option
-                  value={month}
-                  key={month}
-                >
+                <option value={month} key={month}>
                   {new Date(
                     2000,
                     Number(month) - 1,
                     1
-                  ).toLocaleDateString(
-                    undefined,
-                    {
-                      month: "long"
-                    }
-                  )}
+                  ).toLocaleDateString("en-PH", {
+                    month: "long"
+                  })}
                 </option>
               ))}
             </select>
 
             <select
+              aria-label="Filter by year"
               value={yearFilter}
               onChange={(event) =>
-                setYearFilter(
-                  event.target.value
-                )
+                setYearFilter(event.target.value)
               }
             >
-              <option value="All">
-                All years
-              </option>
+              <option value="All">All years</option>
 
               {years.map((year) => (
-                <option
-                  value={year}
-                  key={year}
-                >
+                <option value={year} key={year}>
                   {year}
                 </option>
               ))}
@@ -881,13 +949,9 @@ export default function Requests() {
                         request.id}
                     </div>
 
-                    <h3>
-                      {request.requestType}
-                    </h3>
+                    <h3>{request.requestType}</h3>
 
-                    <p>
-                      {request.details}
-                    </p>
+                    <p>{request.details}</p>
 
                     <small>
                       {request.association} ·{" "}
@@ -924,9 +988,7 @@ export default function Requests() {
                     <button
                       type="button"
                       className="danger-btn small"
-                      onClick={() =>
-                        handleDelete(request)
-                      }
+                      onClick={() => handleDelete(request)}
                     >
                       Delete
                     </button>
@@ -937,13 +999,11 @@ export default function Requests() {
 
             {mine.length === 0 && (
               <div className="empty-state">
-                <strong>
-                  No requests found.
-                </strong>
+                <strong>No requests found.</strong>
 
                 <span>
-                  Try changing your filters or
-                  submit your first request.
+                  Try changing your filters or submit
+                  your first request.
                 </span>
               </div>
             )}
@@ -954,15 +1014,11 @@ export default function Requests() {
       {previewFile?.url && (
         <div
           className="modal-overlay"
-          onClick={() =>
-            setPreviewFile(null)
-          }
+          onClick={() => setPreviewFile(null)}
         >
           <div
             className="modal-card request-preview-modal"
-            onClick={(event) =>
-              event.stopPropagation()
-            }
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="modal-header">
               <div>
@@ -970,25 +1026,19 @@ export default function Requests() {
                   DOCUMENT
                 </span>
 
-                <h2>
-                  {previewFile.name}
-                </h2>
+                <h2>{previewFile.name}</h2>
               </div>
 
               <button
                 type="button"
                 className="modal-close"
-                onClick={() =>
-                  setPreviewFile(null)
-                }
+                onClick={() => setPreviewFile(null)}
               >
                 ×
               </button>
             </div>
 
-            {previewFile.type?.startsWith(
-              "image/"
-            ) ? (
+            {previewFile.type?.startsWith("image/") ? (
               <img
                 className="request-preview-image"
                 src={previewFile.url}
@@ -1007,4 +1057,3 @@ export default function Requests() {
     </div>
   );
 }
-

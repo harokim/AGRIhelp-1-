@@ -1,13 +1,7 @@
-import {
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
-
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
-import ClientSignup from "./pages/ClientSignup";
-import EngineerSignup from "./pages/EngineerSignup";
+import AccountRequest from "./pages/AccountRequest";
 import ClientDashboard from "./pages/ClientDashboard";
 import EngineerDashboard from "./pages/EngineerDashboard";
 import Requests from "./pages/Requests";
@@ -23,25 +17,16 @@ import Profile from "./pages/Profile";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ForgotPassword from "./pages/ForgotPassword";
 
-const P = ({
-  role,
-  children,
-}) => (
+const P = ({ role, children }) => (
   <ProtectedRoute role={role}>
-    <Layout>
-      {children}
-    </Layout>
+    <Layout>{children}</Layout>
   </ProtectedRoute>
 );
 
 export default function App() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={<Login />}
-      />
-
+      <Route path="/" element={<Login />} />
 
       <Route
         path="/forgot-password"
@@ -49,13 +34,19 @@ export default function App() {
       />
 
       <Route
-        path="/signup"
-        element={<ClientSignup />}
+        path="/request-account"
+        element={<AccountRequest />}
       />
 
       <Route
+        path="/signup"
+        element={<Navigate to="/request-account" replace />}
+      />
+
+      {/* Engineer accounts must be provisioned by a trusted administrator. */}
+      <Route
         path="/engineer-signup"
-        element={<EngineerSignup />}
+        element={<Navigate to="/" replace />}
       />
 
       <Route
@@ -168,12 +159,7 @@ export default function App() {
 
       <Route
         path="*"
-        element={
-          <Navigate
-            to="/"
-            replace
-          />
-        }
+        element={<Navigate to="/" replace />}
       />
     </Routes>
   );

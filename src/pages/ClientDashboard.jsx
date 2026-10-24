@@ -1,317 +1,216 @@
+
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useRequests } from "../context/RequestContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { useAuth } from "../context/AuthContext";
-import {
-  avatarUrl,
-  formatDate,
-  initials
-} from "../utils";
+import { avatarUrl, formatDate, initials } from "../utils";
+import { useMessages } from "../context/MessageContext";
 
 export default function ClientDashboard() {
   const { user } = useAuth();
-  const { requests } =
-    useRequests();
+  const { requests } = useRequests();
+  const { appointments } = useAppointments();
+  const navigate = useNavigate();
 
-  const { appointments } =
-    useAppointments();
+  const currentYear = new Date().getFullYear();
 
-  const navigate =
-    useNavigate();
+  const [monthFilter, setMonthFilter] = useState("All");
+  const [yearFilter, setYearFilter] = useState("All");
+  const { unreadMessageCount } = useMessages();
 
-  const currentDate =
-    new Date();
+  const mine = useMemo(
+    () =>
+      requests.filter(
+        (request) => request.clientId === user?.id
+      ),
+    [requests, user?.id]
+  );
 
-  const currentYear =
-    currentDate.getFullYear();
-
-  const [
-    monthFilter,
-    setMonthFilter
-  ] = useState("All");
-
-  const [
-    yearFilter,
-    setYearFilter
-  ] = useState("All");
-
-  const mine =
-    requests.filter(
-      (request) =>
-        request.clientId ===
-        user.id
-    );
-
-  const upcoming =
-    appointments.filter(
-      (appointment) =>
-        appointment.clientId ===
-        user.id &&
-        appointment.status !==
-          "Cancelled"
-    );
+  const upcoming = useMemo(
+    () =>
+      appointments.filter(
+        (appointment) =>
+          appointment.clientId === user?.id &&
+          appointment.status !== "Cancelled"
+      ),
+    [appointments, user?.id]
+  );
 
   const years = useMemo(() => {
     const values = mine
       .map((request) => {
-        const date =
-          request.createdAt?.toDate
-            ? request.createdAt.toDate()
-            : new Date(
-                request.createdAt
-              );
+        const date = request.createdAt?.toDate
+          ? request.createdAt.toDate()
+          : new Date(request.createdAt);
 
         return date.getFullYear();
       })
-      .filter(
-        (year) =>
-          !isNaN(year)
-      );
+      .filter((year) => !isNaN(year));
 
-    return [
-      ...new Set(values)
-    ].sort(
-      (a, b) => b - a
-    );
+    return [...new Set(values)].sort((a, b) => b - a);
   }, [mine]);
 
-  const list = useMemo(
-    () => {
-      return mine
-        .filter((request) => {
-          if (
-            !request.createdAt
-          ) {
-            return (
-              monthFilter ===
-                "All" &&
-              yearFilter ===
-                "All"
-            );
-          }
+  const list = useMemo(() => {
+    return mine
+      .filter((request) => {
+        if (!request.createdAt) {
+          return monthFilter === "All" && yearFilter === "All";
+        }
 
-          const date =
-            request.createdAt?.toDate
-              ? request.createdAt.toDate()
-              : new Date(
-                  request.createdAt
-                );
+        const date = request.createdAt?.toDate
+          ? request.createdAt.toDate()
+          : new Date(request.createdAt);
 
-          if (
-            isNaN(
-              date.getTime()
-            )
-          ) {
-            return false;
-          }
+        if (isNaN(date.getTime())) return false;
 
-          const monthMatches =
-            monthFilter ===
-              "All" ||
-            date.getMonth() ===
-              Number(
-                monthFilter
-              );
+        const monthMatches =
+          monthFilter === "All" ||
+          date.getMonth() === Number(monthFilter);
 
-          const yearMatches =
-            yearFilter ===
-              "All" ||
-            date.getFullYear() ===
-              Number(
-                yearFilter
-              );
+        const yearMatches =
+          yearFilter === "All" ||
+          date.getFullYear() === Number(yearFilter);
 
-          return (
-            monthMatches &&
-            yearMatches
-          );
-        })
-        .sort((a, b) =>
-          String(
-            a.association || ""
-          ).localeCompare(
-            String(
-              b.association || ""
-            ),
-            undefined,
-            {
-              sensitivity:
-                "base"
-            }
-          )
-        );
+        return monthMatches && yearMatches;
+      })
+      .sort((a, b) =>
+        String(a.association || "").localeCompare(
+          String(b.association || ""),
+          undefined,
+          { sensitivity: "base" }
+        )
+      );
+  }, [mine, monthFilter, yearFilter]);
+
+  const submittedCount = mine.filter((request) =>
+    ["Submitted", "Under Review"].includes(request.status)
+  ).length;
+
+  const approvedCount = mine.filter(
+    (request) => request.status === "Approved"
+  ).length;
+
+  const profileImage = avatarUrl(user);
+
+  const dashboardStats = [
+    {
+      label: "Total requests",
+      value: mine.length,
+      destination: "/requests",
+      description: "Open my requests",
+      icon: "▣",
     },
-    [
-      mine,
-      monthFilter,
-      yearFilter
-    ]
-  );
+    {
+      label: "Submitted",
+      value: submittedCount,
+      destination: "/requests",
+      description: "View submitted requests",
+      icon: "◷",
+    },
+    {
+      label: "Messages",
+      value: unreadMessageCount,
+      destination: "/client-messages",
+      description: "Open my messages",
+      icon: "✉",
+    },
+    {
+      label: "Appointments",
+      value: upcoming.length,
+      destination: "/calendar",
+      description: "Open appointment calendar",
+      icon: "▦",
+    },
+  ];
 
   return (
     <div className="container page-container">
       <div className="welcome-banner">
         <div className="welcome-banner-content">
           <div>
-            <span className="eyebrow">
-              CLIENT PORTAL
-            </span>
+            <span className="eyebrow">CLIENT PORTAL</span>
 
             <h1>
-              Welcome,{" "}
-              {user.name?.split(
-                " "
-              )[0] ||
-                "Client"}
+              Welcome, {user?.name?.split(" ")[0] || "Client"}
             </h1>
 
             <p>
-              {user.association ||
-                "Association account"}
+              {user?.association || "Association account"}
             </p>
           </div>
 
           <button
             type="button"
-            className="dashboard-profile"
-            onClick={() =>
-              navigate(
-                "/profile"
-              )
-            }
+            className="dashboard-profile dashboard-profile-avatar-only"
+            onClick={() => navigate("/profile")}
+            title="View profile"
+            aria-label="Open my profile"
           >
             <span className="dashboard-profile-avatar">
-              {avatarUrl(
-                user
-              ) ? (
+              {profileImage ? (
                 <img
-                  src={avatarUrl(
-                    user
-                  )}
-                  alt={
-                    user.name ||
-                    "Profile"
-                  }
+                  src={profileImage}
+                  alt={user?.name || "Profile"}
                 />
               ) : (
-                initials(
-                  user.name ||
-                    "Client"
-                )
+                initials(user?.name || "Client")
               )}
-            </span>
-
-            <span className="dashboard-profile-info">
-              <strong>
-                {user.name ||
-                  "Client"}
-              </strong>
-
-              <small>
-                View Profile
-              </small>
-            </span>
-
-            <span className="dashboard-profile-arrow">
-              →
             </span>
           </button>
         </div>
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card">
-          <span>
-            Total requests
-          </span>
+        {dashboardStats.map((stat) => (
+          <button
+            key={stat.label}
+            type="button"
+            className="stat-card client-clickable-stat"
+            onClick={() => navigate(stat.destination)}
+            title={stat.description}
+            aria-label={`${stat.label}: ${stat.value}. ${stat.description}`}
+          >
+            <span className="client-stat-icon" aria-hidden="true">
+              {stat.icon}
+            </span>
 
-          <strong>
-            {mine.length}
-          </strong>
-        </div>
-
-        <div className="stat-card">
-          <span>
-            Submitted
-          </span>
-
-          <strong>
-            {
-              mine.filter(
-                (request) =>
-                  [
-                    "Submitted",
-                    "Under Review"
-                  ].includes(
-                    request.status
-                  )
-              ).length
-            }
-          </strong>
-        </div>
-
-        <div className="stat-card">
-          <span>
-            Approved
-          </span>
-
-          <strong>
-            {
-              mine.filter(
-                (request) =>
-                  request.status ===
-                  "Approved"
-              ).length
-            }
-          </strong>
-        </div>
-
-        <div className="stat-card">
-          <span>
-            Appointments
-          </span>
-
-          <strong>
-            {upcoming.length}
-          </strong>
-        </div>
+            <span>{stat.label}</span>
+            <strong>{stat.value}</strong>
+            <span className="client-stat-action">
+              Click to view →
+            </span>
+          </button>
+        ))}
       </div>
 
       <div className="dashboard-grid">
         <section className="card client-dashboard-highlight">
           <div className="section-title">
             <div>
-              <h3>
-                Recent requests
-              </h3>
-
+              <h3>Recent requests</h3>
               <p>
-                Filter your submitted
-                requests by month and
-                year.
+                Filter your submitted requests by month and year.
               </p>
             </div>
+
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={() => navigate("/requests")}
+            >
+              All Requests
+            </button>
           </div>
 
           <div className="client-request-filters">
             <select
               className="report-filter"
-              value={
-                monthFilter
-              }
-              onChange={(
-                event
-              ) =>
-                setMonthFilter(
-                  event.target
-                    .value
-                )
-              }
+              value={monthFilter}
+              onChange={(event) => setMonthFilter(event.target.value)}
+              aria-label="Filter requests by month"
             >
-              <option value="All">
-                All months
-              </option>
+              <option value="All">All months</option>
 
               {[
                 "January",
@@ -325,200 +224,133 @@ export default function ClientDashboard() {
                 "September",
                 "October",
                 "November",
-                "December"
-              ].map(
-                (
-                  month,
-                  index
-                ) => (
-                  <option
-                    key={
-                      month
-                    }
-                    value={
-                      index
-                    }
-                  >
-                    {month}
-                  </option>
-                )
-              )}
+                "December",
+              ].map((month, index) => (
+                <option key={month} value={index}>
+                  {month}
+                </option>
+              ))}
             </select>
 
             <select
               className="report-filter"
-              value={
-                yearFilter
-              }
-              onChange={(
-                event
-              ) =>
-                setYearFilter(
-                  event.target
-                    .value
-                )
-              }
+              value={yearFilter}
+              onChange={(event) => setYearFilter(event.target.value)}
+              aria-label="Filter requests by year"
             >
-              <option value="All">
-                All years
-              </option>
+              <option value="All">All years</option>
 
-              {years.length >
-              0 ? (
-                years.map(
-                  (
-                    year
-                  ) => (
-                    <option
-                      key={
-                        year
-                      }
-                      value={
-                        year
-                      }
-                    >
-                      {year}
-                    </option>
-                  )
-                )
+              {years.length > 0 ? (
+                years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))
               ) : (
-                <option
-                  value={
-                    currentYear
-                  }
-                >
-                  {
-                    currentYear
-                  }
-                </option>
+                <option value={currentYear}>{currentYear}</option>
               )}
             </select>
           </div>
 
-          {list
-            .slice(
-              0,
-              7
-            )
-            .map(
-              (
-                request
-              ) => (
-                <div
-                  className="activity-row"
-                  key={
-                    request.id
-                  }
-                >
-                  <div>
-                    <strong>
-                      {
-                        request.association
-                      }
-                    </strong>
+          {list.slice(0, 7).map((request) => (
+            <button
+              type="button"
+              className="activity-row client-clickable-activity"
+              key={request.id}
+              onClick={() => navigate("/requests")}
+              title="Open my requests"
+              aria-label={`Open requests. ${request.association || "Association"}, ${
+                request.typeOfRequest || "Request"
+              }, status ${request.status || "Unknown"}`}
+            >
+              <span className="client-activity-details">
+                <strong>{request.association || "Association"}</strong>
 
-                    <span>
-                      {request.referenceNumber ||
-                        request.id}{" "}
-                      ·{" "}
-                      {request.typeOfRequest ||
-                        "Request"}{" "}
-                      ·{" "}
-                      {formatDate(
-                        request.createdAt
-                      )}
-                    </span>
-                  </div>
+                <span>
+                  {request.referenceNumber || request.id}
+                  {" · "}
+                  {request.typeOfRequest || "Request"}
+                  {" · "}
+                  {formatDate(request.createdAt)}
+                </span>
+              </span>
 
-                  <span
-                    className={`status ${String(
-                      request.status
-                    )
-                      .toLowerCase()
-                      .replaceAll(
-                        " ",
-                        "-"
-                      )}`}
-                  >
-                    {
-                      request.status
-                    }
-                  </span>
-                </div>
-              )
-            )}
+              <span
+                className={`status ${String(request.status || "")
+                  .toLowerCase()
+                  .replaceAll(" ", "-")}`}
+              >
+                {request.status || "Unknown"}
+              </span>
 
-          {list.length ===
-            0 && (
+              <span className="client-activity-arrow" aria-hidden="true">
+                →
+              </span>
+            </button>
+          ))}
+
+          {list.length === 0 && (
             <p className="muted">
-              No requests found
-              for the selected
-              month and year.
+              No requests found for the selected month and year.
             </p>
+          )}
+
+          {list.length > 7 && (
+            <button
+              type="button"
+              className="secondary-btn client-view-all"
+              onClick={() => navigate("/requests")}
+            >
+              View All Requests
+            </button>
           )}
         </section>
 
         <section className="card client-dashboard-highlight">
           <div className="section-title">
             <div>
-              <h3>
-                Upcoming appointments
-              </h3>
-
+              <h3>Upcoming appointments</h3>
               <p>
-                View your scheduled
-                appointments on the
-                calendar.
+                Open your calendar to view scheduled appointments.
               </p>
             </div>
 
             <button
               type="button"
               className="secondary-btn"
-              onClick={() =>
-                navigate(
-                  "/calendar"
-                )
-              }
+              onClick={() => navigate("/calendar")}
             >
-              View Appointments
+              View Calendar
             </button>
           </div>
 
-          {upcoming.length ===
-          0 ? (
-            <div className="empty-state">
-              You currently
-              have no upcoming
-              appointments.
-            </div>
-          ) : (
-            <div className="appointment-dashboard-preview">
+          <button
+            type="button"
+            className="client-appointment-preview"
+            onClick={() => navigate("/calendar")}
+            aria-label="Open appointment calendar"
+          >
+            <span className="client-appointment-icon" aria-hidden="true">
+              ▦
+            </span>
+
+            <span className="client-appointment-details">
               <strong>
-                You have{" "}
-                {upcoming.length}{" "}
-                scheduled
-                appointment
-                {upcoming.length !==
-                1
-                  ? "s"
-                  : ""}
-                .
+                {upcoming.length} scheduled appointment
+                {upcoming.length !== 1 ? "s" : ""}
               </strong>
 
               <span>
-                Click{" "}
-                <b>
-                  View
-                  Appointments
-                </b>{" "}
-                to open the
-                calendar and
-                view the details
-                for each date.
+                {upcoming.length > 0
+                  ? "Click to open the calendar and view appointment details."
+                  : "You currently have no upcoming appointments. Click to open the calendar."}
               </span>
-            </div>
-          )}
+            </span>
+
+            <span className="client-activity-arrow" aria-hidden="true">
+              →
+            </span>
+          </button>
         </section>
       </div>
     </div>

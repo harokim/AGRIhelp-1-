@@ -391,37 +391,27 @@ export default function Login() {
               </button>
             </div>
 
+            
             <div className="login-register">
-              <span>
-                Don't have a client account?
-              </span>
+              <span>Don't have an account?</span>
 
               <button
                 type="button"
-                onClick={() =>
-                  navigate(
-                    "/signup"
-                  )
-                }
+                onClick={() => navigate("/request-account")}
               >
-                Create a Client Account
+                Request Account
               </button>
 
-              <span>
-                Engineer account
-              </span>
+              <span>Engineer account</span>
 
               <button
                 type="button"
-                onClick={() =>
-                  navigate(
-                    "/engineer-signup"
-                  )
-                }
+                onClick={() => navigate("/engineer-signup")}
               >
                 Create an Engineer Account
               </button>
             </div>
+
 
             <div className="login-office">
               {OFFICE_NAME}
@@ -622,7 +612,7 @@ export default function Login() {
         </h2>
 
         <p>
-          Login to your account or create a client account to begin using the system.
+          Login to your account or submit an account request to get started.
         </p>
 
         <button
