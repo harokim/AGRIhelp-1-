@@ -780,22 +780,13 @@ export function AuthProvider({
               )
             );
 
-          const profile =
-            snapshot.exists()
-              ? mapUser(snapshot)
-              : {
-                  id:
-                    firebaseUser.uid,
-                  email:
-                    firebaseUser.email,
-                  name:
-                    firebaseUser.displayName ||
-                    "User",
-                  role:
-                    "client",
-                  status:
-                    "active"
-                };
+          if (!snapshot.exists()) {
+            await signOut(auth);
+            setUser(null);
+            return;
+          }
+
+          const profile = mapUser(snapshot);
 
           if (
             profile.status ===
