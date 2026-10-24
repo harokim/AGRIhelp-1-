@@ -1,10 +1,16 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState
+} from "react";
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -12,10 +18,19 @@ import {
   updateDoc,
   where
 } from "firebase/firestore";
-import { db, firebaseConfigured } from "../firebase";
-import { sendSemaphoreSMS } from "../services/semaphoreService";
-import { todayISO } from "../utils";
-import { useAuth } from "./AuthContext";
+import {
+  db,
+  firebaseConfigured
+} from "../firebase";
+import {
+  sendSemaphoreSMS
+} from "../services/semaphoreService";
+import {
+  todayISO
+} from "../utils";
+import {
+  useAuth
+} from "./AuthContext";
 
 const AppointmentContext = createContext(null);
 
@@ -45,7 +60,7 @@ export function AppointmentProvider({ children }) {
 
     const unsubAppointments = onSnapshot(
       appointmentQuery,
-      (snapshot) =>
+      (snapshot) => {
         setAppointments(
           snapshot.docs
             .map((item) => ({
@@ -57,16 +72,18 @@ export function AppointmentProvider({ children }) {
                 `${b.date}${b.time}`
               )
             )
-        ),
+        );
+      },
       () => setAppointments([])
     );
 
     const unsubBlocked = onSnapshot(
       collection(db, "blockedDates"),
-      (snapshot) =>
+      (snapshot) => {
         setBlockedDates(
           snapshot.docs.map((item) => item.id)
-        ),
+        );
+      },
       () => setBlockedDates([])
     );
 
@@ -77,7 +94,7 @@ export function AppointmentProvider({ children }) {
 
     const unsubNotifications = onSnapshot(
       notificationQuery,
-      (snapshot) =>
+      (snapshot) => {
         setAppointmentNotifications(
           snapshot.docs
             .map((item) => ({
@@ -89,7 +106,8 @@ export function AppointmentProvider({ children }) {
                 item.read === false &&
                 item.appointmentId
             )
-        ),
+        );
+      },
       () => setAppointmentNotifications([])
     );
 
@@ -99,6 +117,44 @@ export function AppointmentProvider({ children }) {
       unsubNotifications();
     };
   }, [user?.id, user?.role]);
+
+  useEffect(() => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      appointments.length === 0
+    ) {
+      return;
+    }
+
+    const today = todayISO();
+
+    const expiredAppointments = appointments.filter(
+      (appointment) =>
+        appointment.date &&
+        (
+          appointment.date < today ||
+          blockedDates.includes(appointment.date)
+        )
+    );
+
+    if (expiredAppointments.length === 0) {
+      return;
+    }
+
+    Promise.allSettled(
+      expiredAppointments.map((appointment) =>
+        deleteDoc(
+          doc(db, "appointments", appointment.id)
+        )
+      )
+    );
+  }, [
+    appointments,
+    blockedDates,
+    user?.id
+  ]);
 
   const checkAppointmentSlot = (
     date,
@@ -197,9 +253,19 @@ export function AppointmentProvider({ children }) {
   };
 
   const deleteAppointment = async (id) => {
+    if (!id) {
+      return {
+        error: "not-found"
+      };
+    }
+
     await deleteDoc(
       doc(db, "appointments", id)
     );
+
+    return {
+      success: true
+    };
   };
 
   const updateAppointment = async (
@@ -258,6 +324,12 @@ export function AppointmentProvider({ children }) {
       };
     }
 
+    if (date < todayISO()) {
+      return {
+        error: "past"
+      };
+    }
+
     const ref = doc(
       db,
       "blockedDates",
@@ -273,23 +345,20 @@ export function AppointmentProvider({ children }) {
       };
     }
 
-    if (date < todayISO()) {
-      return {
-        error: "past"
-      };
-    }
-
-    const hasAppointment = appointments.some(
-      (item) =>
-        item.date === date &&
-        item.status !== "Cancelled"
+    const appointmentsOnDate = await getDocs(
+      query(
+        collection(db, "appointments"),
+        where("date", "==", date)
+      )
     );
 
-    if (hasAppointment) {
-      return {
-        error: "appointment"
-      };
-    }
+    await Promise.all(
+      appointmentsOnDate.docs.map((appointment) =>
+        deleteDoc(
+          doc(db, "appointments", appointment.id)
+        )
+      )
+    );
 
     await setDoc(ref, {
       date,
@@ -299,7 +368,8 @@ export function AppointmentProvider({ children }) {
 
     return {
       success: true,
-      action: "blocked"
+      action: "blocked",
+      removedAppointments: appointmentsOnDate.size
     };
   };
 

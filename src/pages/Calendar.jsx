@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppointments } from "../context/AppointmentContext";
 import { useAuth } from "../context/AuthContext";
 import CalendarGrid from "../components/CalendarGrid";
+import { todayISO } from "../utils";
 
 export default function Calendar() {
   const {
@@ -23,8 +24,15 @@ export default function Calendar() {
   );
 
   const isEngineer = user?.role === "engineer";
+  const today = todayISO();
 
-  const filtered = appointments.filter((appointment) => {
+  const upcomingAppointments = appointments.filter(
+    (appointment) =>
+      appointment.date >= today &&
+      appointment.status !== "Cancelled"
+  );
+
+  const filtered = upcomingAppointments.filter((appointment) => {
     const client = users.find(
       (item) => item.id === appointment.clientId
     );
@@ -43,10 +51,8 @@ export default function Calendar() {
   });
 
   const selectedAppointments = date
-    ? appointments.filter(
-        (appointment) =>
-          appointment.date === date &&
-          appointment.status !== "Cancelled"
+    ? upcomingAppointments.filter(
+        (appointment) => appointment.date === date
       )
     : [];
 
@@ -69,7 +75,9 @@ export default function Calendar() {
   );
 
   const selectedDateUnavailable =
-    date && blockedDates.includes(date);
+    date &&
+    date >= today &&
+    blockedDates.includes(date);
 
   const closePopup = () => {
     setDate("");
@@ -84,8 +92,8 @@ export default function Calendar() {
         <h1>Calendar</h1>
 
         <p>
-          View appointments in a full calendar layout and search
-          the schedule.
+          View upcoming appointments in a full calendar layout
+          and search the schedule.
         </p>
       </div>
 
@@ -103,12 +111,18 @@ export default function Calendar() {
 
       <CalendarGrid
         engineer={isEngineer}
-        appointments={appointments}
-        blockedDates={blockedDates}
+        appointments={upcomingAppointments}
+        blockedDates={blockedDates.filter(
+          (blockedDate) => blockedDate >= today
+        )}
         selectedDate={date}
         monthState={calendarMonth}
         onMonthChange={setCalendarMonth}
         onSelect={(selectedDate) => {
+          if (selectedDate && selectedDate < today) {
+            return;
+          }
+
           setDate(selectedDate);
           setPopupSearch("");
         }}
@@ -161,7 +175,7 @@ export default function Calendar() {
       <div className="calendar-search">
         <input
           className="search-input"
-          placeholder="Search appointments..."
+          placeholder="Search upcoming appointments..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -210,7 +224,7 @@ export default function Calendar() {
 
         {filtered.length === 0 && (
           <div className="empty-state">
-            <strong>No matching appointments.</strong>
+            <strong>No matching upcoming appointments.</strong>
 
             <span>
               Try another search or select a different date.

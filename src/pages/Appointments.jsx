@@ -30,6 +30,10 @@ export default function Appointments() {
     setDate
   ] = useState("");
 
+  const [calendarMonth, setCalendarMonth] = useState(
+  () => new Date()
+);
+
   const [
     popupDate,
     setPopupDate
@@ -422,6 +426,8 @@ export default function Appointments() {
           appointments={
             appointments
           }
+          monthState={calendarMonth}
+          onMonthChange={setCalendarMonth}
           blockedDates={
             blockedDates
           }

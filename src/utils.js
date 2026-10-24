@@ -20,24 +20,44 @@ export const MAX_FILE_SIZE =
 export const MAX_PROFILE_IMAGE_SIZE =
   350 * 1024;
 
-export const todayISO = () =>
-  new Date().toISOString().slice(0, 10);
+const PH_TIME_ZONE = "Asia/Manila";
+
+export const todayISO = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PH_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value])
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
 
 export function formatDate(date) {
   if (!date) return "";
 
-  const value = date?.toDate
-    ? date.toDate()
-    : new Date(`${date}T00:00:00`);
+  let value;
 
-  return value.toLocaleDateString(
-    undefined,
-    {
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    }
-  );
+  if (date?.toDate) {
+    value = date.toDate();
+  } else if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    value = new Date(`${date}T12:00:00Z`);
+  } else {
+    value = new Date(date);
+  }
+
+  if (Number.isNaN(value.getTime())) return "";
+
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: PH_TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(value);
 }
 
 export function initials(name = "User") {

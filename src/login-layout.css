@@ -321,3 +321,54 @@ html[data-theme="dark"] .landing-login-wrapper .login-form-card {
     padding-top: 12px;
   }
 }
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card {
+  color: #ffffff !important;
+  background: rgba(4, 20, 14, 0.82) !important;
+  border-color: rgba(245, 208, 75, 0.75);
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card h1,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card h2,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card h3,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card p,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card label,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card span,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .login-office {
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card input {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card input::placeholder {
+  color: #d1d5db !important;
+  opacity: 1;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card input:-webkit-autofill,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card input:-webkit-autofill:hover,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .password-toggle,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .forgot-password-link button,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .login-register button {
+  color: #ffe17a !important;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .login-submit-button {
+  color: #102b1d !important;
+  background: #edc443 !important;
+  border-color: #edc443 !important;
+}
+
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .login-register,
+html[data-theme="dark"] .landing-login-wrapper .login-form-card .login-office {
+  border-color: rgba(255, 255, 255, 0.3);
+}

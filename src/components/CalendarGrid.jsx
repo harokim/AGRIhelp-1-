@@ -12,9 +12,9 @@ export default function CalendarGrid({
   onMonthChange
 }) {
   const month = monthState;
-
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
+  const today = todayISO();
 
   const daysInMonth = new Date(
     year,
@@ -46,28 +46,23 @@ export default function CalendarGrid({
     String(number).padStart(2, "0");
 
   const previousMonth = () => {
-  console.log("Previous month clicked");
-  console.log("Current month:", month.toDateString());
-
-  onMonthChange(
-    new Date(year, monthIndex - 1, 1)
-  );
-};
-
-const nextMonth = () => {
-  console.log("Next month clicked");
-  console.log("Current month:", month.toDateString());
-
-  onMonthChange(
-    new Date(year, monthIndex + 1, 1)
-  );
-};
-
-  const selectedAppointments =
-    appointments.filter(
-      (appointment) =>
-        appointment.date === selectedDate
+    onMonthChange?.(
+      new Date(year, monthIndex - 1, 1)
     );
+  };
+
+  const nextMonth = () => {
+    onMonthChange?.(
+      new Date(year, monthIndex + 1, 1)
+    );
+  };
+
+  const selectedAppointments = appointments.filter(
+    (appointment) =>
+      appointment.date === selectedDate &&
+      appointment.date >= today &&
+      appointment.status !== "Cancelled"
+  );
 
   return (
     <div className="calendar-wrap">
@@ -82,13 +77,10 @@ const nextMonth = () => {
         </button>
 
         <h3>
-          {month.toLocaleDateString(
-            undefined,
-            {
-              month: "long",
-              year: "numeric"
-            }
-          )}
+          {month.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric"
+          })}
         </h3>
 
         <button
@@ -126,19 +118,21 @@ const nextMonth = () => {
             );
           }
 
-          const date =
-            `${year}-${pad(monthIndex + 1)}-${pad(day)}`;
+          const date = `${year}-${pad(
+            monthIndex + 1
+          )}-${pad(day)}`;
 
-          const dayAppointments =
-            appointments.filter(
-              (appointment) =>
-                appointment.date === date
-            );
+          const past = date < today;
+
+          const dayAppointments = appointments.filter(
+            (appointment) =>
+              appointment.date === date &&
+              appointment.date >= today &&
+              appointment.status !== "Cancelled"
+          );
 
           const unavailable =
-            blockedDates.includes(date);
-
-          const past = date < todayISO();
+            !past && blockedDates.includes(date);
 
           const selected = selectedDate === date;
 
@@ -155,10 +149,7 @@ const nextMonth = () => {
             .join(" ");
 
           const handleClick = () => {
-            if (
-              !engineer &&
-              (unavailable || past)
-            ) {
+            if (!engineer && (unavailable || past)) {
               return;
             }
 
@@ -223,49 +214,36 @@ const nextMonth = () => {
 
           {selectedAppointments.length > 0 ? (
             <div className="calendar-popup-list">
-              {selectedAppointments.map(
-                (appointment) => (
-                  <div
-                    className="calendar-popup-item"
-                    key={appointment.id}
-                  >
-                    <div>
-                      <strong>
-                        {appointment.title}
-                      </strong>
+              {selectedAppointments.map((appointment) => (
+                <div
+                  className="calendar-popup-item"
+                  key={appointment.id}
+                >
+                  <div>
+                    <strong>
+                      {appointment.title}
+                    </strong>
 
-                      <span>{appointment.time}</span>
+                    <span>{appointment.time}</span>
 
-                      {engineer && (
-                        <small>
-                          {appointment.clientName || "Client"}
-                        </small>
-                      )}
-                    </div>
-
-                    {engineer && onToggleBlocked && (
-                      <button
-                        type="button"
-                        className="danger-btn small"
-                        onClick={() =>
-                          onToggleBlocked(selectedDate)
-                        }
-                      >
-                        Mark unavailable
-                      </button>
+                    {engineer && (
+                      <small>
+                        {appointment.clientName || "Client"}
+                      </small>
                     )}
                   </div>
-                )
-              )}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="calendar-popup-empty">
-              No appointments for this date.
+              No upcoming appointments for this date.
             </div>
           )}
 
           {engineer &&
             onToggleBlocked &&
+            selectedDate >= today &&
             !blockedDates.includes(selectedDate) && (
               <button
                 type="button"
@@ -280,6 +258,7 @@ const nextMonth = () => {
 
           {engineer &&
             onToggleBlocked &&
+            selectedDate >= today &&
             blockedDates.includes(selectedDate) && (
               <button
                 type="button"
@@ -296,8 +275,8 @@ const nextMonth = () => {
 
       <p className="calendar-help">
         {engineer
-          ? "Click any date to view its appointments."
-          : "Red dates are unavailable and cannot be selected."}
+          ? "Click any date to view upcoming appointments. Past appointments and unavailable markers are hidden."
+          : "Past dates and unavailable dates cannot be selected."}
       </p>
     </div>
   );

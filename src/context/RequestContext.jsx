@@ -29,6 +29,7 @@ import {
   loadDocumentData
 } from "../services/documentService";
 import { useAuth } from "./AuthContext";
+import { todayISO } from "../utils";
 
 const RequestContext =
   createContext(null);
@@ -399,8 +400,7 @@ export function RequestProvider({
         status:
           "Submitted",
         notes: "",
-        createdAt:
-          localDateISO(),
+        createdAt: todayISO(),
         createdAtTimestamp:
           serverTimestamp(),
         updatedAt:
