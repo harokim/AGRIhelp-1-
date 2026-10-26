@@ -99,6 +99,7 @@ html[data-theme="dark"] .nav-notification { border-color: #102318; }
 }
 
 
+<<<<<<< HEAD
 html[data-theme="light"],
 html:not([data-theme="dark"]) {
   color-scheme: light;
@@ -770,6 +771,8 @@ html[data-theme="dark"] .request-type-pie-center {
 }
 
 
+=======
+>>>>>>> 89544e6cc049f081bf38969b817def04493f8fb9
 :root {
   color-scheme: light;
   --design-page: #eef3ef;
@@ -1191,6 +1194,7 @@ textarea,
     transition-duration: 0.01ms !important;
   }
 }
+<<<<<<< HEAD
 
 .request-types-panel {
   min-width: 0;
@@ -1247,3 +1251,5 @@ label[for="login-email"] {
   gap: 8px;
 }
 
+=======
+>>>>>>> 89544e6cc049f081bf38969b817def04493f8fb9
