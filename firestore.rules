@@ -1,7 +1,9 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
     function signedIn() {
       return request.auth != null;
     }
@@ -27,11 +29,107 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function validAccountRequest() {
+      let data = request.resource.data;
+
+      return data.keys().hasAll([
+          "name",
+          "email",
+          "contactNumber",
+          "association",
+          "associationKey",
+          "members",
+          "year",
+          "position",
+          "region",
+          "province",
+          "municipality",
+          "barangay",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ])
+        && data.keys().hasOnly([
+          "name",
+          "email",
+          "contactNumber",
+          "association",
+          "associationKey",
+          "members",
+          "year",
+          "position",
+          "region",
+          "province",
+          "municipality",
+          "barangay",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ])
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 150
+        && data.email is string
+        && data.email.size() <= 254
+        && data.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$')
+        && data.contactNumber is string
+        && data.contactNumber.matches('^09[0-9]{9}$')
+        && data.association is string
+        && data.association.size() > 0
+        && data.association.size() <= 200
+        && data.associationKey is string
+        && data.associationKey.size() > 0
+        && data.associationKey.size() <= 200
+        && data.members is int
+        && data.members >= 0
+        && (data.year == null || data.year is int)
+        && data.position is string
+        && data.position.size() > 0
+        && data.region is string
+        && data.region.size() > 0
+        && data.province is string
+        && data.province.size() > 0
+        && data.municipality is string
+        && data.municipality.size() > 0
+        && data.barangay is string
+        && data.barangay.size() > 0
+        && data.status == "pending"
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
 
-      // User profiles are created through trusted Admin SDK functions.
-      allow create: if false;
+      allow create: if isEngineer()
+        && userId != request.auth.uid
+        && request.resource.data.role == "client"
+        && request.resource.data.status == "active"
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.email is string
+        && request.resource.data.contactNumber is string
+        && request.resource.data.keys().hasOnly([
+          "name",
+          "email",
+          "role",
+          "contactNumber",
+          "association",
+          "address",
+          "officeAddress",
+          "barangay",
+          "municipality",
+          "province",
+          "region",
+          "position",
+          "profileBio",
+          "members",
+          "year",
+          "status",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ]);
 
       allow update: if isEngineer()
         || (
@@ -60,8 +158,11 @@ service cloud.firestore {
     match /accountRequests/{accountRequestId} {
       allow read: if isEngineer();
 
-      // Submission and processing use callable functions.
-      allow create, update, delete: if false;
+      allow create: if validAccountRequest();
+
+      allow update: if false;
+
+      allow delete: if isEngineer();
     }
 
     match /requests/{requestId} {
@@ -126,6 +227,16 @@ service cloud.firestore {
       allow read: if signedIn();
 
       allow create: if isEngineer()
+        && request.resource.data.createdBy == request.auth.uid;
+
+      allow update, delete: if isEngineer();
+    }
+
+    match /fullyBookedDates/{dateId} {
+      allow read: if signedIn();
+
+      allow create: if isEngineer()
+        && request.resource.data.date == dateId
         && request.resource.data.createdBy == request.auth.uid;
 
       allow update, delete: if isEngineer();

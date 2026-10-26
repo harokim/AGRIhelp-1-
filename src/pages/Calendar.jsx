@@ -4,6 +4,41 @@ import { useAuth } from "../context/AuthContext";
 import CalendarGrid from "../components/CalendarGrid";
 import { todayISO } from "../utils";
 
+const formatTime12Hour = (value) => {
+  if (!value) return "Time not specified";
+
+  const match = String(value).match(
+    /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+  );
+
+  if (match) {
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+
+    if (hours > 23 || minutes > 59) {
+      return String(value);
+    }
+
+    const period = hours >= 12 ? "PM" : "AM";
+    const displayHours = hours % 12 || 12;
+
+    return `${displayHours}:${String(minutes).padStart(2, "0")} ${period}`;
+  }
+
+  const parsedDate = new Date(value);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return String(value);
+  }
+
+  return parsedDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Manila"
+  });
+};
+
 export default function Calendar() {
   const {
     appointments,
@@ -42,6 +77,7 @@ export default function Calendar() {
       ${appointment.clientName || ""}
       ${client?.name || ""}
       ${client?.association || ""}
+      ${formatTime12Hour(appointment.time)}
     `.toLowerCase();
 
     return (
@@ -68,6 +104,7 @@ export default function Calendar() {
         ${client?.name || ""}
         ${client?.association || ""}
         ${appointment.time || ""}
+        ${formatTime12Hour(appointment.time)}
       `.toLowerCase();
 
       return searchText.includes(popupSearch.toLowerCase());
@@ -208,7 +245,8 @@ export default function Calendar() {
                 </strong>
 
                 <span>
-                  {appointment.date} · {appointment.time} ·{" "}
+                  {appointment.date} ·{" "}
+                  {formatTime12Hour(appointment.time)} ·{" "}
                   {client?.name ||
                     appointment.clientName ||
                     "Client"}
@@ -248,8 +286,9 @@ export default function Calendar() {
 
                 <h2>
                   {new Date(`${date}T00:00:00`).toLocaleDateString(
-                    undefined,
+                    "en-PH",
                     {
+                      timeZone: "Asia/Manila",
                       month: "long",
                       day: "numeric",
                       year: "numeric"
@@ -292,7 +331,7 @@ export default function Calendar() {
                     key={appointment.id}
                   >
                     <div className="appointment-popup-time">
-                      {appointment.time}
+                      {formatTime12Hour(appointment.time)}
                     </div>
 
                     <div className="appointment-popup-details">

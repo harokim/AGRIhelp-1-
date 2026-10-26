@@ -1,81 +1,105 @@
+
 import { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "../context/AuthContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { db } from "../firebase";
 import app from "../firebase";
 import { initials } from "../utils";
+import ClientSignup from "./ClientSignup";
 
 function formatDate(value) {
   if (!value) return "Not available";
 
   const date = value?.toDate ? value.toDate() : new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Not available";
-  }
+  if (Number.isNaN(date.getTime())) return "Not available";
 
-  return date.toLocaleDateString("en-PH", {
+  return date.toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
     month: "short",
     day: "numeric",
     year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
   });
 }
 
-export default function UserManagement() {
-  const { users, user, deleteUser } = useAuth();
-  const { appointments } = useAppointments();
+function normalizeStatus(value) {
+  return String(value || "unknown").trim().toLowerCase();
+}
 
-  const [q, setQ] = useState("");
+export default function UserManagement() {
+  const { users = [], user, deleteUser } = useAuth();
+  const { appointments = [] } = useAppointments();
+
+  const [search, setSearch] = useState("");
   const [accountRequests, setAccountRequests] = useState([]);
   const [requestError, setRequestError] = useState("");
+  const [loadingRequests, setLoadingRequests] = useState(true);
+
   const [processingId, setProcessingId] = useState("");
+  const [deletingRequestId, setDeletingRequestId] = useState("");
+
   const [resetLink, setResetLink] = useState("");
   const [createdEmail, setCreatedEmail] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
+  const [showCreateClient, setShowCreateClient] = useState(false);
+  const [manualCreatedClient, setManualCreatedClient] = useState(null);
+
   useEffect(() => {
     if (user?.role !== "engineer" || !db) {
       setAccountRequests([]);
+      setLoadingRequests(false);
       return undefined;
     }
 
-    return onSnapshot(
+    setLoadingRequests(true);
+    setRequestError("");
+
+    const unsubscribe = onSnapshot(
       collection(db, "accountRequests"),
       (snapshot) => {
-        setAccountRequests(
-          snapshot.docs
-            .map((item) => ({
-              id: item.id,
-              ...item.data(),
-            }))
-            .filter(
-              (item) =>
-                String(item.status || "").toLowerCase() === "pending"
-            )
-            .sort((a, b) => {
-              const aTime = a.createdAt?.toDate
-                ? a.createdAt.toDate().getTime()
-                : 0;
+        const requests = snapshot.docs
+          .map((document) => ({
+            id: document.id,
+            ...document.data(),
+          }))
+          .sort((a, b) => {
+            const aTime = a.createdAt?.toDate
+              ? a.createdAt.toDate().getTime()
+              : 0;
+            const bTime = b.createdAt?.toDate
+              ? b.createdAt.toDate().getTime()
+              : 0;
 
-              const bTime = b.createdAt?.toDate
-                ? b.createdAt.toDate().getTime()
-                : 0;
+            return bTime - aTime;
+          });
 
-              return bTime - aTime;
-            })
-        );
-
+        setAccountRequests(requests);
         setRequestError("");
+        setLoadingRequests(false);
       },
       (error) => {
+        console.error("Unable to load account requests:", error);
+
         setRequestError(
-          error?.message || "Could not load account requests."
+          error?.message ||
+            "Unable to load account requests. Check your Firestore permissions."
         );
+
+        setLoadingRequests(false);
       }
     );
+
+    return unsubscribe;
   }, [user?.role]);
 
   if (user?.role !== "engineer") {
@@ -86,45 +110,51 @@ export default function UserManagement() {
     );
   }
 
+  const pendingRequests = accountRequests.filter(
+    (request) => normalizeStatus(request.status) === "pending"
+  );
+
   const list = users
-    .filter((item) => item.status !== "inactive")
-    .filter((item) =>
-      `${item.name || ""} ${item.email || ""} ${
-        item.association || ""
-      } ${item.barangay || ""}`
-        .toLowerCase()
-        .includes(q.toLowerCase())
+    .filter((item) => normalizeStatus(item.status) !== "inactive")
+    .filter((item) => {
+      const text = [
+        item.name,
+        item.email,
+        item.association,
+        item.barangay,
+        item.contactNumber,
+        item.role,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return text.includes(search.toLowerCase());
+    });
+
+  const createAccount = async (request) => {
+    if (processingId || deletingRequestId) return;
+
+    if (normalizeStatus(request.status) !== "pending") {
+      window.alert(
+        "This request is no longer pending. Refresh the page and check its status."
+      );
+      return;
+    }
+
+    const applicantName =
+      request.name || request.fullName || request.email || "this applicant";
+
+    const confirmed = window.confirm(
+      `Confirm the account request for ${applicantName}?\n\n` +
+        `Email: ${request.email || "Not provided"}\n` +
+        `Association: ${request.association || "Not provided"}\n\n` +
+        "This will create the client account and process the request."
     );
 
-  const remove = async (id) => {
-    if (!window.confirm("Deactivate this client account?")) {
-      return;
-    }
+    if (!confirmed) return;
 
-    try {
-      await deleteUser(id);
-    } catch (error) {
-      window.alert(
-        error?.message || "Could not deactivate account."
-      );
-    }
-  };
-
-  const createAccount = async (accountRequest) => {
-    if (!app) {
-      setRequestError("Firebase is not configured.");
-      return;
-    }
-
-    if (
-      !window.confirm(
-        `Create a client account for ${accountRequest.association} using ${accountRequest.email}?`
-      )
-    ) {
-      return;
-    }
-
-    setProcessingId(accountRequest.id);
+    setProcessingId(request.id);
     setRequestError("");
     setResetLink("");
     setCreatedEmail("");
@@ -132,24 +162,80 @@ export default function UserManagement() {
 
     try {
       const functions = getFunctions(app, "asia-southeast1");
-
       const createClientAccount = httpsCallable(
         functions,
         "createClientAccount"
       );
 
-      const result = await createClientAccount({
-        accountRequestId: accountRequest.id,
+      const response = await createClientAccount({
+        accountRequestId: request.id,
       });
 
-      setResetLink(result.data?.passwordResetLink || "");
-      setCreatedEmail(result.data?.email || accountRequest.email);
+      const result = response.data || {};
+
+      setCreatedEmail(result.email || request.email || "");
+      setResetLink(result.passwordResetLink || "");
+
+      if (!result.passwordResetLink) {
+        window.alert(
+          result.message ||
+            "The account was created, but no password-reset link was returned."
+        );
+      }
     } catch (error) {
+      console.error("Account request confirmation failed:", error);
+
       setRequestError(
-        error?.message || "Could not create the client account."
+        error?.message ||
+          "Could not confirm the account request. Please try again."
+      );
+
+      window.alert(
+        error?.message ||
+          "Could not confirm the account request. Please try again."
       );
     } finally {
       setProcessingId("");
+    }
+  };
+
+  const deleteAccountRequest = async (request) => {
+    if (processingId || deletingRequestId) return;
+
+    const applicantName =
+      request.name || request.fullName || request.email || "this applicant";
+
+    const confirmed = window.confirm(
+      `Delete the account request for ${applicantName}?\n\n` +
+        `Email: ${request.email || "Not provided"}\n` +
+        `Association: ${request.association || "Not provided"}\n\n` +
+        "This permanently deletes the submitted request. This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    setDeletingRequestId(request.id);
+    setRequestError("");
+
+    try {
+      await deleteDoc(doc(db, "accountRequests", request.id));
+
+      setAccountRequests((currentRequests) =>
+        currentRequests.filter((item) => item.id !== request.id)
+      );
+    } catch (error) {
+      console.error("Unable to delete account request:", error);
+
+      const message =
+        error?.code === "permission-denied"
+          ? "Permission denied. Confirm that your Firestore rules allow active engineers to delete account requests."
+          : error?.message ||
+            "Unable to delete the account request. Please try again.";
+
+      setRequestError(message);
+      window.alert(message);
+    } finally {
+      setDeletingRequestId("");
     }
   };
 
@@ -159,9 +245,31 @@ export default function UserManagement() {
       setCopyMessage("Password-reset link copied.");
     } catch {
       setCopyMessage(
-        "Copy failed. Select and copy the link manually."
+        "Copy failed. Select the link and copy it manually."
       );
     }
+  };
+
+  const deactivateUser = async (id, name) => {
+    const confirmed = window.confirm(
+      `Deactivate the client account for ${name || "this user"}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteUser(id);
+      window.alert("Client account deactivated successfully.");
+    } catch (error) {
+      window.alert(
+        error?.message || "Could not deactivate this account."
+      );
+    }
+  };
+
+  const handleManualClientCreated = (client) => {
+    setManualCreatedClient(client);
+    setShowCreateClient(false);
   };
 
   return (
@@ -170,7 +278,7 @@ export default function UserManagement() {
         <span className="eyebrow">ADMINISTRATION</span>
         <h1>User management</h1>
         <p>
-          Review account requests, create approved client accounts, and
+          Create client accounts, confirm submitted account requests, and
           manage registered users.
         </p>
       </div>
@@ -178,15 +286,136 @@ export default function UserManagement() {
       <section className="card account-requests-panel">
         <div className="section-title">
           <div>
-            <h2>Pending account requests</h2>
+            <h2>Create a client account</h2>
             <p>
-              Creating an account will create a client profile and generate
-              a password-reset link.
+              Create an account manually without requiring a pending request.
+            </p>
+          </div>
+
+          <button
+            className="primary-btn"
+            type="button"
+            onClick={() => {
+              setManualCreatedClient(null);
+              setShowCreateClient(true);
+            }}
+          >
+            Create client account
+          </button>
+        </div>
+
+        {manualCreatedClient && (
+          <div className="success-message" role="status">
+            <p>
+              Client account created for{" "}
+              <strong>
+                {manualCreatedClient.name || "the client"}
+              </strong>
+              {manualCreatedClient.email
+                ? ` (${manualCreatedClient.email})`
+                : ""}
+              .
+            </p>
+
+            {manualCreatedClient.passwordResetLink && (
+              <div>
+                <p>
+                  Share the password-reset link securely with the client.
+                </p>
+
+                <input
+                  type="text"
+                  readOnly
+                  value={manualCreatedClient.passwordResetLink}
+                  aria-label="Manual client password-reset link"
+                  onFocus={(event) => event.target.select()}
+                />
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        manualCreatedClient.passwordResetLink
+                      );
+                      window.alert("Password-reset link copied.");
+                    } catch {
+                      window.alert(
+                        "Unable to copy automatically. Select and copy the link manually."
+                      );
+                    }
+                  }}
+                >
+                  Copy reset link
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => setManualCreatedClient(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </section>
+
+      {showCreateClient && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowCreateClient(false);
+            }
+          }}
+        >
+          <div
+            className="modal card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-client-title"
+          >
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">USER MANAGEMENT</span>
+                <h2 id="create-client-title">New client account</h2>
+              </div>
+
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setShowCreateClient(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <ClientSignup
+              mode="engineer"
+              onCreated={handleManualClientCreated}
+              onCancel={() => setShowCreateClient(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      <section className="card account-requests-panel">
+        <div className="section-title">
+          <div>
+            <h2>Account requests</h2>
+            <p>
+              All submitted requests appear here. Requests marked pending
+              can be confirmed to create a client account. Use the trash
+              button to permanently remove a request.
             </p>
           </div>
 
           <span className="tag">
-            {accountRequests.length} pending
+            {pendingRequests.length} pending
           </span>
         </div>
 
@@ -196,9 +425,11 @@ export default function UserManagement() {
           </div>
         )}
 
-        {accountRequests.length === 0 ? (
+        {loadingRequests ? (
+          <div className="empty-state">Loading account requests...</div>
+        ) : accountRequests.length === 0 ? (
           <div className="empty-state">
-            There are no pending account requests.
+            No account requests were found in the accountRequests collection.
           </div>
         ) : (
           <div className="table-card">
@@ -209,36 +440,103 @@ export default function UserManagement() {
                   <th>Association</th>
                   <th>Contact</th>
                   <th>Submitted</th>
+                  <th>Status</th>
                   <th>Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {accountRequests.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.name || "Not provided"}</strong>
-                      <small>{item.email}</small>
-                    </td>
+                {accountRequests.map((request) => {
+                  const status = normalizeStatus(request.status);
+                  const isPending = status === "pending";
+                  const isProcessing = processingId === request.id;
+                  const isDeleting = deletingRequestId === request.id;
+                  const busy =
+                    Boolean(processingId) || Boolean(deletingRequestId);
 
-                    <td>{item.association || "—"}</td>
-                    <td>{item.contactNumber || "—"}</td>
-                    <td>{formatDate(item.createdAt)}</td>
+                  return (
+                    <tr key={request.id}>
+                      <td>
+                        <strong>
+                          {request.name ||
+                            request.fullName ||
+                            "Not provided"}
+                        </strong>
+                        <small>
+                          {request.email || "No email provided"}
+                        </small>
+                      </td>
 
-                    <td>
-                      <button
-                        className="primary-btn small"
-                        type="button"
-                        onClick={() => createAccount(item)}
-                        disabled={Boolean(processingId)}
-                      >
-                        {processingId === item.id
-                          ? "Creating..."
-                          : "Create account"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td>{request.association || "—"}</td>
+
+                      <td>{request.contactNumber || "—"}</td>
+
+                      <td>{formatDate(request.createdAt)}</td>
+
+                      <td>
+                        <span className="tag">
+                          {request.status || "Unknown"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="account-request-actions">
+                          {isPending ? (
+                            <button
+                              className="primary-btn small"
+                              type="button"
+                              disabled={busy}
+                              onClick={() => createAccount(request)}
+                            >
+                              {isProcessing
+                                ? "Processing..."
+                                : "Confirm account request"}
+                            </button>
+                          ) : (
+                            <span className="muted">
+                              {status === "processed" ||
+                              status === "approved"
+                                ? "Already processed"
+                                : "Not pending"}
+                            </span>
+                          )}
+
+                          <button
+                            className="account-request-delete-btn"
+                            type="button"
+                            title="Delete account request"
+                            aria-label={`Delete account request for ${
+                              request.name ||
+                              request.email ||
+                              "this applicant"
+                            }`}
+                            disabled={busy}
+                            onClick={() => deleteAccountRequest(request)}
+                          >
+                            {isDeleting ? (
+                              <span className="delete-spinner" aria-hidden="true" />
+                            ) : (
+                              <svg
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                                focusable="false"
+                              >
+                                <path d="M3 6h18" />
+                                <path d="M8 6V4h8v2" />
+                                <path d="m19 6-1 14H6L5 6" />
+                                <path d="M10 11v5" />
+                                <path d="M14 11v5" />
+                              </svg>
+                            )}
+                            <span className="delete-button-label">
+                              {isDeleting ? "Deleting..." : "Delete"}
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -248,21 +546,23 @@ export default function UserManagement() {
       {resetLink && (
         <div
           className="modal-backdrop"
-          onClick={() => setResetLink("")}
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setResetLink("");
+            }
+          }}
         >
           <div
             className="modal card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="reset-link-title"
-            onClick={(event) => event.stopPropagation()}
           >
             <div className="modal-header">
               <div>
                 <span className="eyebrow">ACCOUNT CREATED</span>
-                <h2 id="reset-link-title">
-                  Share password-reset link
-                </h2>
+                <h2 id="reset-link-title">Share password-reset link</h2>
               </div>
 
               <button
@@ -275,9 +575,9 @@ export default function UserManagement() {
             </div>
 
             <p>
-              The client account for <strong>{createdEmail}</strong> has
-              been created. Share this link with the client using a secure
-              channel so they can set their password.
+              The client account for <strong>{createdEmail}</strong> has been
+              created. Share this link securely so the client can set their
+              password.
             </p>
 
             <textarea
@@ -285,6 +585,7 @@ export default function UserManagement() {
               value={resetLink}
               rows={4}
               aria-label="Password-reset link"
+              onFocus={(event) => event.target.select()}
             />
 
             <div className="form-actions">
@@ -306,9 +607,7 @@ export default function UserManagement() {
               </a>
             </div>
 
-            {copyMessage && (
-              <p role="status">{copyMessage}</p>
-            )}
+            {copyMessage && <p role="status">{copyMessage}</p>}
           </div>
         </div>
       )}
@@ -322,9 +621,11 @@ export default function UserManagement() {
 
       <input
         className="search-input wide-search"
+        type="search"
         placeholder="Search name, email, association, or barangay..."
-        value={q}
-        onChange={(event) => setQ(event.target.value)}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        aria-label="Search registered users"
       />
 
       <div className="table-card card">
@@ -349,24 +650,23 @@ export default function UserManagement() {
                       {item.avatar ? (
                         <img src={item.avatar} alt="" />
                       ) : (
-                        initials(item.name || item.email)
+                        initials(item.name || item.email || "?")
                       )}
                     </div>
 
                     <span>
-                      <strong>
-                        {item.name || "Unnamed user"}
-                      </strong>
-                      <small>{item.email}</small>
+                      <strong>{item.name || "Unnamed user"}</strong>
+                      <small>{item.email || "No email provided"}</small>
                     </span>
                   </div>
                 </td>
 
                 <td>
-                  <span className="tag">{item.role}</span>
+                  <span className="tag">{item.role || "Unknown"}</span>
                 </td>
 
                 <td>{item.contactNumber || "—"}</td>
+
                 <td>{item.association || "Municipal Office"}</td>
 
                 <td>
@@ -382,7 +682,7 @@ export default function UserManagement() {
                     <button
                       className="danger-btn small"
                       type="button"
-                      onClick={() => remove(item.id)}
+                      onClick={() => deactivateUser(item.id, item.name)}
                     >
                       Deactivate
                     </button>
@@ -395,9 +695,7 @@ export default function UserManagement() {
 
             {list.length === 0 && (
               <tr>
-                <td colSpan="6">
-                  No users match your search.
-                </td>
+                <td colSpan="6">No users match your search.</td>
               </tr>
             )}
           </tbody>

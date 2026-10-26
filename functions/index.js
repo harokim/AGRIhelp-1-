@@ -1,3 +1,4 @@
+
 const crypto = require("node:crypto");
 const { setGlobalOptions } = require("firebase-functions");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -69,10 +70,11 @@ async function requireActiveEngineer(request) {
   return profile;
 }
 
-// Public account request submission.
-// This creates a request only, not an Authentication user.
 exports.submitAccountRequest = onCall(
-  { region: REGION },
+  {
+    region: REGION,
+    cors: true,
+  },
   async (request) => {
     const data = request.data || {};
 
@@ -128,7 +130,6 @@ exports.submitAccountRequest = onCall(
     if (
       !payload.position ||
       !payload.region ||
-      !payload.province ||
       !payload.municipality ||
       !payload.barangay
     ) {
@@ -218,15 +219,16 @@ exports.submitAccountRequest = onCall(
     return {
       success: true,
       accountRequestId: ref.id,
-      message:
-        "Your account request was submitted for engineer review.",
+      message: "Your account request was submitted for engineer review.",
     };
   }
 );
 
-// Only an active engineer can create a client account.
 exports.createClientAccount = onCall(
-  { region: REGION },
+  {
+    region: REGION,
+    cors: true,
+  },
   async (request) => {
     await requireActiveEngineer(request);
 
@@ -398,9 +400,12 @@ exports.createClientAccount = onCall(
   }
 );
 
-// Semaphore SMS callable.
 exports.sendSms = onCall(
-  { region: REGION, secrets: [semaphoreApiKey] },
+  {
+    region: REGION,
+    cors: true,
+    secrets: [semaphoreApiKey],
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError(

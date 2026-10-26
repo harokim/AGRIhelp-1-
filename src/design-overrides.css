@@ -97,3 +97,1153 @@ html[data-theme="dark"] .nav-notification { border-color: #102318; }
 @media (prefers-reduced-motion: reduce) {
   .engineer-stats .dashboard-stat, .association-bar-fill, .login-submit-button, .hero-login-button, .report-request-item { transition: none; }
 }
+
+
+html[data-theme="light"],
+html:not([data-theme="dark"]) {
+  color-scheme: light;
+  --text: #000000;
+  --muted: #505b53;
+  --border: #d5ded7;
+  --surface: #ffffff;
+  --surface-soft: #f4f7f4;
+  --page: #eef3ef;
+  --theme-text: #000000;
+  --theme-muted: #505b53;
+  --theme-border: #d5ded7;
+  --theme-surface: #ffffff;
+  --theme-surface-soft: #f4f7f4;
+  --theme-page: #eef3ef;
+  --theme-input-bg: #ffffff;
+  --theme-input-text: #000000;
+  --theme-placeholder: #606b63;
+  --theme-table-header: #e7f0e8;
+  --theme-table-header-text: #000000;
+  --theme-hover: #edf5ee;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --text: #f0f5f1;
+  --muted: #bdc9c0;
+  --border: #374b3d;
+  --surface: #17271c;
+  --surface-soft: #203328;
+  --page: #0d1811;
+  --theme-text: #f0f5f1;
+  --theme-muted: #bdc9c0;
+  --theme-border: #374b3d;
+  --theme-surface: #17271c;
+  --theme-surface-soft: #203328;
+  --theme-page: #0d1811;
+  --theme-input-bg: #102016;
+  --theme-input-text: #f0f5f1;
+  --theme-placeholder: #b4c2b8;
+  --theme-table-header: #253c2d;
+  --theme-table-header-text: #f5dc79;
+  --theme-hover: #263b2d;
+}
+
+html body,
+html #root,
+html .app-shell,
+html .app-content,
+html .page,
+html .page-surface,
+html .page-container,
+html .container {
+  color: var(--theme-text);
+  background-color: var(--theme-page);
+}
+
+html .card,
+html .stat-card,
+html .form-card,
+html .profile-card,
+html .dashboard-panel,
+html .dashboard-grid > *,
+html .two-column > *,
+html .client-dashboard-highlight,
+html .request-card,
+html .request-row,
+html .request-review,
+html .request-report-toolbar,
+html .report-preview,
+html .report-field,
+html .report-request-item,
+html .calendar-wrap,
+html .calendar-status-legend,
+html .calendar-day,
+html .calendar-event,
+html .appointment-card,
+html .message-card,
+html .messages-panel,
+html .chat-container,
+html .chat-sidebar,
+html .chat-window,
+html .notification-card,
+html .user-management-card,
+html .engineer-request-table-card,
+html .engineer-request-details-modal,
+html .engineer-documents-modal,
+html .document-viewer-modal,
+html .engineer-delete-modal,
+html .modal {
+  color: var(--theme-text);
+  background-color: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+
+html .card h1,
+html .card h2,
+html .card h3,
+html .card h4,
+html .card p,
+html .card label,
+html .stat-card h1,
+html .stat-card h2,
+html .stat-card h3,
+html .stat-card h4,
+html .section-title,
+html .section-title h2,
+html .section-heading-row h2,
+html .dashboard-panel h2,
+html .dashboard-panel h3,
+html .dashboard-panel p,
+html .profile-card h2,
+html .profile-card h3,
+html .modal h2,
+html .modal h3,
+html .modal h4,
+html .modal label,
+html .report-field strong,
+html .report-field p,
+html .engineer-request-detail-grid strong,
+html .engineer-request-detail-section h3,
+html .user-management-card h3 {
+  color: var(--theme-text);
+}
+
+html .eyebrow,
+html .muted,
+html .helper-text,
+html .form-help,
+html .page-description,
+html .stat-card span,
+html .activity-row span,
+html .request-card p,
+html .request-row p,
+html .request-review p,
+html .request-row small,
+html .request-review small,
+html .report-field > span,
+html .engineer-request-detail-grid span,
+html .engineer-request-detail-section > span {
+  color: var(--theme-muted);
+}
+
+html input:not([type="checkbox"]):not([type="radio"]),
+html select,
+html textarea,
+html .search-input,
+html .wide-search,
+html .calendar-search input,
+html .request-report-toolbar input,
+html .request-report-toolbar select,
+html .dashboard-diagram-controls select,
+html .engineer-request-filters input,
+html .engineer-request-filters select,
+html .engineer-request-details-modal textarea {
+  color: var(--theme-input-text);
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-border);
+}
+
+html input::placeholder,
+html textarea::placeholder {
+  color: var(--theme-placeholder);
+  opacity: 1;
+}
+
+html select option {
+  color: var(--theme-input-text);
+  background-color: var(--theme-input-bg);
+}
+
+html input:focus,
+html select:focus,
+html textarea:focus {
+  border-color: #78a984;
+  outline: 2px solid rgb(120 169 132 / 22%);
+  outline-offset: 1px;
+}
+
+html table,
+html .engineer-request-table {
+  color: var(--theme-text);
+  background-color: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+
+html table th,
+html .engineer-request-table th {
+  color: var(--theme-table-header-text);
+  background-color: var(--theme-table-header);
+  border-color: var(--theme-border);
+}
+
+html table td,
+html .engineer-request-table td {
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+html table tbody tr:hover,
+html .engineer-request-table tbody tr:hover {
+  background-color: var(--theme-hover);
+}
+
+html .engineer-request-table td small,
+html .engineer-table-client small,
+html .client-document-info small,
+html .engineer-detail-document small,
+html .upload-file-info small,
+html .report-file small {
+  color: var(--theme-muted);
+}
+
+html .file-list span,
+html .upload-file-item,
+html .upload-file-info,
+html .locked-note,
+html .report-meta-item,
+html .report-file,
+html .client-document-info,
+html .engineer-detail-document,
+html .engineer-request-description,
+html .activity-row,
+html .client-dashboard-highlight .activity-row,
+html .client-dashboard-highlight .section-title {
+  color: var(--theme-text);
+  background-color: var(--theme-surface-soft);
+  border-color: var(--theme-border);
+}
+
+html .file-upload-box {
+  color: var(--theme-text);
+  background-color: var(--theme-surface-soft);
+  border-color: #78a984;
+}
+
+html .file-upload-box strong,
+html .upload-section-header strong,
+html .upload-file-info strong,
+html .client-document-info strong,
+html .engineer-detail-document strong,
+html .report-file strong {
+  color: var(--theme-text);
+}
+
+html .dashboard-diagram-controls > span {
+  color: var(--theme-muted);
+}
+
+html .association-bar-track {
+  background-color: var(--theme-border);
+}
+
+html .document-completeness {
+  color: var(--theme-text);
+  background-color: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+
+html .document-completeness h2,
+html .document-completeness h3,
+html .document-completeness h4,
+html .document-completeness strong,
+html .document-completeness-label {
+  color: inherit;
+}
+
+html .document-completeness p,
+html .document-completeness small {
+  color: var(--theme-muted);
+}
+
+html .document-completeness-item {
+  color: var(--theme-text);
+  background-color: var(--theme-surface-soft);
+  border-color: var(--theme-border);
+}
+
+html .document-completeness-item.complete {
+  color: #176238;
+  background-color: #e7f5eb;
+  border-color: #bfdfc8;
+}
+
+html .document-completeness-item.incomplete {
+  color: #754600;
+  background-color: #fff4df;
+  border-color: #ead4a9;
+}
+
+html[data-theme="dark"] .document-completeness-item.complete {
+  color: #a8e6b9;
+  background-color: #1b3926;
+  border-color: #386b46;
+}
+
+html[data-theme="dark"] .document-completeness-item.incomplete {
+  color: #ffdc8a;
+  background-color: #3b3018;
+  border-color: #695329;
+}
+
+html .status.approved,
+html .status.complete,
+html .status.completed {
+  color: #276b3c;
+  background-color: #dff1e2;
+}
+
+html .status.rejected,
+html .status.error {
+  color: #923737;
+  background-color: #f7dfdf;
+}
+
+html .status.pending,
+html .status.documents-pending,
+html .status.review,
+html .status.under-review,
+html .status.submitted {
+  color: #725719;
+}
+
+html[data-theme="dark"] .status.approved,
+html[data-theme="dark"] .status.complete,
+html[data-theme="dark"] .status.completed {
+  color: #b4edc1;
+  background-color: #1d432a;
+}
+
+html[data-theme="dark"] .status.rejected,
+html[data-theme="dark"] .status.error {
+  color: #ffc0c0;
+  background-color: #482626;
+}
+
+html[data-theme="dark"] .status.pending,
+html[data-theme="dark"] .status.documents-pending,
+html[data-theme="dark"] .status.review,
+html[data-theme="dark"] .status.under-review,
+html[data-theme="dark"] .status.submitted {
+  color: #ffdf86;
+  background-color: #403719;
+}
+
+html .secondary-btn {
+  color: #185b31;
+  background-color: #e7f2e9;
+  border-color: #d5ded7;
+}
+
+html .text-btn {
+  color: #185b31;
+}
+
+html[data-theme="dark"] .secondary-btn {
+  color: #e7f2e9;
+  background-color: #263b2d;
+  border-color: #405847;
+}
+
+html[data-theme="dark"] .text-btn {
+  color: #f1d76b;
+}
+
+html .primary-btn,
+html .danger-btn,
+html .login-submit-button,
+html .hero-login-button {
+  color: #ffffff;
+}
+
+html .page-header {
+  background-color: #0c2b1b;
+}
+
+html .page-header h1,
+html .page-header h2 {
+  color: #f1cb3a;
+}
+
+html .page-header p {
+  color: #e0ebe2;
+}
+
+html .page-header .eyebrow {
+  color: #b8d8bf;
+}
+
+html .sidebar {
+  background-color: #0c2b1b;
+  color: #ffffff;
+}
+
+html .sidebar .nav-item,
+html .sidebar .theme-toggle,
+html .sidebar .logout-btn {
+  color: #d3e1d6;
+}
+
+html .sidebar .nav-item.active {
+  color: #183421;
+}
+
+html .sidebar .nav-item.active .nav-label,
+html .sidebar .nav-item.active .nav-icon {
+  color: #183421;
+}
+
+html .sidebar .sidebar-brand-text strong,
+html .sidebar .user-details strong {
+  color: #ffffff;
+}
+
+html .sidebar .sidebar-brand-text span,
+html .sidebar .user-details small {
+  color: #b8d0be;
+}
+
+html .landing-login-section {
+  color: #17231a;
+}
+
+html .login-form-card {
+  color: #17231a;
+}
+
+html .login-form-card label,
+html .login-form-card h2,
+html .login-form-card p {
+  color: #17231a;
+}
+
+html .login-form-card input {
+  color: #17231a;
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="dark"] .landing-login-section {
+  background: linear-gradient(135deg, #10271b, #172e22);
+  color: #f0f5f1;
+}
+
+html[data-theme="dark"] .login-introduction h2,
+html[data-theme="dark"] .login-introduction p,
+html[data-theme="dark"] .login-form-card,
+html[data-theme="dark"] .login-form-card label,
+html[data-theme="dark"] .login-form-card h2,
+html[data-theme="dark"] .login-form-card p,
+html[data-theme="dark"] .login-form-card span {
+  color: #f0f5f1;
+}
+
+html[data-theme="dark"] .login-form-card {
+  background: rgba(15, 38, 26, 0.82);
+  border-color: rgba(245, 232, 168, 0.22);
+}
+
+html[data-theme="dark"] .login-form-card input {
+  color: #17231a;
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+html[data-theme="dark"] .dashboard-panel,
+html[data-theme="dark"] .request-report-toolbar,
+html[data-theme="dark"] .report-request-item,
+html[data-theme="dark"] .report-field {
+  color: var(--theme-text);
+  background-color: var(--theme-surface);
+  border-color: var(--theme-border);
+}
+
+html[data-theme="dark"] .report-request-item:hover {
+  background-color: var(--theme-hover);
+}
+
+html[data-theme="dark"] .report-details-status-row {
+  color: #ffdf86;
+  background-color: #403719;
+  border-color: #695329;
+}
+
+html[data-theme="dark"] .report-request-main .request-id,
+html[data-theme="dark"] .report-request-type {
+  color: #d9eadc;
+  background-color: #263b2d;
+}
+
+html[data-theme="dark"] .dashboard-diagram-controls select {
+  color: var(--theme-input-text);
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-border);
+}
+
+html a:not(.primary-btn):not(.secondary-btn):not(.text-btn) {
+  text-decoration-color: currentColor;
+}
+
+html[data-theme="dark"] a:not(.primary-btn):not(.secondary-btn):not(.text-btn) {
+  color: #b8d9bf;
+}
+
+html button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html *,
+  html *::before,
+  html *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
+.request-type-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 0 8px;
+  color: var(--theme-text, var(--text));
+}
+
+.request-type-pie {
+  display: grid;
+  place-items: center;
+  width: min(100%, 260px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+}
+
+.request-type-pie-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 48%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--theme-surface, var(--surface));
+  color: var(--theme-text, var(--text));
+  text-align: center;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 8%);
+}
+
+.request-type-pie-center strong {
+  font-size: 1.7rem;
+  line-height: 1.2;
+}
+
+.request-type-pie-center span {
+  margin-top: 4px;
+  padding: 0 5px;
+  color: var(--theme-muted, var(--muted));
+  font-size: 0.72rem;
+}
+
+.request-type-legend {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 10px;
+}
+
+.request-type-legend-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  color: var(--theme-text, var(--text));
+  font-size: 0.88rem;
+}
+
+.request-type-legend-color {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+.request-type-legend-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.request-type-legend-item strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.request-type-legend-percent {
+  min-width: 52px;
+  color: var(--theme-muted, var(--muted));
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.association-bar-row {
+  margin-bottom: 18px;
+}
+
+.association-bar-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--theme-text, var(--text));
+}
+
+.association-bar-label span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.association-bar-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--theme-border, var(--border));
+}
+
+.association-bar-fill {
+  height: 100%;
+  min-width: 3px;
+  border-radius: 999px;
+  transition: width 220ms ease;
+}
+
+.diagram-empty {
+  padding: 28px 12px;
+  color: var(--theme-muted, var(--muted));
+  text-align: center;
+}
+
+html[data-theme="dark"] .request-type-pie-center {
+  box-shadow: inset 0 0 0 1px var(--theme-border);
+}
+
+@media (min-width: 760px) {
+  .request-type-chart {
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .request-type-pie {
+    width: min(100%, 220px);
+  }
+
+  .request-type-legend-item {
+    gap: 7px;
+    font-size: 0.8rem;
+  }
+
+  .request-type-legend-percent {
+    min-width: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .association-bar-fill {
+    transition: none;
+  }
+}
+
+
+:root {
+  color-scheme: light;
+  --design-page: #eef3ef;
+  --design-surface: #ffffff;
+  --design-surface-soft: #f5f8f5;
+  --design-text: #17231a;
+  --design-muted: #657267;
+  --design-border: #dbe4dc;
+  --design-input: #ffffff;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --design-page: #0d1811;
+  --design-surface: #14251a;
+  --design-surface-soft: #102016;
+  --design-text: #edf5ef;
+  --design-muted: #a9b8ad;
+  --design-border: #294233;
+  --design-input: #102016;
+}
+
+html,
+body,
+#root,
+.app-shell,
+.app-content,
+.page-surface,
+.page,
+.page-container {
+  color: var(--text);
+}
+
+html {
+  background: var(--page);
+}
+
+body {
+  background: var(--page);
+  color: var(--text);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.app-shell,
+.app-content,
+.page-surface,
+.page,
+.page-container {
+  background-color: var(--page);
+}
+
+.page-header {
+  color: var(--text);
+}
+
+.page-header h1,
+.page-header h2,
+.page-header h3,
+.section-title h2,
+.section-title h3 {
+  color: var(--text);
+}
+
+.page-header p,
+.section-title p,
+.eyebrow,
+.muted,
+small,
+.form-hint,
+.helper-text {
+  color: var(--muted);
+}
+
+.card,
+.table-card,
+.request-filters,
+.engineer-request-table-card,
+.dashboard-panel,
+.account-requests-panel,
+.modal,
+.profile-card,
+.message-panel,
+.calendar-panel {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .table-card,
+html[data-theme="dark"] .request-filters,
+html[data-theme="dark"] .engineer-request-table-card,
+html[data-theme="dark"] .dashboard-panel,
+html[data-theme="dark"] .account-requests-panel,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .message-panel,
+html[data-theme="dark"] .calendar-panel,
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .dashboard-card,
+html[data-theme="dark"] .request-card,
+html[data-theme="dark"] .appointment-card,
+html[data-theme="dark"] .message-card,
+html[data-theme="dark"] .notification-card {
+  background-color: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+html[data-theme="dark"] .page-header,
+html[data-theme="dark"] .page-header h1,
+html[data-theme="dark"] .page-header h2,
+html[data-theme="dark"] .page-header h3,
+html[data-theme="dark"] .section-title h2,
+html[data-theme="dark"] .section-title h3,
+html[data-theme="dark"] .modal h1,
+html[data-theme="dark"] .modal h2,
+html[data-theme="dark"] .modal h3,
+html[data-theme="dark"] .modal label,
+html[data-theme="dark"] .modal p,
+html[data-theme="dark"] .modal strong,
+html[data-theme="dark"] .card h1,
+html[data-theme="dark"] .card h2,
+html[data-theme="dark"] .card h3,
+html[data-theme="dark"] .card h4,
+html[data-theme="dark"] .card p,
+html[data-theme="dark"] .card label,
+html[data-theme="dark"] .card strong,
+html[data-theme="dark"] .card span:not(.status):not(.tag):not(.eyebrow) {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .page-header p,
+html[data-theme="dark"] .section-title p,
+html[data-theme="dark"] .muted,
+html[data-theme="dark"] small,
+html[data-theme="dark"] .eyebrow,
+html[data-theme="dark"] .form-hint,
+html[data-theme="dark"] .helper-text,
+html[data-theme="dark"] .text-muted {
+  color: var(--muted);
+}
+
+input,
+select,
+textarea {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  color: var(--text);
+  background-color: var(--design-input);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #8fa296;
+  opacity: 1;
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] textarea:focus {
+  border-color: #e8c94d;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(232, 201, 77, 0.18);
+}
+
+html[data-theme="dark"] option {
+  color: var(--text);
+  background: var(--surface);
+}
+
+html[data-theme="dark"] table {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] thead,
+html[data-theme="dark"] .table-header,
+html[data-theme="dark"] .table-head {
+  background: #1b3022;
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] th {
+  color: #dbe8dd;
+  background-color: #1b3022;
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] td {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] tbody tr {
+  background-color: var(--surface);
+}
+
+html[data-theme="dark"] tbody tr:nth-child(even) {
+  background-color: #17291e;
+}
+
+html[data-theme="dark"] tbody tr:hover {
+  background-color: #22392a;
+}
+
+html[data-theme="dark"] .table-card,
+html[data-theme="dark"] .engineer-request-table-wrapper,
+html[data-theme="dark"] .table-wrapper {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .tag,
+html[data-theme="dark"] .badge,
+html[data-theme="dark"] .request-type,
+html[data-theme="dark"] .engineer-request-type {
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .status.submitted,
+html[data-theme="dark"] .status.under-review,
+html[data-theme="dark"] .status.documents-pending {
+  color: #f5df7d;
+  background: #40391a;
+  border-color: #6b5d24;
+}
+
+html[data-theme="dark"] .status.approved,
+html[data-theme="dark"] .status.completed,
+html[data-theme="dark"] .status.active {
+  color: #9ce0b0;
+  background: #173b27;
+  border-color: #286342;
+}
+
+html[data-theme="dark"] .status.rejected,
+html[data-theme="dark"] .status.inactive,
+html[data-theme="dark"] .status.cancelled {
+  color: #ffb4b4;
+  background: #451f22;
+  border-color: #713237;
+}
+
+html[data-theme="dark"] .secondary-btn,
+html[data-theme="dark"] .text-btn,
+html[data-theme="dark"] .engineer-clear-filters,
+html[data-theme="dark"] .engineer-delete-cancel {
+  color: var(--text);
+  background: #203428;
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .secondary-btn:hover:not(:disabled),
+html[data-theme="dark"] .text-btn:hover:not(:disabled),
+html[data-theme="dark"] .engineer-clear-filters:hover:not(:disabled),
+html[data-theme="dark"] .engineer-delete-cancel:hover:not(:disabled) {
+  background: #2a4332;
+  border-color: #56745e;
+}
+
+html[data-theme="dark"] .primary-btn,
+html[data-theme="dark"] .login-submit-button,
+html[data-theme="dark"] .hero-login-button {
+  color: #102318;
+}
+
+html[data-theme="dark"] .danger-btn,
+html[data-theme="dark"] .danger-outline-btn,
+html[data-theme="dark"] .engineer-delete-confirm,
+html[data-theme="dark"] .engineer-delete-request,
+html[data-theme="dark"] .account-request-delete-btn {
+  color: #ffbcbc;
+  background: #3d2022;
+  border-color: #79363b;
+}
+
+html[data-theme="dark"] .danger-btn:hover:not(:disabled),
+html[data-theme="dark"] .danger-outline-btn:hover:not(:disabled),
+html[data-theme="dark"] .engineer-delete-confirm:hover:not(:disabled),
+html[data-theme="dark"] .engineer-delete-request:hover:not(:disabled),
+html[data-theme="dark"] .account-request-delete-btn:hover:not(:disabled) {
+  color: #ffffff;
+  background: #b52f37;
+  border-color: #b52f37;
+}
+
+html[data-theme="dark"] .modal-backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+html[data-theme="dark"] .engineer-delete-modal,
+html[data-theme="dark"] .engineer-request-details-modal,
+html[data-theme="dark"] .engineer-documents-modal,
+html[data-theme="dark"] .document-viewer-modal {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .engineer-delete-description,
+html[data-theme="dark"] .engineer-delete-reference,
+html[data-theme="dark"] .engineer-request-description,
+html[data-theme="dark"] .engineer-detail-document,
+html[data-theme="dark"] .client-document-item,
+html[data-theme="dark"] .documents-empty-state,
+html[data-theme="dark"] .engineer-no-documents {
+  color: var(--text);
+  background: var(--surface-soft);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .engineer-delete-reference span,
+html[data-theme="dark"] .engineer-delete-footer,
+html[data-theme="dark"] .engineer-request-detail-grid span,
+html[data-theme="dark"] .engineer-detail-document small,
+html[data-theme="dark"] .client-document-info small {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .request-report-toolbar,
+html[data-theme="dark"] .report-request-item,
+html[data-theme="dark"] .report-field,
+html[data-theme="dark"] .report-details-status-row,
+html[data-theme="dark"] .dashboard-panel,
+html[data-theme="dark"] .association-bar-track,
+html[data-theme="dark"] .association-bar-label strong {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme="dark"] .report-request-main .request-id,
+html[data-theme="dark"] .report-request-type {
+  color: #d9eddb;
+  background: #203c2a;
+}
+
+html[data-theme="dark"] .report-field > span {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .login-form-card input {
+  color: #17231a;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+html[data-theme="dark"] .login-form-card input::placeholder {
+  color: #657267;
+}
+
+html[data-theme="dark"] .login-info-list > div {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .login-info-list > div p,
+html[data-theme="dark"] .login-info-list > div strong {
+  color: var(--text);
+}
+
+html[data-theme="dark"] .success-message,
+html[data-theme="dark"] .signup-success,
+html[data-theme="dark"] .alert-success {
+  color: #b8edc6;
+  background: #173b27;
+  border-color: #286342;
+}
+
+html[data-theme="dark"] .error-message,
+html[data-theme="dark"] .signup-form-error,
+html[data-theme="dark"] .alert-error {
+  color: #ffc1c1;
+  background: #451f22;
+  border-color: #713237;
+}
+
+html[data-theme="dark"] .warning-message,
+html[data-theme="dark"] .alert-warning {
+  color: #f8e49b;
+  background: #40391a;
+  border-color: #6b5d24;
+}
+
+html[data-theme="dark"] .sidebar .theme-toggle {
+  color: #f2f5ed;
+}
+
+html[data-theme="dark"] .sidebar .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+button,
+input,
+select,
+textarea,
+.card,
+.table-card,
+.modal,
+.nav-item {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.request-types-panel {
+  min-width: 0;
+}
+
+.request-type-legend-color {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.request-type-legend-percent {
+  min-width: 54px;
+  color: var(--muted);
+  text-align: right;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme="dark"] .request-type-legend-percent {
+  color: var(--muted);
+}
+
+#login-email + label {
+  color: #ffffff !important;
+}
+
+label[for="login-email"] {
+  color: #ffffff !important;
+}
+
+#login-email {
+  color: #ffffff !important;
+}
+
+#login-email::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+#login-password {
+  color: #ffffff !important;
+}
+
+#login-password::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.final-login-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+

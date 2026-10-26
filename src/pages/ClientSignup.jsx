@@ -1,20 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  ASSOCIATIONS,
-  isStrongPassword
-} from "../utils";
+import { ASSOCIATIONS, isStrongPassword } from "../utils";
 
-const PSGC_API =
-  "https://psgc.cloud/api/v2";
+const PSGC_API = "https://psgc.cloud/api/v2";
 
 const empty = {
   firstName: "",
   middleName: "",
   lastName: "",
-  birthday: "",
-  civilStatus: "",
   contactNumber: "",
   email: "",
   password: "",
@@ -28,126 +22,41 @@ const empty = {
   barangay: ""
 };
 
-async function getLocations(
-  path
-) {
-  const response = await fetch(
-    `${PSGC_API}${path}`
-  );
+async function getLocations(path) {
+  const response = await fetch(`${PSGC_API}${path}`);
 
   if (!response.ok) {
-    throw new Error(
-      "Unable to load Philippine location data."
-    );
+    throw new Error("Unable to load Philippine location data.");
   }
 
-  const json =
-    await response.json();
-
+  const json = await response.json();
   return json.data || [];
 }
 
-export default function ClientSignup() {
-  const navigate =
-    useNavigate();
+export default function ClientSignup({
+  mode = "public",
+  onCreated,
+  onCancel
+}) {
+  const navigate = useNavigate();
+  const { registerClient, registerClientByEngineer } = useAuth();
+  const isEngineerMode = mode === "engineer";
 
-  const {
-    registerClient
-  } = useAuth();
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState(empty);
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [municipalities, setMunicipalities] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
-  const [step, setStep] =
-    useState(1);
-
-  const [form, setForm] =
-    useState(empty);
-
-  const [regions, setRegions] =
-    useState([]);
-
-  const [provinces, setProvinces] =
-    useState([]);
-
-  const [municipalities, setMunicipalities] =
-    useState([]);
-
-  const [barangays, setBarangays] =
-    useState([]);
-
-  const [
-    loadingLocations,
-    setLoadingLocations
-  ] = useState(false);
-
-  const [
-    locationError,
-    setLocationError
-  ] = useState("");
-
-  const [
-    formError,
-    setFormError
-  ] = useState("");
-
-  const [
-    creatingAccount,
-    setCreatingAccount
-  ] = useState(false);
-
-  const updateField = (
-    name,
-    value
-  ) => {
-    setForm(
-      (previous) => ({
-        ...previous,
-        [name]: value
-      })
-    );
-
+  const updateField = (name, value) => {
+    setForm((previous) => ({ ...previous, [name]: value }));
     setFormError("");
   };
-
-  const calculateAge = (
-    birthday
-  ) => {
-    if (!birthday) {
-      return "";
-    }
-
-    const birthDate =
-      new Date(
-        `${birthday}T00:00:00`
-      );
-
-    const today =
-      new Date();
-
-    let calculatedAge =
-      today.getFullYear() -
-      birthDate.getFullYear();
-
-    const monthDifference =
-      today.getMonth() -
-      birthDate.getMonth();
-
-    if (
-      monthDifference < 0 ||
-      (
-        monthDifference === 0 &&
-        today.getDate() <
-          birthDate.getDate()
-      )
-    ) {
-      calculatedAge--;
-    }
-
-    return calculatedAge;
-  };
-
-  const age =
-    calculateAge(
-      form.birthday
-    );
 
   useEffect(() => {
     let mounted = true;
@@ -156,15 +65,9 @@ export default function ClientSignup() {
       try {
         setLoadingLocations(true);
         setLocationError("");
+        const data = await getLocations("/regions");
 
-        const data =
-          await getLocations(
-            "/regions"
-          );
-
-        if (mounted) {
-          setRegions(data);
-        }
+        if (mounted) setRegions(data);
       } catch {
         if (mounted) {
           setLocationError(
@@ -172,16 +75,11 @@ export default function ClientSignup() {
           );
         }
       } finally {
-        if (mounted) {
-          setLoadingLocations(
-            false
-          );
-        }
+        if (mounted) setLoadingLocations(false);
       }
     }
 
     loadRegions();
-
     return () => {
       mounted = false;
     };
@@ -195,16 +93,11 @@ export default function ClientSignup() {
       return;
     }
 
-    const selectedRegion =
-      regions.find(
-        (item) =>
-          item.name ===
-          form.region
-      );
+    const selectedRegion = regions.find(
+      (item) => item.name === form.region
+    );
 
-    if (!selectedRegion) {
-      return;
-    }
+    if (!selectedRegion) return;
 
     let mounted = true;
 
@@ -213,16 +106,11 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data =
-          await getLocations(
-            `/regions/${encodeURIComponent(
-              selectedRegion.code
-            )}/provinces`
-          );
+        const data = await getLocations(
+          `/regions/${encodeURIComponent(selectedRegion.code)}/provinces`
+        );
 
-        if (mounted) {
-          setProvinces(data);
-        }
+        if (mounted) setProvinces(data);
       } catch {
         if (mounted) {
           setLocationError(
@@ -230,54 +118,32 @@ export default function ClientSignup() {
           );
         }
       } finally {
-        if (mounted) {
-          setLoadingLocations(
-            false
-          );
-        }
+        if (mounted) setLoadingLocations(false);
       }
     }
 
     loadProvinces();
-
     return () => {
       mounted = false;
     };
-  }, [
-    form.region,
-    regions
-  ]);
+  }, [form.region, regions]);
 
   useEffect(() => {
-    if (
-      !form.region ||
-      !form.province
-    ) {
+    if (!form.region || !form.province) {
       setMunicipalities([]);
       setBarangays([]);
       return;
     }
 
-    const selectedRegion =
-      regions.find(
-        (item) =>
-          item.name ===
-          form.region
-      );
+    const selectedRegion = regions.find(
+      (item) => item.name === form.region
+    );
 
-    const selectedProvince =
-      provinces.find(
-        (item) =>
-          item.name ===
-          form.province
-      );
+    const selectedProvince = provinces.find(
+      (item) => item.name === form.province
+    );
 
-    if (
-      !selectedRegion ||
-      !selectedProvince
-    ) {
-      return;
-    }
+    if (!selectedRegion || !selectedProvince) return;
 
     let mounted = true;
 
@@ -286,18 +152,11 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data =
-          await getLocations(
-            `/regions/${encodeURIComponent(
-              selectedRegion.code
-            )}/provinces/${encodeURIComponent(
-              selectedProvince.code
-            )}/cities-municipalities`
-          );
+        const data = await getLocations(
+          `/regions/${encodeURIComponent(selectedRegion.code)}/provinces/${encodeURIComponent(selectedProvince.code)}/cities-municipalities`
+        );
 
-        if (mounted) {
-          setMunicipalities(data);
-        }
+        if (mounted) setMunicipalities(data);
       } catch {
         if (mounted) {
           setLocationError(
@@ -305,46 +164,27 @@ export default function ClientSignup() {
           );
         }
       } finally {
-        if (mounted) {
-          setLoadingLocations(
-            false
-          );
-        }
+        if (mounted) setLoadingLocations(false);
       }
     }
 
     loadMunicipalities();
-
     return () => {
       mounted = false;
     };
-  }, [
-    form.region,
-    form.province,
-    regions,
-    provinces
-  ]);
+  }, [form.region, form.province, regions, provinces]);
 
   useEffect(() => {
-    if (
-      !form.region ||
-      !form.province ||
-      !form.municipality
-    ) {
+    if (!form.region || !form.province || !form.municipality) {
       setBarangays([]);
       return;
     }
 
-    const selectedMunicipality =
-      municipalities.find(
-        (item) =>
-          item.name ===
-          form.municipality
-      );
+    const selectedMunicipality = municipalities.find(
+      (item) => item.name === form.municipality
+    );
 
-    if (!selectedMunicipality) {
-      return;
-    }
+    if (!selectedMunicipality) return;
 
     let mounted = true;
 
@@ -353,16 +193,11 @@ export default function ClientSignup() {
         setLoadingLocations(true);
         setLocationError("");
 
-        const data =
-          await getLocations(
-            `/cities-municipalities/${encodeURIComponent(
-              selectedMunicipality.code
-            )}/barangays`
-          );
+        const data = await getLocations(
+          `/cities-municipalities/${encodeURIComponent(selectedMunicipality.code)}/barangays`
+        );
 
-        if (mounted) {
-          setBarangays(data);
-        }
+        if (mounted) setBarangays(data);
       } catch {
         if (mounted) {
           setLocationError(
@@ -370,170 +205,68 @@ export default function ClientSignup() {
           );
         }
       } finally {
-        if (mounted) {
-          setLoadingLocations(
-            false
-          );
-        }
+        if (mounted) setLoadingLocations(false);
       }
     }
 
     loadBarangays();
-
     return () => {
       mounted = false;
     };
-  }, [
-    form.region,
-    form.province,
-    form.municipality,
-    municipalities
-  ]);
+  }, [form.region, form.province, form.municipality, municipalities]);
 
-  const isValidEmail = (
-    email
-  ) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(
-      email.trim()
-    );
+  const isValidEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email.trim());
 
-  const isValidName = (
-    name
-  ) =>
-    /^[A-Za-zÑñ .'-]+$/.test(
-      name.trim()
-    );
+  const isValidName = (name) =>
+    /^[A-Za-zÑñ .'-]+$/.test(name.trim());
 
   const validateStep = () => {
     setFormError("");
 
     if (step === 1) {
-      const birthDate =
-        form.birthday
-          ? new Date(
-              `${form.birthday}T00:00:00`
-            )
-          : null;
-
-      const validBirthDate =
-        birthDate &&
-        !Number.isNaN(
-          birthDate.getTime()
-        ) &&
-        birthDate <=
-          new Date();
-
-      if (
-        !form.firstName.trim()
-      ) {
-        setFormError(
-          "Please enter your first name."
-        );
+      if (!form.firstName.trim()) {
+        setFormError("Please enter your first name.");
         return false;
       }
 
-      if (
-        !isValidName(
-          form.firstName
-        )
-      ) {
-        setFormError(
-          "First name contains invalid characters."
-        );
+      if (!isValidName(form.firstName)) {
+        setFormError("First name contains invalid characters.");
         return false;
       }
 
-      if (
-        !form.lastName.trim()
-      ) {
-        setFormError(
-          "Please enter your last name."
-        );
+      if (!form.lastName.trim()) {
+        setFormError("Please enter your last name.");
         return false;
       }
 
-      if (
-        !isValidName(
-          form.lastName
-        )
-      ) {
-        setFormError(
-          "Last name contains invalid characters."
-        );
+      if (!isValidName(form.lastName)) {
+        setFormError("Last name contains invalid characters.");
         return false;
       }
 
-      if (
-        form.middleName.trim() &&
-        !isValidName(
-          form.middleName
-        )
-      ) {
-        setFormError(
-          "Please enter a valid middle name."
-        );
-        return false;
-      }
-
-      if (
-        !form.birthday ||
-        !validBirthDate
-      ) {
-        setFormError(
-          "Please enter a valid birthday."
-        );
-        return false;
-      }
-
-      if (age < 18) {
-        setFormError(
-          "You must be at least 18 years old to create an account."
-        );
-        return false;
-      }
-
-      if (!form.civilStatus) {
-        setFormError(
-          "Please select your civil status."
-        );
+      if (form.middleName.trim() && !isValidName(form.middleName)) {
+        setFormError("Please enter a valid middle name.");
         return false;
       }
     }
 
     if (step === 2) {
-      const contactNumber =
-        form.contactNumber.replace(
-          /\D/g,
-          ""
-        );
+      const contactNumber = form.contactNumber.replace(/\D/g, "");
 
-      if (
-        !/^09\d{9}$/.test(
-          contactNumber
-        )
-      ) {
+      if (!/^09\d{9}$/.test(contactNumber)) {
         setFormError(
-          "Contact number must contain exactly 11 digits and begin with 09."
+          "Association’s contact number must contain exactly 11 digits and begin with 09."
         );
         return false;
       }
 
-      if (
-        !isValidEmail(
-          form.email
-        )
-      ) {
-        setFormError(
-          "Please enter a valid email address."
-        );
+      if (!isValidEmail(form.email)) {
+        setFormError("Please enter a valid email address.");
         return false;
       }
 
-      if (
-        !isStrongPassword(
-          form.password
-        )
-      ) {
+      if (!isStrongPassword(form.password)) {
         setFormError(
           "Password must contain at least 8 characters, including uppercase, lowercase, number, and special character."
         );
@@ -541,29 +274,17 @@ export default function ClientSignup() {
       }
 
       if (!form.association) {
-        setFormError(
-          "Please select your association."
-        );
+        setFormError("Please select your association.");
         return false;
       }
     }
 
     if (step === 3) {
-      const members =
-        Number(form.members);
+      const members = Number(form.members);
+      const year = Number(form.year);
+      const currentYear = new Date().getFullYear();
 
-      const year =
-        Number(form.year);
-
-      const currentYear =
-        new Date().getFullYear();
-
-      if (
-        !Number.isInteger(
-          members
-        ) ||
-        members < 1
-      ) {
+      if (!Number.isInteger(members) || members < 1) {
         setFormError(
           "Please enter a valid number of association members."
         );
@@ -571,9 +292,7 @@ export default function ClientSignup() {
       }
 
       if (
-        !Number.isInteger(
-          year
-        ) ||
+        !Number.isInteger(year) ||
         year < 1900 ||
         year > currentYear
       ) {
@@ -593,30 +312,22 @@ export default function ClientSignup() {
 
     if (step === 4) {
       if (!form.region) {
-        setFormError(
-          "Please select your region."
-        );
+        setFormError("Please select your region.");
         return false;
       }
 
       if (!form.province) {
-        setFormError(
-          "Please select your province."
-        );
+        setFormError("Please select your province.");
         return false;
       }
 
       if (!form.municipality) {
-        setFormError(
-          "Please select your municipality or city."
-        );
+        setFormError("Please select your municipality or city.");
         return false;
       }
 
       if (!form.barangay) {
-        setFormError(
-          "Please select your barangay."
-        );
+        setFormError("Please select your barangay.");
         return false;
       }
     }
@@ -625,100 +336,69 @@ export default function ClientSignup() {
   };
 
   const nextStep = () => {
-    if (!validateStep()) {
-      return;
-    }
-
-    setStep(
-      (previous) =>
-        Math.min(
-          previous + 1,
-          4
-        )
-    );
+    if (!validateStep()) return;
+    setStep((previous) => Math.min(previous + 1, 4));
   };
 
   const previousStep = () => {
     setFormError("");
-
-    setStep(
-      (previous) =>
-        Math.max(
-          previous - 1,
-          1
-        )
-    );
+    setStep((previous) => Math.max(previous - 1, 1));
   };
 
-  const handleSubmit = async (
-    event
-  ) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (
-      creatingAccount
-    ) {
-      return;
-    }
-
-    if (!validateStep()) {
-      return;
-    }
+    if (creatingAccount) return;
+    if (!validateStep()) return;
 
     const fullName = [
       form.firstName.trim(),
       form.middleName.trim(),
       form.lastName.trim()
-    ]
-      .filter(Boolean)
-      .join(" ");
+    ].filter(Boolean).join(" ");
 
-    setCreatingAccount(
-      true
-    );
+    setCreatingAccount(true);
+    setFormError("");
 
     try {
-      await registerClient({
+      const clientData = {
         ...form,
-        firstName:
-          form.firstName.trim(),
-        middleName:
-          form.middleName.trim(),
-        lastName:
-          form.lastName.trim(),
-        email:
-          form.email
-            .trim()
-            .toLowerCase(),
-        contactNumber:
-          form.contactNumber.replace(
-            /\D/g,
-            ""
-          ),
-        members:
-          Number(form.members),
-        year:
-          Number(form.year),
-        age,
+        firstName: form.firstName.trim(),
+        middleName: form.middleName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim().toLowerCase(),
+        contactNumber: form.contactNumber.replace(/\D/g, ""),
+        members: Number(form.members),
+        year: Number(form.year),
         name: fullName
-      });
+      };
 
-      alert(
+      if (isEngineerMode) {
+        await registerClientByEngineer(clientData);
+
+        if (typeof onCreated === "function") {
+          onCreated({
+            name: fullName,
+            email: clientData.email
+          });
+        }
+
+        return;
+      }
+
+      await registerClient(clientData);
+
+      window.alert(
         "Account created successfully. Please sign in using your new account."
       );
 
-      navigate("/", {
-        replace: true
-      });
+      navigate("/", { replace: true });
     } catch (error) {
       setFormError(
-        error?.message ||
-          "Account creation failed. Please try again."
+        error?.message || "Account creation failed. Please try again."
       );
     } finally {
-      setCreatingAccount(
-        false
-      );
+      setCreatingAccount(false);
     }
   };
 
@@ -729,19 +409,28 @@ export default function ClientSignup() {
           <button
             type="button"
             className="back-link"
-            onClick={() =>
-              navigate("/")
-            }
+            onClick={() => {
+              if (isEngineerMode) {
+                onCancel?.();
+              } else {
+                navigate("/");
+              }
+            }}
           >
-            ← Back to sign in
+            {isEngineerMode
+              ? "← Back to user management"
+              : "← Back to sign in"}
           </button>
 
           <h1>
-            Create your AGRIhelp account
+            {isEngineerMode
+              ? "Create a client account"
+              : "Create your AGRIhelp account"}
           </h1>
 
           <p>
-            Register the association representative account used to submit requests and coordinate appointments.
+            Register the association representative account used to submit
+            requests and coordinate appointments.
           </p>
 
           {[
@@ -749,81 +438,50 @@ export default function ClientSignup() {
             "Contact & association",
             "Association details",
             "Verification & address"
-          ].map(
-            (title, index) => {
-              const number =
-                index + 1;
+          ].map((title, index) => {
+            const number = index + 1;
 
-              return (
-                <div
-                  className={`progress-step ${
-                    step >= number
-                      ? "done"
-                      : ""
-                  }`}
-                  key={title}
-                >
-                  <span>
-                    {number}
-                  </span>
-
-                  <div>
-                    <strong>
-                      {title}
-                    </strong>
-
-                    <small>
-                      {step >
-                      number
-                        ? "Completed"
-                        : step ===
-                          number
+            return (
+              <div
+                className={`progress-step ${step >= number ? "done" : ""}`}
+                key={title}
+              >
+                <span>{number}</span>
+                <div>
+                  <strong>{title}</strong>
+                  <small>
+                    {step > number
+                      ? "Completed"
+                      : step === number
                         ? "Current step"
                         : "Upcoming"}
-                    </small>
-                  </div>
+                  </small>
                 </div>
-              );
-            }
-          )}
+              </div>
+            );
+          })}
         </div>
 
         <form
           className="signup-card"
-          onSubmit={
-            handleSubmit
-          }
+          onSubmit={handleSubmit}
           noValidate
         >
           <div className="signup-card-header">
-            <span className="eyebrow">
-              CLIENT ACCOUNT
-            </span>
+            <span className="eyebrow">CLIENT ACCOUNT</span>
 
             <h2>
-              {step === 1 &&
-                "Personal information"}
-
-              {step === 2 &&
-                "Contact & association"}
-
-              {step === 3 &&
-                "Association details"}
-
-              {step === 4 &&
-                "Verification & address"}
+              {step === 1 && "Personal information"}
+              {step === 2 && "Contact & association"}
+              {step === 3 && "Association details"}
+              {step === 4 && "Verification & address"}
             </h2>
 
-            <p>
-              Step {step} of 4
-            </p>
+            <p>Step {step} of 4</p>
           </div>
 
           {formError && (
-            <div
-              className="signup-form-error"
-              role="alert"
-            >
+            <div className="signup-form-error" role="alert">
               {formError}
             </div>
           )}
@@ -833,12 +491,8 @@ export default function ClientSignup() {
               <Field
                 label="First name"
                 name="firstName"
-                value={
-                  form.firstName
-                }
-                onChange={
-                  updateField
-                }
+                value={form.firstName}
+                onChange={updateField}
                 required
                 placeholder="Enter first name"
               />
@@ -846,69 +500,18 @@ export default function ClientSignup() {
               <Field
                 label="Middle name"
                 name="middleName"
-                value={
-                  form.middleName
-                }
-                onChange={
-                  updateField
-                }
+                value={form.middleName}
+                onChange={updateField}
                 placeholder="Enter middle name"
               />
 
               <Field
                 label="Last name"
                 name="lastName"
-                value={
-                  form.lastName
-                }
-                onChange={
-                  updateField
-                }
+                value={form.lastName}
+                onChange={updateField}
                 required
                 placeholder="Enter last name"
-              />
-
-              <Field
-                label="Birthday"
-                name="birthday"
-                type="date"
-                value={
-                  form.birthday
-                }
-                onChange={
-                  updateField
-                }
-                required
-                max={
-                  new Date()
-                    .toISOString()
-                    .split("T")[0]
-                }
-              />
-
-              <Field
-                label="Age"
-                name="age"
-                value={age}
-                readOnly
-              />
-
-              <SelectField
-                label="Civil status"
-                name="civilStatus"
-                value={
-                  form.civilStatus
-                }
-                onChange={
-                  updateField
-                }
-                required
-                options={[
-                  "Single",
-                  "Married",
-                  "Widowed",
-                  "Separated"
-                ]}
               />
             </div>
           )}
@@ -916,27 +519,11 @@ export default function ClientSignup() {
           {step === 2 && (
             <div className="form-grid">
               <Field
-                label="Contact number"
+                label="Association’s contact no."
                 name="contactNumber"
-                value={
-                  form.contactNumber
-                }
-                onChange={(
-                  name,
-                  value
-                ) =>
-                  updateField(
-                    name,
-                    value
-                      .replace(
-                        /\D/g,
-                        ""
-                      )
-                      .slice(
-                        0,
-                        11
-                      )
-                  )
+                value={form.contactNumber}
+                onChange={(name, value) =>
+                  updateField(name, value.replace(/\D/g, "").slice(0, 11))
                 }
                 required
                 inputMode="numeric"
@@ -948,85 +535,45 @@ export default function ClientSignup() {
                 label="Email address"
                 name="email"
                 type="email"
-                value={
-                  form.email
-                }
-                onChange={
-                  updateField
-                }
+                value={form.email}
+                onChange={updateField}
                 required
                 placeholder="example@gmail.com"
               />
 
               <div className="field">
-                <label>
-                  Password *
-                </label>
-
+                <label>Password *</label>
                 <input
                   name="password"
                   type="password"
-                  value={
-                    form.password
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    updateField(
-                      "password",
-                      event.target
-                        .value
-                    )
+                  value={form.password}
+                  onChange={(event) =>
+                    updateField("password", event.target.value)
                   }
                   required
                   placeholder="At least 8 characters"
                 />
-
                 <small>
-                  8+ characters with uppercase, lowercase, number, and special character.
+                  8+ characters with uppercase, lowercase, number, and special
+                  character.
                 </small>
               </div>
 
               <div className="field wide">
-                <label>
-                  Association name *
-                </label>
-
+                <label>Association name *</label>
                 <select
-                  value={
-                    form.association
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    updateField(
-                      "association",
-                      event.target
-                        .value
-                    )
+                  value={form.association}
+                  onChange={(event) =>
+                    updateField("association", event.target.value)
                   }
                   required
                 >
-                  <option value="">
-                    Select association
-                  </option>
-
-                  {ASSOCIATIONS.map(
-                    (
-                      association
-                    ) => (
-                      <option
-                        key={
-                          association
-                        }
-                        value={
-                          association
-                        }
-                      >
-                        {association}
-                      </option>
-                    )
-                  )}
+                  <option value="">Select association</option>
+                  {ASSOCIATIONS.map((association) => (
+                    <option key={association} value={association}>
+                      {association}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1038,12 +585,8 @@ export default function ClientSignup() {
                 label="Total number of members"
                 name="members"
                 type="number"
-                value={
-                  form.members
-                }
-                onChange={
-                  updateField
-                }
+                value={form.members}
+                onChange={updateField}
                 required
                 min="1"
               />
@@ -1052,28 +595,18 @@ export default function ClientSignup() {
                 label="Year of registration"
                 name="year"
                 type="number"
-                value={
-                  form.year
-                }
-                onChange={
-                  updateField
-                }
+                value={form.year}
+                onChange={updateField}
                 required
                 min="1900"
-                max={
-                  new Date().getFullYear()
-                }
+                max={new Date().getFullYear()}
               />
 
               <SelectField
                 label="Member's position in association"
                 name="position"
-                value={
-                  form.position
-                }
-                onChange={
-                  updateField
-                }
+                value={form.position}
+                onChange={updateField}
                 required
                 options={[
                   "President",
@@ -1091,112 +624,61 @@ export default function ClientSignup() {
             <div className="form-grid">
               <LocationSelect
                 label="Region"
-                value={
-                  form.region
-                }
+                value={form.region}
                 items={regions}
-                disabled={
-                  loadingLocations &&
-                  regions.length ===
-                    0
-                }
+                disabled={loadingLocations && regions.length === 0}
                 onChange={(value) => {
-                  setForm(
-                    (previous) => ({
-                      ...previous,
-                      region: value,
-                      province: "",
-                      municipality:
-                        "",
-                      barangay: ""
-                    })
-                  );
-
-                  setFormError(
-                    ""
-                  );
+                  setForm((previous) => ({
+                    ...previous,
+                    region: value,
+                    province: "",
+                    municipality: "",
+                    barangay: ""
+                  }));
+                  setFormError("");
                 }}
                 required
               />
 
               <LocationSelect
                 label="Province"
-                value={
-                  form.province
-                }
-                items={
-                  provinces
-                }
-                disabled={
-                  !form.region ||
-                  loadingLocations
-                }
+                value={form.province}
+                items={provinces}
+                disabled={!form.region || loadingLocations}
                 onChange={(value) => {
-                  setForm(
-                    (previous) => ({
-                      ...previous,
-                      province:
-                        value,
-                      municipality:
-                        "",
-                      barangay: ""
-                    })
-                  );
-
-                  setFormError(
-                    ""
-                  );
+                  setForm((previous) => ({
+                    ...previous,
+                    province: value,
+                    municipality: "",
+                    barangay: ""
+                  }));
+                  setFormError("");
                 }}
                 required
               />
 
               <LocationSelect
                 label="Municipality / City"
-                value={
-                  form.municipality
-                }
-                items={
-                  municipalities
-                }
-                disabled={
-                  !form.province ||
-                  loadingLocations
-                }
+                value={form.municipality}
+                items={municipalities}
+                disabled={!form.province || loadingLocations}
                 onChange={(value) => {
-                  setForm(
-                    (previous) => ({
-                      ...previous,
-                      municipality:
-                        value,
-                      barangay: ""
-                    })
-                  );
-
-                  setFormError(
-                    ""
-                  );
+                  setForm((previous) => ({
+                    ...previous,
+                    municipality: value,
+                    barangay: ""
+                  }));
+                  setFormError("");
                 }}
                 required
               />
 
               <LocationSelect
                 label="Barangay"
-                value={
-                  form.barangay
-                }
-                items={
-                  barangays
-                }
-                disabled={
-                  !form.municipality ||
-                  loadingLocations
-                }
-                onChange={(value) =>
-                  updateField(
-                    "barangay",
-                    value
-                  )
-                }
+                value={form.barangay}
+                items={barangays}
+                disabled={!form.municipality || loadingLocations}
+                onChange={(value) => updateField("barangay", value)}
                 required
               />
 
@@ -1216,17 +698,13 @@ export default function ClientSignup() {
               type="button"
               className="secondary-btn"
               onClick={() => {
-                if (
-                  step === 1
-                ) {
-                  navigate("/");
+                if (isEngineerMode) {
+                  onCancel?.();
                 } else {
-                  previousStep();
+                  navigate("/");
                 }
               }}
-              disabled={
-                creatingAccount
-              }
+              disabled={creatingAccount}
             >
               Back
             </button>
@@ -1235,12 +713,8 @@ export default function ClientSignup() {
               <button
                 type="button"
                 className="primary-btn"
-                onClick={
-                  nextStep
-                }
-                disabled={
-                  creatingAccount
-                }
+                onClick={nextStep}
+                disabled={creatingAccount}
               >
                 Continue →
               </button>
@@ -1248,13 +722,13 @@ export default function ClientSignup() {
               <button
                 type="submit"
                 className="primary-btn"
-                disabled={
-                  creatingAccount
-                }
+                disabled={creatingAccount}
               >
                 {creatingAccount
                   ? "Creating account..."
-                  : "Create account"}
+                  : isEngineerMode
+                    ? "Create client account"
+                    : "Create account"}
               </button>
             )}
           </div>
@@ -1290,10 +764,7 @@ function Field({
         type={type}
         value={value ?? ""}
         onChange={(event) =>
-          onChange?.(
-            name,
-            event.target.value
-          )
+          onChange?.(name, event.target.value)
         }
         required={required}
         inputMode={inputMode}
@@ -1326,27 +797,17 @@ function SelectField({
         name={name}
         value={value}
         onChange={(event) =>
-          onChange?.(
-            name,
-            event.target.value
-          )
+          onChange?.(name, event.target.value)
         }
         required={required}
       >
-        <option value="">
-          Select an option
-        </option>
+        <option value="">Select an option</option>
 
-        {options.map(
-          (option) => (
-            <option
-              key={option}
-              value={option}
-            >
-              {option}
-            </option>
-          )
-        )}
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
       </select>
     </div>
   );
@@ -1369,11 +830,7 @@ function LocationSelect({
 
       <select
         value={value || ""}
-        onChange={(event) =>
-          onChange(
-            event.target.value
-          )
-        }
+        onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
         required={required}
       >
@@ -1383,21 +840,14 @@ function LocationSelect({
             : `Select ${label.toLowerCase()}`}
         </option>
 
-        {items.map(
-          (item) => (
-            <option
-              key={
-                item.code ||
-                item.name
-              }
-              value={
-                item.name
-              }
-            >
-              {item.name}
-            </option>
-          )
-        )}
+        {items.map((item) => (
+          <option
+            key={item.code || item.name}
+            value={item.name}
+          >
+            {item.name}
+          </option>
+        ))}
       </select>
     </div>
   );

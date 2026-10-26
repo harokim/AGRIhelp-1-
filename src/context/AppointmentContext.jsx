@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -39,6 +40,7 @@ export function AppointmentProvider({ children }) {
 
   const [appointments, setAppointments] = useState([]);
   const [blockedDates, setBlockedDates] = useState([]);
+  const [fullyBookedDates, setFullyBookedDates] = useState([]);
   const [appointmentNotifications, setAppointmentNotifications] =
     useState([]);
 
@@ -46,6 +48,7 @@ export function AppointmentProvider({ children }) {
     if (!firebaseConfigured || !db || !user?.id) {
       setAppointments([]);
       setBlockedDates([]);
+      setFullyBookedDates([]);
       setAppointmentNotifications([]);
       return;
     }
@@ -87,6 +90,16 @@ export function AppointmentProvider({ children }) {
       () => setBlockedDates([])
     );
 
+    const unsubFullyBooked = onSnapshot(
+      collection(db, "fullyBookedDates"),
+      (snapshot) => {
+        setFullyBookedDates(
+          snapshot.docs.map((item) => item.id)
+        );
+      },
+      () => setFullyBookedDates([])
+    );
+
     const notificationQuery = query(
       collection(db, "notifications"),
       where("userId", "==", user.id)
@@ -114,10 +127,12 @@ export function AppointmentProvider({ children }) {
     return () => {
       unsubAppointments();
       unsubBlocked();
+      unsubFullyBooked();
       unsubNotifications();
     };
   }, [user?.id, user?.role]);
 
+  
   useEffect(() => {
     if (
       !firebaseConfigured ||
@@ -133,10 +148,7 @@ export function AppointmentProvider({ children }) {
     const expiredAppointments = appointments.filter(
       (appointment) =>
         appointment.date &&
-        (
-          appointment.date < today ||
-          blockedDates.includes(appointment.date)
-        )
+        appointment.date < today
     );
 
     if (expiredAppointments.length === 0) {
@@ -152,7 +164,6 @@ export function AppointmentProvider({ children }) {
     );
   }, [
     appointments,
-    blockedDates,
     user?.id
   ]);
 
@@ -171,6 +182,10 @@ export function AppointmentProvider({ children }) {
 
     if (blockedDates.includes(date)) {
       return "blocked";
+    }
+
+    if (fullyBookedDates.includes(date)) {
+      return "fully-booked";
     }
 
     const occupied = appointments.some(
@@ -345,6 +360,12 @@ export function AppointmentProvider({ children }) {
       };
     }
 
+    if (fullyBookedDates.includes(date)) {
+      return {
+        error: "fully-booked"
+      };
+    }
+
     const appointmentsOnDate = await getDocs(
       query(
         collection(db, "appointments"),
@@ -352,13 +373,16 @@ export function AppointmentProvider({ children }) {
       )
     );
 
-    await Promise.all(
-      appointmentsOnDate.docs.map((appointment) =>
-        deleteDoc(
-          doc(db, "appointments", appointment.id)
-        )
-      )
+    const activeAppointments = appointmentsOnDate.docs.filter(
+      (appointment) =>
+        appointment.data().status !== "Cancelled"
     );
+
+    if (activeAppointments.length > 0) {
+      return {
+        error: "appointment"
+      };
+    }
 
     await setDoc(ref, {
       date,
@@ -368,8 +392,73 @@ export function AppointmentProvider({ children }) {
 
     return {
       success: true,
-      action: "blocked",
-      removedAppointments: appointmentsOnDate.size
+      action: "blocked"
+    };
+  };
+
+  const toggleFullyBooked = async (date) => {
+    if (!date) {
+      return {
+        error: "date"
+      };
+    }
+
+    if (date < todayISO()) {
+      return {
+        error: "past"
+      };
+    }
+
+    if (blockedDates.includes(date)) {
+      return {
+        error: "blocked"
+      };
+    }
+
+    const ref = doc(
+      db,
+      "fullyBookedDates",
+      date
+    );
+
+    
+    if (fullyBookedDates.includes(date)) {
+      await deleteDoc(ref);
+
+      return {
+        success: true,
+        action: "available"
+      };
+    }
+
+    
+    const appointmentsOnDate = await getDocs(
+      query(
+        collection(db, "appointments"),
+        where("date", "==", date)
+      )
+    );
+
+    const activeAppointments = appointmentsOnDate.docs.filter(
+      (appointment) =>
+        appointment.data().status !== "Cancelled"
+    );
+
+    if (activeAppointments.length === 0) {
+      return {
+        error: "appointment"
+      };
+    }
+
+    await setDoc(ref, {
+      date,
+      createdBy: user?.id || "",
+      createdAt: serverTimestamp()
+    });
+
+    return {
+      success: true,
+      action: "fully-booked"
     };
   };
 
@@ -408,10 +497,12 @@ export function AppointmentProvider({ children }) {
       value={{
         appointments,
         blockedDates,
+        fullyBookedDates,
         addAppointment,
         deleteAppointment,
         updateAppointment,
         toggleBlocked,
+        toggleFullyBooked,
         appointmentNotifications,
         unreadAppointmentCount,
         markAppointmentNotificationsAsRead

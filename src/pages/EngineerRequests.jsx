@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { useRequests } from "../context/RequestContext";
 import { useAuth } from "../context/AuthContext";
@@ -122,8 +121,9 @@ export default function EngineerRequests() {
           request.requestType || request.type || "";
 
         const matchesStatus =
-          statusFilter === "All" ||
-          request.status === statusFilter;
+          statusFilter === "All"
+            ? request.status !== "Approved"
+            : request.status === statusFilter;
 
         const matchesType =
           typeFilter === "All" ||
@@ -397,7 +397,7 @@ export default function EngineerRequests() {
             >
               <option value="All">All</option>
               <option value="Submitted">Submitted</option>
-              <option value="Under Review">Under Review</option>
+            
               <option value="Documents Pending">Documents Pending</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
@@ -464,7 +464,6 @@ export default function EngineerRequests() {
           <table className="engineer-request-table">
             <thead>
               <tr>
-                
                 <th>Association</th>
                 <th>Client</th>
                 <th>Type</th>
@@ -483,7 +482,6 @@ export default function EngineerRequests() {
 
                 return (
                   <tr key={request.id}>
-                   
                     <td>
                       <strong>
                         {request.association || "Not provided"}
@@ -619,7 +617,6 @@ export default function EngineerRequests() {
         </div>
       </div>
 
-      {/* Request details modal */}
       {detailsRequest && (
         <div
           className="modal-backdrop"
@@ -813,7 +810,6 @@ export default function EngineerRequests() {
         </div>
       )}
 
-      {/* List of attached documents */}
       {selectedRequest && (
         <div
           className="modal-backdrop"
@@ -834,10 +830,12 @@ export default function EngineerRequests() {
 
               <button
                 type="button"
-                className="text-btn"
+                className="modal-close-x"
                 onClick={() => setSelectedRequest(null)}
+                aria-label="Close documents popup"
+                title="Close"
               >
-                Close
+                ×
               </button>
             </div>
 
@@ -925,7 +923,6 @@ export default function EngineerRequests() {
         </div>
       )}
 
-      {/* Large image viewer */}
       {previewFile && (
         <div
           className="modal-backdrop document-viewer-overlay"
@@ -940,10 +937,12 @@ export default function EngineerRequests() {
 
               <button
                 type="button"
-                className="text-btn"
+                className="modal-close-x"
                 onClick={() => setPreviewFile(null)}
+                aria-label="Close file preview"
+                title="Close"
               >
-                Close
+                ×
               </button>
             </div>
 
@@ -964,7 +963,6 @@ export default function EngineerRequests() {
         </div>
       )}
 
-      {/* Rejection and documents-pending notes */}
       {selected && (
         <div className="modal-backdrop">
           <div className="modal card">
@@ -1018,7 +1016,6 @@ export default function EngineerRequests() {
         </div>
       )}
 
-      {/* Delete request confirmation */}
       {pendingDelete && (
         <div
           className="modal-backdrop engineer-delete-backdrop"

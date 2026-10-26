@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import app, { firebaseConfigured } from "../firebase";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, firebaseConfigured } from "../firebase";
 import { ASSOCIATIONS } from "../utils";
+
+const PSGC_API = "https://psgc.cloud/api/v2";
 
 const initialForm = {
   name: "",
   email: "",
   contactNumber: "",
   association: "",
-  birthday: "",
-  civilStatus: "",
   members: "",
   year: "",
   position: "",
@@ -20,6 +24,24 @@ const initialForm = {
   barangay: "",
 };
 
+function normalizeAssociation(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+async function getLocations(path) {
+  const response = await fetch(`${PSGC_API}${path}`);
+
+  if (!response.ok) {
+    throw new Error(`Location service returned HTTP ${response.status}.`);
+  }
+
+  const json = await response.json();
+  return Array.isArray(json.data) ? json.data : [];
+}
+
 export default function AccountRequest() {
   const navigate = useNavigate();
 
@@ -27,6 +49,218 @@ export default function AccountRequest() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [municipalities, setMunicipalities] = useState([]);
+  const [barangays, setBarangays] = useState([]);
+
+  const [regionCode, setRegionCode] = useState("");
+  const [provinceCode, setProvinceCode] = useState("");
+  const [municipalityCode, setMunicipalityCode] = useState("");
+
+  const [loadingRegions, setLoadingRegions] = useState(true);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [loadingMunicipalities, setLoadingMunicipalities] = useState(false);
+  const [loadingBarangays, setLoadingBarangays] = useState(false);
+  const [locationError, setLocationError] = useState("");
+
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRegions() {
+      setLoadingRegions(true);
+      setLocationError("");
+
+      try {
+        const data = await getLocations("/regions");
+
+        if (active) {
+          setRegions(data);
+        }
+      } catch (err) {
+        console.error("Failed to load regions:", err);
+
+        if (active) {
+          setLocationError(
+            "Unable to load regions. Check your internet connection and try again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingRegions(false);
+        }
+      }
+    }
+
+    loadRegions();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+  useEffect(() => {
+    if (!regionCode) {
+      setProvinces([]);
+      setMunicipalities([]);
+      setBarangays([]);
+      setProvinceCode("");
+      setMunicipalityCode("");
+      setLoadingProvinces(false);
+      setLoadingMunicipalities(false);
+      return;
+    }
+
+    let active = true;
+
+    async function loadProvinces() {
+      setLoadingProvinces(true);
+      setLoadingMunicipalities(false);
+      setLocationError("");
+
+      setProvinces([]);
+      setMunicipalities([]);
+      setBarangays([]);
+      setProvinceCode("");
+      setMunicipalityCode("");
+
+      try {
+        const data = await getLocations(
+          `/regions/${regionCode}/provinces`
+        );
+
+        if (!active) return;
+
+        setProvinces(data);
+
+        
+        if (data.length === 0) {
+          setLoadingMunicipalities(true);
+
+          const directMunicipalities = await getLocations(
+            `/regions/${regionCode}/cities-municipalities`
+          );
+
+          if (active) {
+            setMunicipalities(directMunicipalities);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load provinces:", err);
+
+        if (active) {
+          setLocationError(
+            "Unable to load locations for the selected region. Please try selecting the region again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingProvinces(false);
+          setLoadingMunicipalities(false);
+        }
+      }
+    }
+
+    loadProvinces();
+
+    return () => {
+      active = false;
+    };
+  }, [regionCode]);
+
+
+  useEffect(() => {
+    if (!regionCode || !provinceCode || provinces.length === 0) {
+      return;
+    }
+
+    let active = true;
+
+    async function loadMunicipalities() {
+      setLoadingMunicipalities(true);
+      setLocationError("");
+
+      setMunicipalities([]);
+      setBarangays([]);
+      setMunicipalityCode("");
+
+      try {
+        const data = await getLocations(
+          `/regions/${regionCode}/provinces/${provinceCode}/cities-municipalities`
+        );
+
+        if (active) {
+          setMunicipalities(data);
+        }
+      } catch (err) {
+        console.error("Failed to load municipalities:", err);
+
+        if (active) {
+          setLocationError(
+            "Unable to load municipalities or cities. Please select the province again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingMunicipalities(false);
+        }
+      }
+    }
+
+    loadMunicipalities();
+
+    return () => {
+      active = false;
+    };
+  }, [regionCode, provinceCode, provinces.length]);
+
+
+  useEffect(() => {
+    if (!municipalityCode) {
+      setBarangays([]);
+      setLoadingBarangays(false);
+      return;
+    }
+
+    let active = true;
+
+    async function loadBarangays() {
+      setLoadingBarangays(true);
+      setLocationError("");
+      setBarangays([]);
+
+      try {
+        const data = await getLocations(
+          `/cities-municipalities/${municipalityCode}/barangays`
+        );
+
+        if (active) {
+          setBarangays(data);
+        }
+      } catch (err) {
+        console.error("Failed to load barangays:", err);
+
+        if (active) {
+          setLocationError(
+            "Unable to load barangays for the selected city or municipality. Please try again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoadingBarangays(false);
+        }
+      }
+    }
+
+    loadBarangays();
+
+    return () => {
+      active = false;
+    };
+  }, [municipalityCode]);
 
   const update = (event) => {
     const { name, value } = event.target;
@@ -38,6 +272,77 @@ export default function AccountRequest() {
           ? value.replace(/\D/g, "").slice(0, 11)
           : value,
     }));
+
+    setError("");
+  };
+
+  const selectRegion = (event) => {
+    const code = event.target.value;
+    const selected = regions.find((item) => item.code === code);
+
+    setRegionCode(code);
+    setProvinceCode("");
+    setMunicipalityCode("");
+    setProvinces([]);
+    setMunicipalities([]);
+    setBarangays([]);
+    setLocationError("");
+    setError("");
+
+    setForm((current) => ({
+      ...current,
+      region: selected?.name || "",
+      province: "",
+      municipality: "",
+      barangay: "",
+    }));
+  };
+
+  const selectProvince = (event) => {
+    const code = event.target.value;
+    const selected = provinces.find((item) => item.code === code);
+
+    setProvinceCode(code);
+    setMunicipalityCode("");
+    setMunicipalities([]);
+    setBarangays([]);
+    setLocationError("");
+    setError("");
+
+    setForm((current) => ({
+      ...current,
+      province: selected?.name || "",
+      municipality: "",
+      barangay: "",
+    }));
+  };
+
+  const selectMunicipality = (event) => {
+    const code = event.target.value;
+    const selected = municipalities.find((item) => item.code === code);
+
+    setMunicipalityCode(code);
+    setBarangays([]);
+    setLocationError("");
+    setError("");
+
+    setForm((current) => ({
+      ...current,
+      municipality: selected?.name || "",
+      barangay: "",
+    }));
+  };
+
+  const selectBarangay = (event) => {
+    const code = event.target.value;
+    const selected = barangays.find((item) => item.code === code);
+
+    setForm((current) => ({
+      ...current,
+      barangay: selected?.name || "",
+    }));
+
+    setError("");
   };
 
   async function submit(event) {
@@ -46,71 +351,134 @@ export default function AccountRequest() {
     setError("");
     setSuccess("");
 
-    if (!firebaseConfigured || !app) {
+    if (busy) return;
+
+    if (!firebaseConfigured || !db) {
       setError("Firebase is not configured. Check your .env settings.");
       return;
     }
 
-    if (form.contactNumber.length !== 11) {
-      setError("Contact number must contain exactly 11 digits.");
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    const contactNumber = form.contactNumber.replace(/\D/g, "");
+    const association = form.association.trim();
+
+    if (!name) {
+      setError("Enter your full name.");
       return;
     }
 
-    if (
-      !form.association ||
-      !form.position ||
-      !form.region ||
-      !form.province ||
-      !form.municipality ||
-      !form.barangay
-    ) {
-      setError("Complete all required association and address fields.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Enter a valid email address.");
       return;
     }
 
-    if (
-      form.year &&
-      (
-        Number(form.year) < 1900 ||
-        Number(form.year) > new Date().getFullYear()
-      )
-    ) {
-      setError("Enter a valid association registration year.");
+    if (!/^09\d{9}$/.test(contactNumber)) {
+      setError(
+        "Association’s contact number must start with 09 and contain exactly 11 digits."
+      );
       return;
     }
 
-    if (form.members && Number(form.members) < 1) {
-      setError("Number of members must be at least 1.");
+    if (!association) {
+      setError("Select your association.");
       return;
+    }
+
+    if (!form.position) {
+      setError("Select your position in the association.");
+      return;
+    }
+
+    if (!form.region || !form.municipality || !form.barangay) {
+      setError(
+        "Select your region, municipality/city, and barangay."
+      );
+      return;
+    }
+
+  
+    if (provinces.length > 0 && !form.province) {
+      setError("Select your province.");
+      return;
+    }
+
+    if (form.year) {
+      const year = Number(form.year);
+
+      if (
+        !Number.isInteger(year) ||
+        year < 1900 ||
+        year > new Date().getFullYear()
+      ) {
+        setError("Enter a valid association registration year.");
+        return;
+      }
+    }
+
+    if (form.members) {
+      const members = Number(form.members);
+
+      if (!Number.isInteger(members) || members < 1) {
+        setError(
+          "Number of members must be a whole number of at least 1."
+        );
+        return;
+      }
     }
 
     setBusy(true);
 
     try {
-      const functions = getFunctions(app, "asia-southeast1");
-
-      const submitAccountRequest = httpsCallable(
-        functions,
-        "submitAccountRequest"
-      );
-
-      const result = await submitAccountRequest({
-        ...form,
+      const payload = {
+        name,
+        email,
+        contactNumber,
+        association,
+        associationKey: normalizeAssociation(association),
         members: Number(form.members) || 0,
         year: Number(form.year) || null,
-      });
+        position: form.position.trim(),
+        region: form.region.trim(),
+        province: form.province.trim(),
+        municipality: form.municipality.trim(),
+        barangay: form.barangay.trim(),
+        status: "pending",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "accountRequests"), payload);
 
       setSuccess(
-        result.data?.message ||
-          "Your account request was submitted. The office will review it before an account is created."
+        "Your account request was submitted successfully. The office will review your request before an account is created."
       );
 
-      setForm(initialForm);
+      setForm({ ...initialForm });
+      setRegionCode("");
+      setProvinceCode("");
+      setMunicipalityCode("");
+      setProvinces([]);
+      setMunicipalities([]);
+      setBarangays([]);
+      setLocationError("");
     } catch (err) {
-      setError(
-        err?.message ||
-          "Could not submit the account request. Please try again."
-      );
+      console.error("Account request submission failed:", err);
+
+      if (err?.code === "permission-denied") {
+        setError(
+          "Permission denied. Check that your Firestore rules have been published."
+        );
+      } else if (err?.code === "unavailable") {
+        setError(
+          "The service is temporarily unavailable. Check your connection and try again."
+        );
+      } else {
+        setError(
+          err?.message ||
+            "Could not submit the account request. Please try again."
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -138,7 +506,9 @@ export default function AccountRequest() {
             approves your request.
           </p>
 
-          <p>Each association may have only one active client account.</p>
+          <p>
+            Each association should have only one active client account.
+          </p>
         </section>
 
         <form className="signup-card" onSubmit={submit}>
@@ -159,6 +529,12 @@ export default function AccountRequest() {
             </div>
           )}
 
+          {locationError && (
+            <div className="signup-form-error" role="alert">
+              {locationError}
+            </div>
+          )}
+
           <div className="form-grid">
             <Field
               label="Full name *"
@@ -167,6 +543,7 @@ export default function AccountRequest() {
               onChange={update}
               required
               autoComplete="name"
+              maxLength={150}
             />
 
             <Field
@@ -177,10 +554,11 @@ export default function AccountRequest() {
               onChange={update}
               required
               autoComplete="email"
+              maxLength={254}
             />
 
             <Field
-              label="Contact number *"
+              label="Association’s contact no. *"
               name="contactNumber"
               value={form.contactNumber}
               onChange={update}
@@ -188,49 +566,24 @@ export default function AccountRequest() {
               inputMode="numeric"
               maxLength={11}
               placeholder="09XXXXXXXXX"
+              autoComplete="tel"
             />
 
             <div className="field">
-              <label>Association *</label>
-
+              <label htmlFor="association">Association *</label>
               <select
+                id="association"
                 name="association"
                 value={form.association}
                 onChange={update}
                 required
               >
                 <option value="">Select association</option>
-
-                {ASSOCIATIONS.map((association) => (
-                  <option key={association} value={association}>
-                    {association}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Field
-              label="Birthday"
-              name="birthday"
-              type="date"
-              value={form.birthday}
-              onChange={update}
-              max={new Date().toISOString().slice(0, 10)}
-            />
-
-            <div className="field">
-              <label>Civil status</label>
-
-              <select
-                name="civilStatus"
-                value={form.civilStatus}
-                onChange={update}
-              >
-                <option value="">Select an option</option>
-
-                {["Single", "Married", "Widowed", "Separated"].map(
+                {(Array.isArray(ASSOCIATIONS) ? ASSOCIATIONS : []).map(
                   (item) => (
-                    <option key={item}>{item}</option>
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
                   )
                 )}
               </select>
@@ -241,6 +594,7 @@ export default function AccountRequest() {
               name="members"
               type="number"
               min="1"
+              step="1"
               value={form.members}
               onChange={update}
             />
@@ -251,21 +605,21 @@ export default function AccountRequest() {
               type="number"
               min="1900"
               max={new Date().getFullYear()}
+              step="1"
               value={form.year}
               onChange={update}
             />
 
             <div className="field">
-              <label>Position in association *</label>
-
+              <label htmlFor="position">Position in association *</label>
               <select
+                id="position"
                 name="position"
                 value={form.position}
                 onChange={update}
                 required
               >
                 <option value="">Select position</option>
-
                 {[
                   "President",
                   "Vice President",
@@ -274,48 +628,83 @@ export default function AccountRequest() {
                   "Representative",
                   "Other",
                 ].map((item) => (
-                  <option key={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
               </select>
             </div>
 
-            <Field
+            <LocationSelect
+              id="region"
               label="Region *"
-              name="region"
-              value={form.region}
-              onChange={update}
+              value={regionCode}
+              onChange={selectRegion}
+              items={regions}
+              loading={loadingRegions}
+              placeholder="Select region"
               required
             />
 
-            <Field
-              label="Province *"
-              name="province"
-              value={form.province}
-              onChange={update}
-              required
+            <LocationSelect
+              id="province"
+              label="Province"
+              value={provinceCode}
+              onChange={selectProvince}
+              items={provinces}
+              loading={loadingProvinces}
+              placeholder={
+                regionCode && !loadingProvinces && provinces.length === 0
+                  ? "No province required"
+                  : "Select province"
+              }
+              disabled={
+                !regionCode ||
+                loadingProvinces ||
+                provinces.length === 0
+              }
+              required={provinces.length > 0}
             />
 
-            <Field
+            <LocationSelect
+              id="municipality"
               label="Municipality / City *"
-              name="municipality"
-              value={form.municipality}
-              onChange={update}
+              value={municipalityCode}
+              onChange={selectMunicipality}
+              items={municipalities}
+              loading={loadingMunicipalities}
+              placeholder="Select municipality / city"
+              disabled={
+                !regionCode ||
+                loadingMunicipalities ||
+                (provinces.length > 0 && !provinceCode)
+              }
               required
             />
 
-            <Field
+            <LocationSelect
+              id="barangay"
               label="Barangay *"
-              name="barangay"
-              value={form.barangay}
-              onChange={update}
+              value={
+                barangays.find((item) => item.name === form.barangay)?.code ||
+                ""
+              }
+              onChange={selectBarangay}
+              items={barangays}
+              loading={loadingBarangays}
+              placeholder="Select barangay"
+              disabled={
+                !municipalityCode ||
+                loadingBarangays ||
+                barangays.length === 0
+              }
               required
             />
           </div>
 
           <p className="muted">
-            Do not enter a password here. If the request is approved, the
-            engineer will create the account and provide a secure
-            password-reset link.
+            Do not enter a password here. Your request must be reviewed
+            before a client account is created.
           </p>
 
           <div className="form-actions">
@@ -342,6 +731,41 @@ export default function AccountRequest() {
   );
 }
 
+function LocationSelect({
+  id,
+  label,
+  value,
+  onChange,
+  items,
+  loading = false,
+  placeholder,
+  disabled = false,
+  required = false,
+}) {
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select
+        id={id}
+        value={value}
+        onChange={onChange}
+        disabled={disabled || loading}
+        required={required}
+      >
+        <option value="">
+          {loading ? "Loading..." : placeholder}
+        </option>
+
+        {items.map((item) => (
+          <option key={item.code} value={item.code}>
+            {item.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function Field({
   label,
   name,
@@ -355,11 +779,11 @@ function Field({
   maxLength,
   placeholder,
   autoComplete,
+  step,
 }) {
   return (
     <div className="field">
       <label htmlFor={name}>{label}</label>
-
       <input
         id={name}
         name={name}
@@ -373,6 +797,7 @@ function Field({
         maxLength={maxLength}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        step={step}
       />
     </div>
   );

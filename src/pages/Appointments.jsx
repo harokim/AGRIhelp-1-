@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   useAppointments
@@ -14,10 +15,12 @@ export default function Appointments() {
   const {
     appointments,
     blockedDates,
+    fullyBookedDates,
     addAppointment,
     deleteAppointment,
     updateAppointment,
-    toggleBlocked
+    toggleBlocked,
+    toggleFullyBooked
   } = useAppointments();
 
   const {
@@ -31,8 +34,8 @@ export default function Appointments() {
   ] = useState("");
 
   const [calendarMonth, setCalendarMonth] = useState(
-  () => new Date()
-);
+    () => new Date()
+  );
 
   const [
     popupDate,
@@ -69,47 +72,38 @@ export default function Appointments() {
   const clients =
     users.filter(
       (item) =>
-        item.role ===
-          "client" &&
-        item.status !==
-          "inactive"
+        item.role === "client" &&
+        item.status !== "inactive"
     );
 
   const selected =
     appointments.filter(
       (item) =>
-        item.date ===
-        date
+        item.date === date
     );
 
   const popupAppointments =
     appointments
       .filter(
         (item) =>
-          item.date ===
-            popupDate &&
-          item.status !==
-            "Cancelled"
+          item.date === popupDate &&
+          item.status !== "Cancelled"
       )
       .filter(
         (item) => {
           const client =
             users.find(
               (userItem) =>
-                userItem.id ===
-                item.clientId
+                userItem.id === item.clientId
             );
 
           const value =
             `${item.title || ""} ${
-              item.clientName ||
-              ""
+              item.clientName || ""
             } ${
-              client?.name ||
-              ""
+              client?.name || ""
             } ${
-              client?.association ||
-              ""
+              client?.association || ""
             } ${
               item.time || ""
             }`
@@ -123,276 +117,236 @@ export default function Appointments() {
         }
       );
 
-  const submit =
-    async (
-      event
-    ) => {
-      event.preventDefault();
+  const submit = async (event) => {
+    event.preventDefault();
 
-      try {
-        const result =
-          await addAppointment({
-            ...form,
-            date
-          });
-
-        if (
-          result?.error ===
-          "time"
-        ) {
-          alert(
-            "That time is already booked."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "blocked"
-        ) {
-          alert(
-            "This date is unavailable."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "past"
-        ) {
-          alert(
-            "You cannot create an appointment for a past date."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "date"
-        ) {
-          alert(
-            "Please select a date."
-          );
-          return;
-        }
-
-        setForm({
-          clientId: "",
-          time: "",
-          title: ""
-        });
-
-        alert(
-          "Appointment created."
-        );
-      } catch (error) {
-        alert(
-          error?.message ||
-            "Could not create the appointment."
-        );
-      }
-    };
-
-  const startReschedule =
-    (
-      appointment
-    ) => {
-      setRescheduleId(
-        appointment.id
-      );
-
-      setRescheduleForm({
-        date:
-          appointment.date ||
-          "",
-        time:
-          appointment.time ||
-          ""
+    try {
+      const result = await addAppointment({
+        ...form,
+        date
       });
 
-      setPopupDate("");
-    };
-
-  const cancelReschedule =
-    () => {
-      setRescheduleId("");
-
-      setRescheduleForm({
-        date: "",
-        time: ""
-      });
-    };
-
-  const submitReschedule =
-    async (
-      event
-    ) => {
-      event.preventDefault();
-
-      if (
-        !rescheduleId
-      ) {
+      if (result?.error === "time") {
+        alert("That time is already booked.");
         return;
       }
 
-      try {
-        const result =
-          await updateAppointment(
-            rescheduleId,
-            {
-              date:
-                rescheduleForm.date,
-              time:
-                rescheduleForm.time
-            }
-          );
-
-        if (
-          result?.error ===
-          "blocked"
-        ) {
-          alert(
-            "This date is unavailable."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "time"
-        ) {
-          alert(
-            "That time is already booked."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "past"
-        ) {
-          alert(
-            "You cannot reschedule to a past date."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "date"
-        ) {
-          alert(
-            "Please select a date."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "not-found"
-        ) {
-          alert(
-            "The appointment could not be found."
-          );
-          return;
-        }
-
-        cancelReschedule();
-
-        alert(
-          "Appointment rescheduled successfully."
-        );
-      } catch (error) {
-        alert(
-          error?.message ||
-            "Could not reschedule the appointment."
-        );
+      if (result?.error === "blocked") {
+        alert("This date is unavailable.");
+        return;
       }
-    };
 
-  const handleToggleBlocked =
-    async (
-      selectedDate
-    ) => {
-      try {
-        const result =
-          await toggleBlocked(
-            selectedDate
-          );
-
-        if (
-          result?.error ===
-          "appointment"
-        ) {
-          alert(
-            "This date already has an appointment and cannot be marked unavailable."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "past"
-        ) {
-          alert(
-            "Past dates cannot be marked unavailable."
-          );
-          return;
-        }
-
-        if (
-          result?.error ===
-          "date"
-        ) {
-          alert(
-            "Please select a valid date."
-          );
-        }
-      } catch (error) {
+      if (result?.error === "fully-booked") {
         alert(
-          error?.message ||
-            "Could not update date availability."
+          "This date is fully booked. Please select another date."
         );
+        return;
       }
-    };
 
-  const handleCalendarSelect =
-    (
-      selectedDate
-    ) => {
-      setDate(
-        selectedDate
+      if (result?.error === "past") {
+        alert(
+          "You cannot create an appointment for a past date."
+        );
+        return;
+      }
+
+      if (result?.error === "date") {
+        alert("Please select a date.");
+        return;
+      }
+
+      setForm({
+        clientId: "",
+        time: "",
+        title: ""
+      });
+
+      alert("Appointment created.");
+    } catch (error) {
+      alert(
+        error?.message ||
+          "Could not create the appointment."
       );
-      setPopupSearch("");
+    }
+  };
 
-      const hasAppointments =
-        appointments.some(
-          (item) =>
-            item.date ===
-              selectedDate &&
-            item.status !==
-              "Cancelled"
-        );
+  const startReschedule = (appointment) => {
+    setRescheduleId(appointment.id);
 
-      if (
-        hasAppointments
-      ) {
-        setPopupDate(
-          selectedDate
-        );
+    setRescheduleForm({
+      date: appointment.date || "",
+      time: appointment.time || ""
+    });
+
+    setPopupDate("");
+  };
+
+  const cancelReschedule = () => {
+    setRescheduleId("");
+
+    setRescheduleForm({
+      date: "",
+      time: ""
+    });
+  };
+
+  const submitReschedule = async (event) => {
+    event.preventDefault();
+
+    if (!rescheduleId) {
+      return;
+    }
+
+    try {
+      const result = await updateAppointment(
+        rescheduleId,
+        {
+          date: rescheduleForm.date,
+          time: rescheduleForm.time
+        }
+      );
+
+      if (result?.error === "blocked") {
+        alert("This date is unavailable.");
+        return;
       }
-    };
 
-  const closePopup =
-    () => {
-      setPopupDate("");
-      setPopupSearch("");
-    };
+      if (result?.error === "fully-booked") {
+        alert(
+          "This date is fully booked. Please choose another date."
+        );
+        return;
+      }
 
-  if (
-    user?.role !==
-    "engineer"
-  ) {
+      if (result?.error === "time") {
+        alert("That time is already booked.");
+        return;
+      }
+
+      if (result?.error === "past") {
+        alert(
+          "You cannot reschedule to a past date."
+        );
+        return;
+      }
+
+      if (result?.error === "date") {
+        alert("Please select a date.");
+        return;
+      }
+
+      if (result?.error === "not-found") {
+        alert(
+          "The appointment could not be found."
+        );
+        return;
+      }
+
+      cancelReschedule();
+
+      alert("Appointment rescheduled successfully.");
+    } catch (error) {
+      alert(
+        error?.message ||
+          "Could not reschedule the appointment."
+      );
+    }
+  };
+
+  const handleToggleBlocked = async (selectedDate) => {
+    try {
+      const result = await toggleBlocked(selectedDate);
+
+      if (result?.error === "appointment") {
+        alert(
+          "This date already has an appointment and cannot be marked unavailable. Mark it fully booked instead."
+        );
+        return;
+      }
+
+      if (result?.error === "fully-booked") {
+        alert(
+          "This date is marked fully booked. Remove that status before marking it unavailable."
+        );
+        return;
+      }
+
+      if (result?.error === "past") {
+        alert(
+          "Past dates cannot be marked unavailable."
+        );
+        return;
+      }
+
+      if (result?.error === "date") {
+        alert("Please select a valid date.");
+      }
+    } catch (error) {
+      alert(
+        error?.message ||
+          "Could not update date availability."
+      );
+    }
+  };
+
+  const handleToggleFullyBooked = async (selectedDate) => {
+    try {
+      const result = await toggleFullyBooked(selectedDate);
+
+      if (result?.error === "appointment") {
+        alert(
+          "A date can only be marked fully booked when it has at least one active appointment."
+        );
+        return;
+      }
+
+      if (result?.error === "blocked") {
+        alert(
+          "This date is marked unavailable. Make it available before marking it fully booked."
+        );
+        return;
+      }
+
+      if (result?.error === "past") {
+        alert(
+          "Past dates cannot be marked fully booked."
+        );
+        return;
+      }
+
+      if (result?.error === "date") {
+        alert("Please select a valid date.");
+      }
+    } catch (error) {
+      alert(
+        error?.message ||
+          "Could not update the fully booked status."
+      );
+    }
+  };
+
+  const handleCalendarSelect = (selectedDate) => {
+    setDate(selectedDate);
+    setPopupSearch("");
+
+    const hasAppointments =
+      appointments.some(
+        (item) =>
+          item.date === selectedDate &&
+          item.status !== "Cancelled"
+      );
+
+    if (hasAppointments) {
+      setPopupDate(selectedDate);
+    }
+  };
+
+  const closePopup = () => {
+    setPopupDate("");
+    setPopupSearch("");
+  };
+
+  if (user?.role !== "engineer") {
     return (
       <div className="container page-container">
         <div className="empty-state">
@@ -414,44 +368,30 @@ export default function Appointments() {
         </h1>
 
         <p>
-          Select a date to view
-          appointments or manage
-          availability.
+          Select a date to view appointments or manage availability.
         </p>
       </div>
 
       <div className="calendar-full card">
         <CalendarGrid
           engineer
-          appointments={
-            appointments
-          }
+          appointments={appointments}
           monthState={calendarMonth}
           onMonthChange={setCalendarMonth}
-          blockedDates={
-            blockedDates
-          }
-          onToggleBlocked={
-            handleToggleBlocked
-          }
-          selectedDate={
-            date
-          }
-          onSelect={
-            handleCalendarSelect
-          }
-          onAppointmentSelect={
-            startReschedule
-          }
+          blockedDates={blockedDates}
+          fullyBookedDates={fullyBookedDates}
+          onToggleBlocked={handleToggleBlocked}
+          onToggleFullyBooked={handleToggleFullyBooked}
+          selectedDate={date}
+          onSelect={handleCalendarSelect}
+          onAppointmentSelect={startReschedule}
         />
       </div>
 
       <div className="two-column">
         <form
           className="card form-card"
-          onSubmit={
-            submit
-          }
+          onSubmit={submit}
         >
           <h3>
             Create appointment
@@ -463,23 +403,11 @@ export default function Appointments() {
 
           <input
             type="date"
-            min={
-              todayISO()
-            }
-            value={
-              date
-            }
-            onChange={(
-              event
-            ) => {
-              setDate(
-                event.target
-                  .value
-              );
-
-              setPopupDate(
-                ""
-              );
+            min={todayISO()}
+            value={date}
+            onChange={(event) => {
+              setDate(event.target.value);
+              setPopupDate("");
             }}
             required
           />
@@ -489,17 +417,11 @@ export default function Appointments() {
           </label>
 
           <select
-            value={
-              form.clientId
-            }
-            onChange={(
-              event
-            ) =>
+            value={form.clientId}
+            onChange={(event) =>
               setForm({
                 ...form,
-                clientId:
-                  event.target
-                    .value
+                clientId: event.target.value
               })
             }
             required
@@ -508,26 +430,14 @@ export default function Appointments() {
               Select client
             </option>
 
-            {clients.map(
-              (item) => (
-                <option
-                  value={
-                    item.id
-                  }
-                  key={
-                    item.id
-                  }
-                >
-                  {
-                    item.name
-                  }{" "}
-                  —{" "}
-                  {
-                    item.association
-                  }
-                </option>
-              )
-            )}
+            {clients.map((item) => (
+              <option
+                value={item.id}
+                key={item.id}
+              >
+                {item.name} — {item.association}
+              </option>
+            ))}
           </select>
 
           <label>
@@ -536,17 +446,11 @@ export default function Appointments() {
 
           <input
             type="time"
-            value={
-              form.time
-            }
-            onChange={(
-              event
-            ) =>
+            value={form.time}
+            onChange={(event) =>
               setForm({
                 ...form,
-                time:
-                  event.target
-                    .value
+                time: event.target.value
               })
             }
             required
@@ -557,17 +461,11 @@ export default function Appointments() {
           </label>
 
           <input
-            value={
-              form.title
-            }
-            onChange={(
-              event
-            ) =>
+            value={form.title}
+            onChange={(event) =>
               setForm({
                 ...form,
-                title:
-                  event.target
-                    .value
+                title: event.target.value
               })
             }
             required
@@ -589,275 +487,199 @@ export default function Appointments() {
               : "Select a date"}
           </h3>
 
-          {selected.map(
-            (item) => {
-              const client =
-                users.find(
-                  (
-                    clientItem
-                  ) =>
-                    clientItem.id ===
-                    item.clientId
-                );
-
-              return (
-                <div
-                  className="activity-row"
-                  key={
-                    item.id
-                  }
-                >
-                  <div>
-                    <strong>
-                      {
-                        item.title
-                      }
-                    </strong>
-
-                    <span>
-                      {
-                        item.time
-                      }{" "}
-                      ·{" "}
-                      {client?.name ||
-                        item.clientName ||
-                        "Client"}
-                    </span>
-                  </div>
-
-                  <div className="appointment-actions">
-                    <button
-                      type="button"
-                      className="secondary-btn small"
-                      onClick={() =>
-                        startReschedule(
-                          item
-                        )
-                      }
-                    >
-                      Reschedule
-                    </button>
-
-                    <button
-                      type="button"
-                      className="danger-btn small"
-                      onClick={async () => {
-                        try {
-                          await deleteAppointment(
-                            item.id
-                          );
-                        } catch (
-                          error
-                        ) {
-                          alert(
-                            error?.message ||
-                              "Could not remove the appointment."
-                          );
-                        }
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
+          {selected.map((item) => {
+            const client =
+              users.find(
+                (clientItem) =>
+                  clientItem.id === item.clientId
               );
-            }
-          )}
 
-          {date &&
-            selected.length ===
-              0 && (
-              <p className="muted">
-                No appointments
-                for this date.
-              </p>
-            )}
+            return (
+              <div
+                className="activity-row"
+                key={item.id}
+              >
+                <div>
+                  <strong>
+                    {item.title}
+                  </strong>
+
+                  <span>
+                    {item.time} · {client?.name || item.clientName || "Client"}
+                  </span>
+                </div>
+
+                <div className="appointment-actions">
+                  <button
+                    type="button"
+                    className="secondary-btn small"
+                    onClick={() => startReschedule(item)}
+                  >
+                    Reschedule
+                  </button>
+
+                  <button
+                    type="button"
+                    className="danger-btn small"
+                    onClick={async () => {
+                      try {
+                        await deleteAppointment(item.id);
+                      } catch (error) {
+                        alert(
+                          error?.message ||
+                            "Could not remove the appointment."
+                        );
+                      }
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {date && selected.length === 0 && (
+            <p className="muted">
+              No appointments for this date.
+            </p>
+          )}
         </section>
       </div>
 
-      {popupDate &&
-        popupAppointments.length >
-          0 && (
+      {popupDate && popupAppointments.length > 0 && (
+        <div
+          className="appointment-popup-backdrop"
+          onClick={closePopup}
+        >
           <div
-            className="appointment-popup-backdrop"
-            onClick={
-              closePopup
-            }
+            className="appointment-popup"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div
-              className="appointment-popup"
-              onClick={(
-                event
-              ) =>
-                event.stopPropagation()
-              }
-            >
-              <div className="appointment-popup-header">
-                <div>
-                  <span className="eyebrow">
-                    APPOINTMENTS
-                  </span>
+            <div className="appointment-popup-header">
+              <div>
+                <span className="eyebrow">
+                  APPOINTMENTS
+                </span>
 
-                  <h2>
-                    {new Date(
-                      `${popupDate}T00:00:00`
-                    ).toLocaleDateString(
-                      undefined,
-                      {
-                        month:
-                          "long",
-                        day:
-                          "numeric",
-                        year:
-                          "numeric"
-                      }
-                    )}
-                  </h2>
-                </div>
-
-                <button
-                  type="button"
-                  className="appointment-popup-close"
-                  onClick={
-                    closePopup
-                  }
-                >
-                  ×
-                </button>
+                <h2>
+                  {new Date(
+                    `${popupDate}T00:00:00`
+                  ).toLocaleDateString(
+                    undefined,
+                    {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric"
+                    }
+                  )}
+                </h2>
               </div>
 
-              <div className="appointment-popup-search">
-                <input
-                  className="search-input"
-                  type="search"
-                  value={
-                    popupSearch
-                  }
-                  onChange={(
-                    event
-                  ) =>
-                    setPopupSearch(
-                      event.target
-                        .value
-                    )
-                  }
-                  placeholder="Search appointments..."
-                />
-              </div>
+              <button
+                type="button"
+                className="appointment-popup-close"
+                onClick={closePopup}
+              >
+                ×
+              </button>
+            </div>
 
-              <div className="appointment-popup-list">
-                {popupAppointments.map(
-                  (
-                    appointment
-                  ) => {
-                    const client =
-                      users.find(
-                        (
-                          item
-                        ) =>
-                          item.id ===
-                          appointment.clientId
-                      );
+            <div className="appointment-popup-search">
+              <input
+                className="search-input"
+                type="search"
+                value={popupSearch}
+                onChange={(event) =>
+                  setPopupSearch(event.target.value)
+                }
+                placeholder="Search appointments..."
+              />
+            </div>
 
-                    return (
-                      <div
-                        className="appointment-popup-item engineer-appointment-popup-item"
-                        key={
-                          appointment.id
-                        }
+            <div className="appointment-popup-list">
+              {popupAppointments.map((appointment) => {
+                const client =
+                  users.find(
+                    (item) =>
+                      item.id === appointment.clientId
+                  );
+
+                return (
+                  <div
+                    className="appointment-popup-item engineer-appointment-popup-item"
+                    key={appointment.id}
+                  >
+                    <div className="appointment-popup-time">
+                      {appointment.time}
+                    </div>
+
+                    <div className="appointment-popup-details">
+                      <strong>
+                        {appointment.title || "Validation Appointment"}
+                      </strong>
+
+                      <span>
+                        {client?.association ||
+                          appointment.clientName ||
+                          "Association"}
+                      </span>
+
+                      <small>
+                        Client:{" "}
+                        {client?.name ||
+                          appointment.clientName ||
+                          "Client"}
+                      </small>
+
+                      {appointment.location && (
+                        <small>
+                          Location: {appointment.location}
+                        </small>
+                      )}
+                    </div>
+
+                    <div className="appointment-popup-actions">
+                      <span className="tag">
+                        {appointment.status}
+                      </span>
+
+                      <button
+                        type="button"
+                        className="secondary-btn small"
+                        onClick={() => startReschedule(appointment)}
                       >
-                        <div className="appointment-popup-time">
-                          {
-                            appointment.time
+                        Reschedule
+                      </button>
+
+                      <button
+                        type="button"
+                        className="danger-btn small"
+                        onClick={async () => {
+                          try {
+                            await deleteAppointment(appointment.id);
+
+                            if (popupAppointments.length <= 1) {
+                              closePopup();
+                            }
+                          } catch (error) {
+                            alert(
+                              error?.message ||
+                                "Could not remove the appointment."
+                            );
                           }
-                        </div>
-
-                        <div className="appointment-popup-details">
-                          <strong>
-                            {
-                              appointment.title ||
-                              "Validation Appointment"
-                            }
-                          </strong>
-
-                          <span>
-                            {client?.association ||
-                              appointment.clientName ||
-                              "Association"}
-                          </span>
-
-                          <small>
-                            Client:{" "}
-                            {client?.name ||
-                              appointment.clientName ||
-                              "Client"}
-                          </small>
-
-                          {appointment.location && (
-                            <small>
-                              Location:{" "}
-                              {
-                                appointment.location
-                              }
-                            </small>
-                          )}
-                        </div>
-
-                        <div className="appointment-popup-actions">
-                          <span className="tag">
-                            {
-                              appointment.status
-                            }
-                          </span>
-
-                          <button
-                            type="button"
-                            className="secondary-btn small"
-                            onClick={() =>
-                              startReschedule(
-                                appointment
-                              )
-                            }
-                          >
-                            Reschedule
-                          </button>
-
-                          <button
-                            type="button"
-                            className="danger-btn small"
-                            onClick={async () => {
-                              try {
-                                await deleteAppointment(
-                                  appointment.id
-                                );
-
-                                if (
-                                  popupAppointments.length <=
-                                  1
-                                ) {
-                                  closePopup();
-                                }
-                              } catch (
-                                error
-                              ) {
-                                alert(
-                                  error?.message ||
-                                    "Could not remove the appointment."
-                                );
-                              }
-                            }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-                )}
-              </div>
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {rescheduleId && (
         <div className="modal-overlay">
@@ -876,9 +698,7 @@ export default function Appointments() {
               <button
                 type="button"
                 className="modal-close"
-                onClick={
-                  cancelReschedule
-                }
+                onClick={cancelReschedule}
               >
                 ×
               </button>
@@ -886,9 +706,7 @@ export default function Appointments() {
 
             <form
               className="form-card"
-              onSubmit={
-                submitReschedule
-              }
+              onSubmit={submitReschedule}
             >
               <label>
                 New date
@@ -896,23 +714,13 @@ export default function Appointments() {
 
               <input
                 type="date"
-                min={
-                  todayISO()
-                }
-                value={
-                  rescheduleForm.date
-                }
-                onChange={(
-                  event
-                ) =>
-                  setRescheduleForm(
-                    {
-                      ...rescheduleForm,
-                      date:
-                        event.target
-                          .value
-                    }
-                  )
+                min={todayISO()}
+                value={rescheduleForm.date}
+                onChange={(event) =>
+                  setRescheduleForm({
+                    ...rescheduleForm,
+                    date: event.target.value
+                  })
                 }
                 required
               />
@@ -923,20 +731,12 @@ export default function Appointments() {
 
               <input
                 type="time"
-                value={
-                  rescheduleForm.time
-                }
-                onChange={(
-                  event
-                ) =>
-                  setRescheduleForm(
-                    {
-                      ...rescheduleForm,
-                      time:
-                        event.target
-                          .value
-                    }
-                  )
+                value={rescheduleForm.time}
+                onChange={(event) =>
+                  setRescheduleForm({
+                    ...rescheduleForm,
+                    time: event.target.value
+                  })
                 }
                 required
               />
@@ -945,9 +745,7 @@ export default function Appointments() {
                 <button
                   type="button"
                   className="secondary-btn"
-                  onClick={
-                    cancelReschedule
-                  }
+                  onClick={cancelReschedule}
                 >
                   Cancel
                 </button>

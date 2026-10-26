@@ -1,10 +1,13 @@
+
 import { useMemo } from "react";
 import { todayISO } from "../utils";
 
 export default function CalendarGrid({
   appointments = [],
   blockedDates = [],
+  fullyBookedDates = [],
   onToggleBlocked,
+  onToggleFullyBooked,
   engineer = false,
   selectedDate,
   onSelect,
@@ -134,12 +137,16 @@ export default function CalendarGrid({
           const unavailable =
             !past && blockedDates.includes(date);
 
+          const fullyBooked =
+            !past && fullyBookedDates.includes(date);
+
           const selected = selectedDate === date;
 
           const classes = [
             "calendar-day",
             selected ? "selected" : "",
             unavailable ? "blocked" : "",
+            fullyBooked ? "fully-booked" : "",
             past ? "past" : "",
             dayAppointments.length
               ? "has-appointments"
@@ -149,7 +156,10 @@ export default function CalendarGrid({
             .join(" ");
 
           const handleClick = () => {
-            if (!engineer && (unavailable || past)) {
+            if (
+              !engineer &&
+              (unavailable || fullyBooked || past)
+            ) {
               return;
             }
 
@@ -169,6 +179,12 @@ export default function CalendarGrid({
                 {unavailable && (
                   <span className="calendar-unavailable-badge">
                     Unavailable
+                  </span>
+                )}
+
+                {fullyBooked && (
+                  <span className="calendar-fully-booked-badge">
+                    Fully booked
                   </span>
                 )}
               </div>
@@ -244,7 +260,24 @@ export default function CalendarGrid({
           {engineer &&
             onToggleBlocked &&
             selectedDate >= today &&
-            !blockedDates.includes(selectedDate) && (
+            blockedDates.includes(selectedDate) && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  onToggleBlocked(selectedDate)
+                }
+              >
+                Make this date available
+              </button>
+            )}
+
+          {engineer &&
+            onToggleBlocked &&
+            selectedDate >= today &&
+            !blockedDates.includes(selectedDate) &&
+            !fullyBookedDates.includes(selectedDate) &&
+            selectedAppointments.length === 0 && (
               <button
                 type="button"
                 className="secondary-btn"
@@ -257,17 +290,34 @@ export default function CalendarGrid({
             )}
 
           {engineer &&
-            onToggleBlocked &&
+            onToggleFullyBooked &&
             selectedDate >= today &&
-            blockedDates.includes(selectedDate) && (
+            !blockedDates.includes(selectedDate) &&
+            !fullyBookedDates.includes(selectedDate) &&
+            selectedAppointments.length > 0 && (
               <button
                 type="button"
                 className="secondary-btn"
                 onClick={() =>
-                  onToggleBlocked(selectedDate)
+                  onToggleFullyBooked(selectedDate)
                 }
               >
-                Make this date available
+                Mark this date fully booked
+              </button>
+            )}
+
+          {engineer &&
+            onToggleFullyBooked &&
+            selectedDate >= today &&
+            fullyBookedDates.includes(selectedDate) && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  onToggleFullyBooked(selectedDate)
+                }
+              >
+                Remove fully booked status
               </button>
             )}
         </div>
@@ -275,8 +325,8 @@ export default function CalendarGrid({
 
       <p className="calendar-help">
         {engineer
-          ? "Click any date to view upcoming appointments. Past appointments and unavailable markers are hidden."
-          : "Past dates and unavailable dates cannot be selected."}
+          ? "Click any date to view upcoming appointments and manage availability. Dates with appointments can be marked fully booked. Past appointments are hidden."
+          : "Past, unavailable, and fully booked dates cannot be selected."}
       </p>
     </div>
   );
