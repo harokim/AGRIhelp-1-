@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessageContext";
 import { useAppointments } from "../context/AppointmentContext";
@@ -30,33 +30,8 @@ export default function Sidebar({
 
   const navigate = useNavigate();
 
-  const [darkMode, setDarkMode] =
-    useState(() => {
-      if (
-        typeof window ===
-        "undefined"
-      ) {
-        return false;
-      }
-
-      return (
-        localStorage.getItem(
-          "theme"
-        ) === "dark"
-      );
-    });
-
-  useEffect(() => {
-    document.documentElement.setAttribute(
-      "data-theme",
-      darkMode ? "dark" : "light"
-    );
-
-    localStorage.setItem(
-      "theme",
-      darkMode ? "dark" : "light"
-    );
-  }, [darkMode]);
+  const { theme, toggleTheme } = useTheme();
+  const darkMode = theme === "dark";
 
   if (!user) {
     return null;
@@ -309,12 +284,7 @@ export default function Sidebar({
           <button
             type="button"
             className="theme-toggle"
-            onClick={() =>
-              setDarkMode(
-                (current) =>
-                  !current
-              )
-            }
+            onClick={toggleTheme}
             title={
               darkMode
                 ? "Switch to light mode"
