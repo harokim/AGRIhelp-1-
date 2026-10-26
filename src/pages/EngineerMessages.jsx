@@ -14,10 +14,26 @@ function messageTime(value) {
     return "";
   }
 
-  return date.toLocaleTimeString(undefined, {
+  return date.toLocaleTimeString("en-PH", {
     hour: "numeric",
-    minute: "2-digit"
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Manila"
   });
+}
+
+function messageTimestamp(message) {
+  if (!message?.createdAt) return 0;
+
+  const date = message.createdAt?.toDate
+    ? message.createdAt.toDate()
+    : new Date(message.createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return 0;
+  }
+
+  return date.getTime();
 }
 
 export default function EngineerMessages() {
@@ -45,42 +61,137 @@ export default function EngineerMessages() {
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
 
+  const sortedClients = useMemo(() => {
+    return [...clients].sort((firstClient, secondClient) => {
+      const firstLatest = messages
+        .filter(
+          (message) =>
+            (
+              message.from === user?.id &&
+              message.to === firstClient.id
+            ) ||
+            (
+              message.from === firstClient.id &&
+              message.to === user?.id
+            )
+        )
+        .reduce(
+          (latest, message) =>
+            messageTimestamp(message) >
+            messageTimestamp(latest)
+              ? message
+              : latest,
+          null
+        );
+
+      const secondLatest = messages
+        .filter(
+          (message) =>
+            (
+              message.from === user?.id &&
+              message.to === secondClient.id
+            ) ||
+            (
+              message.from === secondClient.id &&
+              message.to === user?.id
+            )
+        )
+        .reduce(
+          (latest, message) =>
+            messageTimestamp(message) >
+            messageTimestamp(latest)
+              ? message
+              : latest,
+          null
+        );
+
+      return (
+        messageTimestamp(secondLatest) -
+        messageTimestamp(firstLatest)
+      );
+    });
+  }, [clients, messages, user?.id]);
+
+  const filteredClients = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    if (!term) {
+      return sortedClients;
+    }
+
+    return sortedClients.filter((client) => {
+      const profileMatches = [
+        client.name,
+        client.email,
+        client.association,
+        client.profileBio,
+        client.contactNumber
+      ].some((value) =>
+        String(value || "").toLowerCase().includes(term)
+      );
+
+      if (profileMatches) {
+        return true;
+      }
+
+      return messages.some((message) => {
+        const belongsToConversation =
+          (
+            message.from === user?.id &&
+            message.to === client.id
+          ) ||
+          (
+            message.from === client.id &&
+            message.to === user?.id
+          );
+
+        return (
+          belongsToConversation &&
+          String(message.text || "").toLowerCase().includes(term)
+        );
+      });
+    });
+  }, [sortedClients, messages, user?.id, search]);
+
   useEffect(() => {
-    if (!selected && clients.length > 0) {
-      setSelected(clients[0].id);
+    if (!selected && sortedClients.length > 0) {
+      setSelected(sortedClients[0].id);
     }
 
     if (
       selected &&
-      !clients.some(
-        (client) => client.id === selected
-      )
+      !sortedClients.some((client) => client.id === selected)
     ) {
-      setSelected(clients[0]?.id || "");
+      setSelected(sortedClients[0]?.id || "");
     }
-  }, [clients, selected]);
+  }, [sortedClients, selected]);
 
-  const filteredClients = clients.filter((client) =>
-    `${client.name || ""} ${
-      client.email || ""
-    } ${client.association || ""}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  );
-
-  const peer = clients.find(
+  const peer = sortedClients.find(
     (item) => item.id === selected
   );
 
-  const thread = peer
-    ? messages.filter(
+  const thread = useMemo(() => {
+    if (!peer || !user?.id) {
+      return [];
+    }
+
+    return messages
+      .filter(
         (message) =>
-          (message.from === user.id &&
-            message.to === peer.id) ||
-          (message.from === peer.id &&
-            message.to === user.id)
+          (
+            message.from === user.id &&
+            message.to === peer.id
+          ) ||
+          (
+            message.from === peer.id &&
+            message.to === user.id
+          )
       )
-    : [];
+      .sort(
+        (a, b) =>
+          messageTimestamp(a) - messageTimestamp(b)
+      );
+  }, [messages, peer?.id, user?.id]);
 
   const handleSelectClient = async (clientId) => {
     setSelected(clientId);
@@ -96,7 +207,7 @@ export default function EngineerMessages() {
   };
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !user?.id) return;
 
     const selectedClientExists = clients.some(
       (client) => client.id === selected
@@ -116,7 +227,7 @@ export default function EngineerMessages() {
     };
 
     markSelectedConversation();
-  }, [selected]);
+  }, [selected, clients, user?.id, markConversationAsRead]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -145,15 +256,12 @@ export default function EngineerMessages() {
     <div className="container page-container">
       <div className="page-header">
         <div>
-          <span className="eyebrow">
-            MESSENGER
-          </span>
+          <span className="eyebrow">MESSENGER</span>
 
           <h1>Messages</h1>
 
           <p>
-            Communicate directly with
-            registered clients.
+            Communicate directly with registered clients.
           </p>
         </div>
       </div>
@@ -170,20 +278,50 @@ export default function EngineerMessages() {
                   : unreadMessageCount}
               </span>
             ) : (
-              <span>
-                {clients.length}
-              </span>
+              <span>{filteredClients.length}</span>
             )}
           </div>
 
-          <div className="ig-search">
+          <div className="messenger-search">
+            <span
+              className="messenger-search-icon"
+              aria-hidden="true"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
+            </span>
+
             <input
+              type="search"
               value={search}
               onChange={(event) =>
                 setSearch(event.target.value)
               }
-              placeholder="Search"
+              placeholder="Search clients or messages..."
+              aria-label="Search clients and messages"
             />
+
+            {search && (
+              <button
+                type="button"
+                className="messenger-search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <div className="ig-conversation-list">
@@ -191,43 +329,58 @@ export default function EngineerMessages() {
               filteredClients.map((client) => {
                 const unreadCount =
                   getUnreadConversationCount
-                    ? getUnreadConversationCount(
-                        client.id
-                      )
+                    ? getUnreadConversationCount(client.id)
                     : messages.filter(
                         (message) =>
-                          message.from ===
-                            client.id &&
-                          message.to ===
-                            user.id &&
+                          message.from === client.id &&
+                          message.to === user?.id &&
                           message.read === false
                       ).length;
+
+                const latestMessage = messages
+                  .filter(
+                    (message) =>
+                      (
+                        message.from === user?.id &&
+                        message.to === client.id
+                      ) ||
+                      (
+                        message.from === client.id &&
+                        message.to === user?.id
+                      )
+                  )
+                  .reduce(
+                    (latest, message) =>
+                      messageTimestamp(message) >
+                      messageTimestamp(latest)
+                        ? message
+                        : latest,
+                    null
+                  );
 
                 return (
                   <button
                     type="button"
                     key={client.id}
                     className={`ig-conversation ${
-                      selected === client.id
-                        ? "active"
-                        : ""
+                      selected === client.id ? "active" : ""
                     }`}
                     onClick={() =>
-                      handleSelectClient(
-                        client.id
-                      )
+                      handleSelectClient(client.id)
                     }
                   >
                     <Avatar u={client} />
 
                     <span className="ig-conversation-info">
                       <strong>
-                        {client.name}
+                        {client.name || "Client"}
                       </strong>
 
                       <small>
-                        {client.association ||
-                          client.email}
+                        {latestMessage?.text ||
+                          client.association ||
+                          client.email ||
+                          "Client"}
                       </small>
                     </span>
 
@@ -243,7 +396,9 @@ export default function EngineerMessages() {
               })
             ) : (
               <div className="ig-empty-sidebar">
-                No clients found.
+                {search.trim()
+                  ? "No clients or messages match your search."
+                  : "No clients found."}
               </div>
             )}
           </div>
@@ -256,46 +411,39 @@ export default function EngineerMessages() {
                 <Avatar u={peer} />
 
                 <div>
-                  <strong>
-                    {peer.name}
-                  </strong>
+                  <strong>{peer.name || "Client"}</strong>
 
                   <span>
-                    {peer.association ||
-                      "Client"}
+                    {peer.association || "Client"}
                   </span>
                 </div>
               </header>
 
               <div className="ig-chat-body">
                 <div className="ig-profile-intro">
-                  <Avatar
-                    u={peer}
-                    small
-                  />
+                  <Avatar u={peer} small />
 
-                  <strong>
-                    {peer.name}
-                  </strong>
+                  <strong>{peer.name || "Client"}</strong>
 
-                  <span>
-                    {peer.email}
-                  </span>
+                  <span>{peer.email || "Client account"}</span>
+
+                  {peer.contactNumber && (
+                    <small>{peer.contactNumber}</small>
+                  )}
+
+                  {peer.association && (
+                    <small>{peer.association}</small>
+                  )}
                 </div>
 
                 {thread.length === 0 ? (
                   <div className="ig-no-messages">
-                    <div className="ig-message-icon">
-                      ✉
-                    </div>
+                    <div className="ig-message-icon">✉</div>
 
-                    <strong>
-                      Start a conversation
-                    </strong>
+                    <strong>Start a conversation</strong>
 
                     <span>
-                      Send a message to this
-                      client.
+                      Send a message to this client.
                     </span>
                   </div>
                 ) : (
@@ -308,12 +456,8 @@ export default function EngineerMessages() {
                           : "theirs"
                       }`}
                     >
-                      {message.from !==
-                        user.id && (
-                        <Avatar
-                          u={peer}
-                          small
-                        />
+                      {message.from !== user.id && (
+                        <Avatar u={peer} small />
                       )}
 
                       <div>
@@ -322,9 +466,7 @@ export default function EngineerMessages() {
                         </div>
 
                         <small className="ig-time">
-                          {messageTime(
-                            message.createdAt
-                          )}
+                          {messageTime(message.createdAt)}
                         </small>
                       </div>
                     </div>
@@ -339,11 +481,10 @@ export default function EngineerMessages() {
                 <input
                   value={text}
                   onChange={(event) =>
-                    setText(
-                      event.target.value
-                    )
+                    setText(event.target.value)
                   }
                   placeholder="Message..."
+                  autoComplete="off"
                 />
 
                 <button
@@ -356,17 +497,12 @@ export default function EngineerMessages() {
             </>
           ) : (
             <div className="ig-no-messages">
-              <div className="ig-message-icon">
-                ✉
-              </div>
+              <div className="ig-message-icon">✉</div>
 
-              <strong>
-                Select a conversation
-              </strong>
+              <strong>Select a conversation</strong>
 
               <span>
-                Choose a client to start
-                messaging.
+                Choose a client to start messaging.
               </span>
             </div>
           )}
@@ -375,4 +511,3 @@ export default function EngineerMessages() {
     </div>
   );
 }
-

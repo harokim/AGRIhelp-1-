@@ -12,22 +12,11 @@ export function Avatar({
   small = false
 }) {
   return (
-    <div
-      className={`ig-avatar ${
-        small ? "small" : ""
-      }`}
-    >
+    <div className={`ig-avatar ${small ? "small" : ""}`}>
       {u?.avatar ? (
-        <img
-          src={u.avatar}
-          alt=""
-        />
+        <img src={u.avatar} alt="" />
       ) : (
-        initials(
-          u?.name ||
-            u?.email ||
-            "User"
-        )
+        initials(u?.name || u?.email || "User")
       )}
     </div>
   );
@@ -42,42 +31,28 @@ function messageTime(value) {
     ? value.toDate()
     : new Date(value);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return "";
   }
 
-  return date.toLocaleTimeString(
-    undefined,
-    {
-      hour: "numeric",
-      minute: "2-digit"
-    }
-  );
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Manila"
+  });
 }
 
-function messageTimestamp(
-  message
-) {
+function messageTimestamp(message) {
   if (!message?.createdAt) {
     return 0;
   }
 
-  const date =
-    message.createdAt?.toDate
-      ? message.createdAt.toDate()
-      : new Date(
-          message.createdAt
-        );
+  const date = message.createdAt?.toDate
+    ? message.createdAt.toDate()
+    : new Date(message.createdAt);
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+  if (Number.isNaN(date.getTime())) {
     return 0;
   }
 
@@ -85,10 +60,7 @@ function messageTimestamp(
 }
 
 export default function ClientMessages() {
-  const {
-    user,
-    users
-  } = useAuth();
+  const { user, users } = useAuth();
 
   const {
     messages,
@@ -97,146 +69,128 @@ export default function ClientMessages() {
     getUnreadCountForUser
   } = useMessages();
 
-  const [
-    text,
-    setText
-  ] = useState("");
-
-  const [
-    selected,
-    setSelected
-  ] = useState("");
+  const [text, setText] = useState("");
+  const [selected, setSelected] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const engineers = useMemo(
     () =>
       users.filter(
         (item) =>
-          item.role ===
-            "engineer" &&
-          item.status !==
-            "inactive"
+          item.role === "engineer" &&
+          item.status !== "inactive"
       ),
     [users]
   );
 
-  const sortedEngineers =
-    useMemo(() => {
-      return [...engineers].sort(
-        (
-          firstEngineer,
-          secondEngineer
-        ) => {
-          const firstLatest =
-            messages
-              .filter(
-                (message) =>
-                  (
-                    message.from ===
-                      user?.id &&
-                    message.to ===
-                      firstEngineer.id
-                  ) ||
-                  (
-                    message.from ===
-                      firstEngineer.id &&
-                    message.to ===
-                      user?.id
-                  )
-              )
-              .sort(
-                (a, b) =>
-                  messageTimestamp(
-                    b
-                  ) -
-                  messageTimestamp(
-                    a
-                  )
-              )[0];
-
-          const secondLatest =
-            messages
-              .filter(
-                (message) =>
-                  (
-                    message.from ===
-                      user?.id &&
-                    message.to ===
-                      secondEngineer.id
-                  ) ||
-                  (
-                    message.from ===
-                      secondEngineer.id &&
-                    message.to ===
-                      user?.id
-                  )
-              )
-              .sort(
-                (a, b) =>
-                  messageTimestamp(
-                    b
-                  ) -
-                  messageTimestamp(
-                    a
-                  )
-              )[0];
-
-          return (
-            messageTimestamp(
-              secondLatest
-            ) -
-            messageTimestamp(
-              firstLatest
+  const sortedEngineers = useMemo(() => {
+    return [...engineers].sort((firstEngineer, secondEngineer) => {
+      const firstLatest = messages
+        .filter(
+          (message) =>
+            (
+              message.from === user?.id &&
+              message.to === firstEngineer.id
+            ) ||
+            (
+              message.from === firstEngineer.id &&
+              message.to === user?.id
             )
-          );
-        }
+        )
+        .sort(
+          (a, b) =>
+            messageTimestamp(b) - messageTimestamp(a)
+        )[0];
+
+      const secondLatest = messages
+        .filter(
+          (message) =>
+            (
+              message.from === user?.id &&
+              message.to === secondEngineer.id
+            ) ||
+            (
+              message.from === secondEngineer.id &&
+              message.to === user?.id
+            )
+        )
+        .sort(
+          (a, b) =>
+            messageTimestamp(b) - messageTimestamp(a)
+        )[0];
+
+      return (
+        messageTimestamp(secondLatest) -
+        messageTimestamp(firstLatest)
       );
-    }, [
-      engineers,
-      messages,
-      user?.id
-    ]);
+    });
+  }, [engineers, messages, user?.id]);
+
+  const filteredEngineers = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    if (!search) {
+      return sortedEngineers;
+    }
+
+    return sortedEngineers.filter((engineer) => {
+      const profileMatches = [
+        engineer.name,
+        engineer.email,
+        engineer.profileBio,
+        engineer.association,
+        engineer.contactNumber
+      ].some((value) =>
+        String(value || "").toLowerCase().includes(search)
+      );
+
+      if (profileMatches) {
+        return true;
+      }
+
+      return messages.some((message) => {
+        const belongsToConversation =
+          (
+            message.from === user?.id &&
+            message.to === engineer.id
+          ) ||
+          (
+            message.from === engineer.id &&
+            message.to === user?.id
+          );
+
+        return (
+          belongsToConversation &&
+          String(message.text || "").toLowerCase().includes(search)
+        );
+      });
+    });
+  }, [sortedEngineers, messages, user?.id, searchTerm]);
 
   useEffect(() => {
     if (
       !selected &&
-      sortedEngineers.length >
-        0
+      sortedEngineers.length > 0
     ) {
-      setSelected(
-        sortedEngineers[0].id
-      );
+      setSelected(sortedEngineers[0].id);
     }
 
     if (
       selected &&
       !sortedEngineers.some(
-        (engineer) =>
-          engineer.id ===
-          selected
+        (engineer) => engineer.id === selected
       )
     ) {
-      setSelected(
-        sortedEngineers[0]?.id ||
-          ""
-      );
+      setSelected(sortedEngineers[0]?.id || "");
     }
-  }, [
-    sortedEngineers,
-    selected
-  ]);
+  }, [sortedEngineers, selected]);
 
-  const peer =
-    sortedEngineers.find(
-      (engineer) =>
-        engineer.id ===
-        selected
-    );
+  const peer = sortedEngineers.find(
+    (engineer) => engineer.id === selected
+  );
 
   const thread = useMemo(() => {
-    if (
-      !user?.id ||
-      !peer?.id
-    ) {
+    if (!user?.id || !peer?.id) {
       return [];
     }
 
@@ -244,46 +198,29 @@ export default function ClientMessages() {
       .filter(
         (message) =>
           (
-            message.from ===
-              user.id &&
-            message.to ===
-              peer.id
+            message.from === user.id &&
+            message.to === peer.id
           ) ||
           (
-            message.from ===
-              peer.id &&
-            message.to ===
-              user.id
+            message.from === peer.id &&
+            message.to === user.id
           )
       )
       .sort(
         (a, b) =>
-          messageTimestamp(a) -
-          messageTimestamp(b)
+          messageTimestamp(a) - messageTimestamp(b)
       );
-  }, [
-    messages,
-    peer?.id,
-    user?.id
-  ]);
+  }, [messages, peer?.id, user?.id]);
 
   useEffect(() => {
-    if (
-      !peer?.id ||
-      !user?.id
-    ) {
+    if (!peer?.id || !user?.id) {
       return;
     }
 
-    const unreadCount =
-      getUnreadCountForUser(
-        peer.id
-      );
+    const unreadCount = getUnreadCountForUser(peer.id);
 
     if (unreadCount > 0) {
-      markConversationAsRead(
-        peer.id
-      ).catch(() => {});
+      markConversationAsRead(peer.id).catch(() => {});
     }
   }, [
     peer?.id,
@@ -292,15 +229,10 @@ export default function ClientMessages() {
     markConversationAsRead
   ]);
 
-  const submit = async (
-    event
-  ) => {
+  const submit = async (event) => {
     event.preventDefault();
 
-    if (
-      !peer ||
-      !text.trim()
-    ) {
+    if (!peer || !text.trim()) {
       return;
     }
 
@@ -324,124 +256,124 @@ export default function ClientMessages() {
     <div className="container page-container">
       <div className="page-header">
         <div>
-          <span className="eyebrow">
-            MESSENGER
-          </span>
-
+          <span className="eyebrow">MESSENGER</span>
           <h1>Messages</h1>
-
-          <p>
-            Message the agricultural
-            engineering office.
-          </p>
+          <p>Message the agricultural engineering office.</p>
         </div>
       </div>
 
       <div className="ig-messenger">
         <aside className="ig-sidebar">
           <div className="ig-sidebar-header">
-            <strong>
-              Messages
-            </strong>
+            <strong>Messages</strong>
+            <span>{filteredEngineers.length}</span>
+          </div>
 
-            <span>
-              {sortedEngineers.length}
+          <div className="messenger-search">
+            <span
+              className="messenger-search-icon"
+              aria-hidden="true"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
             </span>
+
+            <input
+              type="search"
+              placeholder="Search people or messages..."
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(event.target.value)
+              }
+              aria-label="Search engineers and messages"
+            />
+
+            {searchTerm && (
+              <button
+                type="button"
+                className="messenger-search-clear"
+                onClick={() => setSearchTerm("")}
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           <div className="ig-conversation-list">
-            {sortedEngineers.length >
-            0 ? (
-              sortedEngineers.map(
-                (engineer) => {
-                  const latestMessage =
-                    messages
-                      .filter(
-                        (message) =>
-                          (
-                            message.from ===
-                              user?.id &&
-                            message.to ===
-                              engineer.id
-                          ) ||
-                          (
-                            message.from ===
-                              engineer.id &&
-                            message.to ===
-                              user?.id
-                          )
+            {filteredEngineers.length > 0 ? (
+              filteredEngineers.map((engineer) => {
+                const latestMessage = messages
+                  .filter(
+                    (message) =>
+                      (
+                        message.from === user?.id &&
+                        message.to === engineer.id
+                      ) ||
+                      (
+                        message.from === engineer.id &&
+                        message.to === user?.id
                       )
-                      .sort(
-                        (a, b) =>
-                          messageTimestamp(
-                            b
-                          ) -
-                          messageTimestamp(
-                            a
-                          )
-                      )[0];
+                  )
+                  .sort(
+                    (a, b) =>
+                      messageTimestamp(b) -
+                      messageTimestamp(a)
+                  )[0];
 
-                  const unreadCount =
-                    getUnreadCountForUser(
-                      engineer.id
-                    );
+                const unreadCount =
+                  getUnreadCountForUser(engineer.id);
 
-                  return (
-                    <button
-                      type="button"
-                      key={
-                        engineer.id
-                      }
-                      className={`ig-conversation ${
-                        selected ===
-                        engineer.id
-                          ? "active"
-                          : ""
-                      }`}
-                      onClick={() =>
-                        setSelected(
-                          engineer.id
-                        )
-                      }
-                    >
-                      <Avatar
-                        u={
-                          engineer
-                        }
-                      />
+                return (
+                  <button
+                    type="button"
+                    key={engineer.id}
+                    className={`ig-conversation ${
+                      selected === engineer.id ? "active" : ""
+                    }`}
+                    onClick={() => setSelected(engineer.id)}
+                  >
+                    <Avatar u={engineer} />
 
-                      <span>
-                        <strong>
-                          {engineer.name ||
+                    <span>
+                      <strong>
+                        {engineer.name ||
+                          "Agricultural Engineer"}
+                      </strong>
+
+                      <small>
+                        {latestMessage
+                          ? latestMessage.text
+                          : engineer.profileBio ||
+                            engineer.email ||
                             "Agricultural Engineer"}
-                        </strong>
+                      </small>
+                    </span>
 
-                        <small>
-                          {latestMessage
-                            ? latestMessage.text
-                            : engineer.profileBio ||
-                              engineer.email ||
-                              "Agricultural Engineer"}
-                        </small>
+                    {unreadCount > 0 && (
+                      <span className="ig-conversation-badge">
+                        {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
-
-                      {unreadCount >
-                        0 && (
-                        <span className="ig-conversation-badge">
-                          {unreadCount >
-                          99
-                            ? "99+"
-                            : unreadCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                }
-              )
+                    )}
+                  </button>
+                );
+              })
             ) : (
               <div className="ig-empty-sidebar">
-                No engineer account is
-                available.
+                {searchTerm.trim()
+                  ? "No conversations or messages match your search."
+                  : "No engineer account is available."}
               </div>
             )}
           </div>
@@ -451,33 +383,25 @@ export default function ClientMessages() {
           {peer ? (
             <>
               <header className="ig-chat-header">
-                <Avatar
-                  u={peer}
-                />
+                <Avatar u={peer} />
 
                 <div>
                   <strong>
-                    {peer.name ||
-                      "Agricultural Engineer"}
+                    {peer.name || "Agricultural Engineer"}
                   </strong>
 
                   <span>
-                    {peer.profileBio ||
-                      "Agricultural Engineer"}
+                    {peer.profileBio || "Agricultural Engineer"}
                   </span>
                 </div>
               </header>
 
               <div className="ig-chat-body">
                 <div className="ig-profile-intro">
-                  <Avatar
-                    u={peer}
-                    small
-                  />
+                  <Avatar u={peer} small />
 
                   <strong>
-                    {peer.name ||
-                      "Agricultural Engineer"}
+                    {peer.name || "Agricultural Engineer"}
                   </strong>
 
                   <span>
@@ -486,92 +410,55 @@ export default function ClientMessages() {
                   </span>
 
                   {peer.contactNumber && (
-                    <small>
-                      {
-                        peer.contactNumber
-                      }
-                    </small>
+                    <small>{peer.contactNumber}</small>
                   )}
 
                   {peer.association && (
-                    <small>
-                      {
-                        peer.association
-                      }
-                    </small>
+                    <small>{peer.association}</small>
                   )}
                 </div>
 
-                {thread.length ===
-                0 ? (
+                {thread.length === 0 ? (
                   <div className="ig-no-messages">
-                    <div className="ig-message-icon">
-                      ✉
-                    </div>
+                    <div className="ig-message-icon">✉</div>
 
-                    <strong>
-                      Start a conversation
-                    </strong>
+                    <strong>Start a conversation</strong>
 
                     <span>
-                      Send a message to
-                      the agricultural
-                      engineer.
+                      Send a message to the agricultural engineer.
                     </span>
                   </div>
                 ) : (
-                  thread.map(
-                    (message) => (
-                      <div
-                        key={
-                          message.id
-                        }
-                        className={`ig-message-row ${
-                          message.from ===
-                          user.id
-                            ? "mine"
-                            : "theirs"
-                        }`}
-                      >
-                        {message.from !==
-                          user.id && (
-                          <Avatar
-                            u={peer}
-                            small
-                          />
-                        )}
+                  thread.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`ig-message-row ${
+                        message.from === user.id ? "mine" : "theirs"
+                      }`}
+                    >
+                      {message.from !== user.id && (
+                        <Avatar u={peer} small />
+                      )}
 
-                        <div>
-                          <div className="ig-bubble">
-                            {
-                              message.text
-                            }
-                          </div>
-
-                          <small className="ig-time">
-                            {messageTime(
-                              message.createdAt
-                            )}
-                          </small>
+                      <div>
+                        <div className="ig-bubble">
+                          {message.text}
                         </div>
+
+                        <small className="ig-time">
+                          {messageTime(message.createdAt)}
+                        </small>
                       </div>
-                    )
-                  )
+                    </div>
+                  ))
                 )}
               </div>
 
-              <form
-                className="ig-compose"
-                onSubmit={submit}
-              >
+              <form className="ig-compose" onSubmit={submit}>
                 <input
                   value={text}
-                  onChange={(
-                    event
-                  ) =>
-                    setText(
-                      event.target.value
-                    )
+                  onChange={(event) =>
+                    setText(event.target.value)
                   }
                   placeholder="Message..."
                   autoComplete="off"
@@ -579,9 +466,7 @@ export default function ClientMessages() {
 
                 <button
                   type="submit"
-                  disabled={
-                    !text.trim()
-                  }
+                  disabled={!text.trim()}
                 >
                   Send
                 </button>
@@ -589,17 +474,12 @@ export default function ClientMessages() {
             </>
           ) : (
             <div className="ig-no-messages">
-              <div className="ig-message-icon">
-                ✉
-              </div>
+              <div className="ig-message-icon">✉</div>
 
-              <strong>
-                Select a conversation
-              </strong>
+              <strong>Select a conversation</strong>
 
               <span>
-                Choose an engineer to
-                start messaging.
+                Choose an engineer to start messaging.
               </span>
             </div>
           )}
@@ -608,4 +488,3 @@ export default function ClientMessages() {
     </div>
   );
 }
-
