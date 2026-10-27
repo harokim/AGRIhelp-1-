@@ -4,7 +4,6 @@ export const DOCUMENT_REQUIREMENTS = [
   { id: "pre-validation-report", label: "Pre-Validation Report", required: true },
   { id: "abe-endorsement", label: "ABE Endorsement or Certification", required: true },
   { id: "utilization-proposal", label: "Utilization Proposal", required: true },
-  { id: "geotagged-photos", label: "Geotagged Photos", required: true },
   { id: "proof-of-land", label: "Authenticated Proof of Land", required: true },
   { id: "letter-of-intent", label: "Letter of Intent", required: true },
   { id: "lgu-pre-validation", label: "LGU Pre-Validation Report", required: true },

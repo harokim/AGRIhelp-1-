@@ -35,24 +35,21 @@ const MINIMUM_REQUIREMENTS = [
     title: "4. Utilization Proposal",
     text: "Utilization Proposal indicating the production area and volume, the general specification, including type and capacity, of the requested machinery and facilities, and the period of operation."
   },
+
   {
-    title: "5. Geotagged Photos",
-    text: "Geotagged photos of the existing shed and/or ongoing construction of the shed based on the capacity of the approved requested machinery."
-  },
-  {
-    title: "6. Authenticated Proof of Land",
+    title: "5. Authenticated Proof of Land",
     text: "Authenticated proof of land ownership or a copy of an accepted land-use document named to the requesting entity."
   },
   {
-    title: "7. Letter of Intent",
+    title: "6. Letter of Intent",
     text: "Letter of Intent duly signed by the appropriate authorized representative stating the machinery, equipment, or facilities requested and the organization's commitment to the project."
   },
   {
-    title: "8. LGU Pre-Validation Report",
+    title: "7. LGU Pre-Validation Report",
     text: "A pre-validation report signed by an Agricultural and Biosystems Engineer in the P/C/MLGU."
   },
   {
-    title: "9. Placement Site Pre-Validation Report",
+    title: "8. Placement Site Pre-Validation Report",
     text: "A pre-validation report signed by an Agricultural and Biosystems Engineer in the P/C/MLGU where the requested intervention will be placed."
   }
 ];

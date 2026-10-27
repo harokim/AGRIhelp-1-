@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -99,7 +98,12 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if signedIn();
+      allow read: if isEngineer()
+        || isOwner(userId)
+        || (
+          signedIn()
+          && resource.data.role == "engineer"
+        );
 
       allow create: if isEngineer()
         && userId != request.auth.uid
@@ -160,13 +164,30 @@ service cloud.firestore {
 
       allow create: if validAccountRequest();
 
-      allow update: if false;
+      allow update: if isEngineer()
+        && resource.data.status == "pending"
+        && request.resource.data.status == "approved"
+        && request.resource.data.approvedBy == request.auth.uid
+        && request.resource.data.approvedAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            "status",
+            "approvedAt",
+            "approvedBy",
+            "updatedAt"
+          ]);
 
       allow delete: if isEngineer();
     }
 
     match /requests/{requestId} {
-      allow read: if signedIn();
+      allow read: if isEngineer()
+        || (
+          signedIn()
+          && resource.data.clientId == request.auth.uid
+        );
 
       allow create: if signedIn()
         && request.resource.data.clientId == request.auth.uid;
@@ -181,7 +202,11 @@ service cloud.firestore {
     }
 
     match /documents/{documentId} {
-      allow read: if signedIn();
+      allow read: if isEngineer()
+        || (
+          signedIn()
+          && resource.data.clientId == request.auth.uid
+        );
 
       allow create: if signedIn()
         && request.resource.data.clientId == request.auth.uid;
@@ -195,14 +220,25 @@ service cloud.firestore {
       allow delete: if isEngineer();
 
       match /chunks/{chunkId} {
-        allow read: if signedIn();
-        allow create: if signedIn();
+        allow read: if isEngineer()
+          || (
+            signedIn()
+            && get(
+              /databases/$(database)/documents/documents/$(documentId)
+            ).data.clientId == request.auth.uid
+          );
+
+        allow create: if signedIn()
+          && get(
+            /databases/$(database)/documents/documents/$(documentId)
+          ).data.clientId == request.auth.uid;
+
         allow update, delete: if isEngineer();
       }
     }
 
     match /reportDocuments/{documentId} {
-      allow read: if signedIn();
+      allow read: if isEngineer();
 
       allow create: if isEngineer()
         && request.resource.data.engineerId == request.auth.uid;
@@ -215,7 +251,11 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      allow read: if signedIn();
+      allow read: if isEngineer()
+        || (
+          signedIn()
+          && resource.data.clientId == request.auth.uid
+        );
 
       allow create: if isEngineer()
         && request.resource.data.createdBy == request.auth.uid;
@@ -249,7 +289,8 @@ service cloud.firestore {
           && resource.data.userId == request.auth.uid
         );
 
-      allow create: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
 
       allow update, delete: if isEngineer()
         || (
@@ -259,20 +300,23 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read: if isEngineer()
-        || (
-          signedIn()
-          && request.auth.uid in resource.data.participants
-        );
+  allow read: if signedIn()
+    && request.auth.uid in resource.data.participants;
 
-      allow create: if signedIn()
-        && request.auth.uid in request.resource.data.participants;
+  allow create: if signedIn()
+    && request.auth.uid in request.resource.data.participants;
 
-      allow update, delete: if isEngineer()
-        || (
-          signedIn()
-          && request.auth.uid in resource.data.participants
-        );
-    }
+  allow update: if isEngineer()
+    || (
+      signedIn()
+      && request.auth.uid in resource.data.participants
+    );
+
+  allow delete: if isEngineer()
+    || (
+      signedIn()
+      && request.auth.uid in resource.data.participants
+    );
   }
-}
+    }
+      }

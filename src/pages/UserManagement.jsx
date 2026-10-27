@@ -5,12 +5,12 @@ import {
   deleteDoc,
   doc,
   onSnapshot,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { useAuth } from "../context/AuthContext";
 import { useAppointments } from "../context/AppointmentContext";
-import { db } from "../firebase";
-import app from "../firebase";
+import { auth, db } from "../firebase";
 import { initials } from "../utils";
 import ClientSignup from "./ClientSignup";
 
@@ -142,58 +142,55 @@ export default function UserManagement() {
       return;
     }
 
+    const currentUser = auth?.currentUser;
+    const currentUid = currentUser?.uid;
+
+    if (!currentUid) {
+      const message =
+        "Your Firebase session is missing or expired. Please sign in again.";
+
+      setRequestError(message);
+      window.alert(message);
+      return;
+    }
+
     const applicantName =
       request.name || request.fullName || request.email || "this applicant";
 
     const confirmed = window.confirm(
-      `Confirm the account request for ${applicantName}?\n\n` +
+      `Approve the account request for ${applicantName}?\n\n` +
         `Email: ${request.email || "Not provided"}\n` +
         `Association: ${request.association || "Not provided"}\n\n` +
-        "This will create the client account and process the request."
+        "This approves the request only. It does not create a Firebase Authentication account."
     );
 
     if (!confirmed) return;
 
     setProcessingId(request.id);
     setRequestError("");
-    setResetLink("");
-    setCreatedEmail("");
-    setCopyMessage("");
 
     try {
-      const functions = getFunctions(app, "asia-southeast1");
-      const createClientAccount = httpsCallable(
-        functions,
-        "createClientAccount"
-      );
-
-      const response = await createClientAccount({
-        accountRequestId: request.id,
+      await updateDoc(doc(db, "accountRequests", request.id), {
+        status: "approved",
+        approvedBy: currentUid,
+        approvedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
-      const result = response.data || {};
-
-      setCreatedEmail(result.email || request.email || "");
-      setResetLink(result.passwordResetLink || "");
-
-      if (!result.passwordResetLink) {
-        window.alert(
-          result.message ||
-            "The account was created, but no password-reset link was returned."
-        );
-      }
-    } catch (error) {
-      console.error("Account request confirmation failed:", error);
-
-      setRequestError(
-        error?.message ||
-          "Could not confirm the account request. Please try again."
-      );
-
       window.alert(
-        error?.message ||
-          "Could not confirm the account request. Please try again."
+        "Account request approved. The applicant still needs a separate account registration and password setup process."
       );
+    } catch (error) {
+      console.error("Account request approval failed:", error);
+
+      const message =
+        error?.code === "permission-denied"
+          ? "Permission denied. Verify that your Firestore rules allow the signed-in engineer to approve this request."
+          : error?.message ||
+            "Unable to approve the account request. Please try again.";
+
+      setRequestError(message);
+      window.alert(message);
     } finally {
       setProcessingId("");
     }
@@ -278,8 +275,8 @@ export default function UserManagement() {
         <span className="eyebrow">ADMINISTRATION</span>
         <h1>User management</h1>
         <p>
-          Create client accounts, confirm submitted account requests, and
-          manage registered users.
+          Review account requests, manage registered users, and
+          initiate client registration.
         </p>
       </div>
 
@@ -288,7 +285,7 @@ export default function UserManagement() {
           <div>
             <h2>Create a client account</h2>
             <p>
-              Create an account manually without requiring a pending request.
+              Open the client registration form to create a client account.
             </p>
           </div>
 
@@ -307,7 +304,7 @@ export default function UserManagement() {
         {manualCreatedClient && (
           <div className="success-message" role="status">
             <p>
-              Client account created for{" "}
+              Client registration completed for{" "}
               <strong>
                 {manualCreatedClient.name || "the client"}
               </strong>
@@ -408,9 +405,8 @@ export default function UserManagement() {
           <div>
             <h2>Account requests</h2>
             <p>
-              All submitted requests appear here. Requests marked pending
-              can be confirmed to create a client account. Use the trash
-              button to permanently remove a request.
+              Review submitted requests. Approving a request changes its
+              status but does not create an Authentication account.
             </p>
           </div>
 
@@ -452,7 +448,8 @@ export default function UserManagement() {
                   const isProcessing = processingId === request.id;
                   const isDeleting = deletingRequestId === request.id;
                   const busy =
-                    Boolean(processingId) || Boolean(deletingRequestId);
+                    Boolean(processingId) ||
+                    Boolean(deletingRequestId);
 
                   return (
                     <tr key={request.id}>
@@ -489,15 +486,16 @@ export default function UserManagement() {
                               onClick={() => createAccount(request)}
                             >
                               {isProcessing
-                                ? "Processing..."
-                                : "Confirm account request"}
+                                ? "Approving..."
+                                : "Approve request"}
                             </button>
                           ) : (
                             <span className="muted">
-                              {status === "processed" ||
-                              status === "approved"
+                              {status === "processed"
                                 ? "Already processed"
-                                : "Not pending"}
+                                : status === "approved"
+                                  ? "Approved"
+                                  : "Not pending"}
                             </span>
                           )}
 
@@ -514,7 +512,10 @@ export default function UserManagement() {
                             onClick={() => deleteAccountRequest(request)}
                           >
                             {isDeleting ? (
-                              <span className="delete-spinner" aria-hidden="true" />
+                              <span
+                                className="delete-spinner"
+                                aria-hidden="true"
+                              />
                             ) : (
                               <svg
                                 viewBox="0 0 24 24"
@@ -528,6 +529,7 @@ export default function UserManagement() {
                                 <path d="M14 11v5" />
                               </svg>
                             )}
+
                             <span className="delete-button-label">
                               {isDeleting ? "Deleting..." : "Delete"}
                             </span>
@@ -575,8 +577,8 @@ export default function UserManagement() {
             </div>
 
             <p>
-              The client account for <strong>{createdEmail}</strong> has been
-              created. Share this link securely so the client can set their
+              Share this link securely with{" "}
+              <strong>{createdEmail}</strong> so the client can set their
               password.
             </p>
 
