@@ -8,12 +8,12 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { useAuth } from "../context/AuthContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { auth, db } from "../firebase";
 import { initials } from "../utils";
 import ClientSignup from "./ClientSignup";
-
 function formatDate(value) {
   if (!value) return "Not available";
 
@@ -35,8 +35,26 @@ function normalizeStatus(value) {
   return String(value || "unknown").trim().toLowerCase();
 }
 
+function generateTemporaryPassword() {
+  const randomValues = new Uint32Array(4);
+  crypto.getRandomValues(randomValues);
+
+  const suffix = Array.from(randomValues)
+    .map((value) => value.toString(36))
+    .join("")
+    .slice(0, 18);
+
+
+  return `Agri!${suffix}9Z`;
+}
+
 export default function UserManagement() {
-  const { users = [], user, deleteUser } = useAuth();
+  const {
+  users = [],
+  user,
+  deleteUser,
+  registerClientByEngineer,
+} = useAuth();
   const { appointments = [] } = useAppointments();
 
   const [search, setSearch] = useState("");
@@ -46,10 +64,7 @@ export default function UserManagement() {
 
   const [processingId, setProcessingId] = useState("");
   const [deletingRequestId, setDeletingRequestId] = useState("");
-
-  const [resetLink, setResetLink] = useState("");
-  const [createdEmail, setCreatedEmail] = useState("");
-  const [copyMessage, setCopyMessage] = useState("");
+  const [resendingEmailId, setResendingEmailId] = useState("");
 
   const [showCreateClient, setShowCreateClient] = useState(false);
   const [manualCreatedClient, setManualCreatedClient] = useState(null);
@@ -102,6 +117,265 @@ export default function UserManagement() {
     return unsubscribe;
   }, [user?.role]);
 
+  const createAccount = async (request) => {
+  if (processingId || deletingRequestId) return;
+
+  if (normalizeStatus(request.status) !== "pending") {
+    window.alert(
+      "This request is no longer pending. Refresh the page and check its status."
+    );
+    return;
+  }
+
+  const currentUser = auth?.currentUser;
+
+  if (!currentUser?.uid) {
+    const message =
+      "Your Firebase session is missing or expired. Please sign in again.";
+
+    setRequestError(message);
+    window.alert(message);
+    return;
+  }
+
+  const email = String(request.email || "")
+    .trim()
+    .toLowerCase();
+
+  const applicantName =
+    request.name || request.fullName || email || "this applicant";
+
+  if (!email) {
+    window.alert(
+      "This application has no email address. The account cannot be created."
+    );
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Approve and create a client account for ${applicantName}?\n\n` +
+      `Email: ${email}\n` +
+      `Association: ${request.association || "Not provided"}\n\n` +
+      "This will create the Firebase Authentication account and client profile, " +
+      "then send a password-setup email."
+  );
+
+  if (!confirmed) return;
+
+  setProcessingId(request.id);
+  setRequestError("");
+
+  let accountCreated = false;
+
+  try {
+    
+    const client = await registerClientByEngineer({
+      name: applicantName,
+      email,
+      contactNumber: String(request.contactNumber || ""),
+      association: String(request.association || ""),
+      members: Number(request.members) || 0,
+      year:
+        request.year === null ||
+        request.year === undefined ||
+        request.year === ""
+          ? ""
+          : String(request.year),
+      position: String(request.position || ""),
+      region: String(request.region || ""),
+      province: String(request.province || ""),
+      municipality: String(request.municipality || ""),
+      barangay: String(request.barangay || ""),
+      address: [
+        request.barangay,
+        request.municipality,
+        request.province,
+        request.region,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      password: generateTemporaryPassword(),
+    });
+
+    accountCreated = true;
+
+  
+    await sendPasswordResetEmail(auth, email);
+
+    
+    await updateDoc(doc(db, "accountRequests", request.id), {
+      status: "approved",
+      approvedBy: currentUser.uid,
+      approvedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    setAccountRequests((currentRequests) =>
+      currentRequests.map((item) =>
+        item.id === request.id
+          ? {
+              ...item,
+              status: "approved",
+              approvedBy: currentUser.uid,
+            }
+          : item
+      )
+    );
+
+    window.alert(
+      `Account created successfully for ${email}.\n\n` +
+        "The client profile has been created and a password setup email has been requested. " +
+        "Ask the client to check their inbox and spam folder."
+    );
+  } catch (error) {
+    console.error("Client account approval failed:", error);
+
+    let message;
+
+    if (accountCreated) {
+      message =
+        "The Firebase account and client profile were created, but a later step failed. " +
+        "Do not approve this request again, because that could create a duplicate account. " +
+        "Check the error below. If the password email failed, use Firebase Authentication's password-reset flow for this existing account.";
+    } else if (error?.code === "auth/email-already-in-use") {
+      message =
+        "An Authentication account already exists for this email. " +
+        "Check Firebase Authentication and the users collection before taking further action.";
+    } else if (error?.code === "permission-denied") {
+      message =
+        "Firestore denied the operation. Check your published Firestore rules and confirm that your engineer account is active.";
+    } else {
+      message =
+        error?.message ||
+        "Unable to create the client account. Please try again.";
+    }
+
+    setRequestError(message);
+    window.alert(message);
+  } finally {
+    setProcessingId("");
+  }
+};
+
+  const resendPasswordSetupEmail = async (request) => {
+    if (processingId || deletingRequestId || resendingEmailId) return;
+
+    const status = normalizeStatus(request.status);
+
+    if (status !== "processed") {
+      window.alert(
+        "A password-setup email can only be resent for a processed account request."
+      );
+      return;
+    }
+
+    const email = String(request.email || "").trim().toLowerCase();
+
+    if (!email) {
+      window.alert("The applicant does not have a valid email address.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Send a new password-setup email to ${email}?\n\n` +
+        "This does not create another account."
+    );
+
+    if (!confirmed) return;
+
+    setResendingEmailId(request.id);
+    setRequestError("");
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+
+      window.alert(
+        `A new password-setup email has been sent to ${email}.`
+      );
+    } catch (error) {
+      console.error("Unable to resend password-setup email:", error);
+
+      const message =
+        error?.code === "auth/user-not-found"
+          ? "No Firebase Authentication account was found for this email."
+          : error?.code === "auth/invalid-email"
+            ? "The email address is invalid."
+            : error?.code === "auth/too-many-requests"
+              ? "Too many email requests were made. Wait a while before trying again."
+              : error?.message ||
+                "Unable to send the password-setup email. Please try again.";
+
+      setRequestError(message);
+      window.alert(message);
+    } finally {
+      setResendingEmailId("");
+    }
+  };
+
+  const deleteAccountRequest = async (request) => {
+    if (processingId || deletingRequestId || resendingEmailId) return;
+
+    const applicantName =
+      request.name || request.fullName || request.email || "this applicant";
+
+    const confirmed = window.confirm(
+      `Delete the account request for ${applicantName}?\n\n` +
+        `Email: ${request.email || "Not provided"}\n` +
+        `Association: ${request.association || "Not provided"}\n\n` +
+        "This permanently deletes the submitted request. This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    setDeletingRequestId(request.id);
+    setRequestError("");
+
+    try {
+      await deleteDoc(doc(db, "accountRequests", request.id));
+
+      setAccountRequests((currentRequests) =>
+        currentRequests.filter((item) => item.id !== request.id)
+      );
+    } catch (error) {
+      console.error("Unable to delete account request:", error);
+
+      const message =
+        error?.code === "permission-denied"
+          ? "Permission denied. Confirm that your Firestore rules allow engineers to delete account requests."
+          : error?.message ||
+            "Unable to delete the account request. Please try again.";
+
+      setRequestError(message);
+      window.alert(message);
+    } finally {
+      setDeletingRequestId("");
+    }
+  };
+
+  const deactivateUser = async (id, name) => {
+    const confirmed = window.confirm(
+      `Deactivate the client account for ${name || "this user"}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteUser(id);
+      window.alert("Client account deactivated successfully.");
+    } catch (error) {
+      console.error("Unable to deactivate user:", error);
+
+      window.alert(
+        error?.message || "Could not deactivate this account."
+      );
+    }
+  };
+
+  const handleManualClientCreated = (client) => {
+    setManualCreatedClient(client);
+    setShowCreateClient(false);
+  };
+
   if (user?.role !== "engineer") {
     return (
       <div className="container page-container">
@@ -132,143 +406,6 @@ export default function UserManagement() {
       return text.includes(search.toLowerCase());
     });
 
-  const createAccount = async (request) => {
-    if (processingId || deletingRequestId) return;
-
-    if (normalizeStatus(request.status) !== "pending") {
-      window.alert(
-        "This request is no longer pending. Refresh the page and check its status."
-      );
-      return;
-    }
-
-    const currentUser = auth?.currentUser;
-    const currentUid = currentUser?.uid;
-
-    if (!currentUid) {
-      const message =
-        "Your Firebase session is missing or expired. Please sign in again.";
-
-      setRequestError(message);
-      window.alert(message);
-      return;
-    }
-
-    const applicantName =
-      request.name || request.fullName || request.email || "this applicant";
-
-    const confirmed = window.confirm(
-      `Approve the account request for ${applicantName}?\n\n` +
-        `Email: ${request.email || "Not provided"}\n` +
-        `Association: ${request.association || "Not provided"}\n\n` +
-        "This approves the request only. It does not create a Firebase Authentication account."
-    );
-
-    if (!confirmed) return;
-
-    setProcessingId(request.id);
-    setRequestError("");
-
-    try {
-      await updateDoc(doc(db, "accountRequests", request.id), {
-        status: "approved",
-        approvedBy: currentUid,
-        approvedAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      window.alert(
-        "Account request approved. The applicant still needs a separate account registration and password setup process."
-      );
-    } catch (error) {
-      console.error("Account request approval failed:", error);
-
-      const message =
-        error?.code === "permission-denied"
-          ? "Permission denied. Verify that your Firestore rules allow the signed-in engineer to approve this request."
-          : error?.message ||
-            "Unable to approve the account request. Please try again.";
-
-      setRequestError(message);
-      window.alert(message);
-    } finally {
-      setProcessingId("");
-    }
-  };
-
-  const deleteAccountRequest = async (request) => {
-    if (processingId || deletingRequestId) return;
-
-    const applicantName =
-      request.name || request.fullName || request.email || "this applicant";
-
-    const confirmed = window.confirm(
-      `Delete the account request for ${applicantName}?\n\n` +
-        `Email: ${request.email || "Not provided"}\n` +
-        `Association: ${request.association || "Not provided"}\n\n` +
-        "This permanently deletes the submitted request. This action cannot be undone."
-    );
-
-    if (!confirmed) return;
-
-    setDeletingRequestId(request.id);
-    setRequestError("");
-
-    try {
-      await deleteDoc(doc(db, "accountRequests", request.id));
-
-      setAccountRequests((currentRequests) =>
-        currentRequests.filter((item) => item.id !== request.id)
-      );
-    } catch (error) {
-      console.error("Unable to delete account request:", error);
-
-      const message =
-        error?.code === "permission-denied"
-          ? "Permission denied. Confirm that your Firestore rules allow active engineers to delete account requests."
-          : error?.message ||
-            "Unable to delete the account request. Please try again.";
-
-      setRequestError(message);
-      window.alert(message);
-    } finally {
-      setDeletingRequestId("");
-    }
-  };
-
-  const copyResetLink = async () => {
-    try {
-      await navigator.clipboard.writeText(resetLink);
-      setCopyMessage("Password-reset link copied.");
-    } catch {
-      setCopyMessage(
-        "Copy failed. Select the link and copy it manually."
-      );
-    }
-  };
-
-  const deactivateUser = async (id, name) => {
-    const confirmed = window.confirm(
-      `Deactivate the client account for ${name || "this user"}?`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      await deleteUser(id);
-      window.alert("Client account deactivated successfully.");
-    } catch (error) {
-      window.alert(
-        error?.message || "Could not deactivate this account."
-      );
-    }
-  };
-
-  const handleManualClientCreated = (client) => {
-    setManualCreatedClient(client);
-    setShowCreateClient(false);
-  };
-
   return (
     <div className="container page-container">
       <div className="page-header">
@@ -276,7 +413,7 @@ export default function UserManagement() {
         <h1>User management</h1>
         <p>
           Review account requests, manage registered users, and
-          initiate client registration.
+          create client accounts.
         </p>
       </div>
 
@@ -285,7 +422,8 @@ export default function UserManagement() {
           <div>
             <h2>Create a client account</h2>
             <p>
-              Open the client registration form to create a client account.
+              Use the manual registration form to create a client account
+              directly.
             </p>
           </div>
 
@@ -317,7 +455,7 @@ export default function UserManagement() {
             {manualCreatedClient.passwordResetLink && (
               <div>
                 <p>
-                  Share the password-reset link securely with the client.
+                  Share this password-reset link securely with the client.
                 </p>
 
                 <input
@@ -405,8 +543,9 @@ export default function UserManagement() {
           <div>
             <h2>Account requests</h2>
             <p>
-              Review submitted requests. Approving a request changes its
-              status but does not create an Authentication account.
+              Approving a pending request creates the Authentication
+              account and Firestore client profile, then sends a
+              password-setup email.
             </p>
           </div>
 
@@ -445,11 +584,15 @@ export default function UserManagement() {
                 {accountRequests.map((request) => {
                   const status = normalizeStatus(request.status);
                   const isPending = status === "pending";
+                  const isProcessed = status === "processed";
                   const isProcessing = processingId === request.id;
                   const isDeleting = deletingRequestId === request.id;
+                  const isResending = resendingEmailId === request.id;
+
                   const busy =
                     Boolean(processingId) ||
-                    Boolean(deletingRequestId);
+                    Boolean(deletingRequestId) ||
+                    Boolean(resendingEmailId);
 
                   return (
                     <tr key={request.id}>
@@ -486,16 +629,27 @@ export default function UserManagement() {
                               onClick={() => createAccount(request)}
                             >
                               {isProcessing
-                                ? "Approving..."
-                                : "Approve request"}
+                                ? "Creating account..."
+                                : "Approve & create account"}
+                            </button>
+                          ) : isProcessed ? (
+                            <button
+                              className="secondary-btn small"
+                              type="button"
+                              disabled={busy}
+                              onClick={() =>
+                                resendPasswordSetupEmail(request)
+                              }
+                            >
+                              {isResending
+                                ? "Sending email..."
+                                : "Resend password-setup email"}
                             </button>
                           ) : (
                             <span className="muted">
-                              {status === "processed"
-                                ? "Already processed"
-                                : status === "approved"
-                                  ? "Approved"
-                                  : "Not pending"}
+                              {status === "approved"
+                                ? "Approved — requires review"
+                                : "Not pending"}
                             </span>
                           )}
 
@@ -544,75 +698,6 @@ export default function UserManagement() {
           </div>
         )}
       </section>
-
-      {resetLink && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setResetLink("");
-            }
-          }}
-        >
-          <div
-            className="modal card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="reset-link-title"
-          >
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">ACCOUNT CREATED</span>
-                <h2 id="reset-link-title">Share password-reset link</h2>
-              </div>
-
-              <button
-                type="button"
-                className="text-btn"
-                onClick={() => setResetLink("")}
-              >
-                Close
-              </button>
-            </div>
-
-            <p>
-              Share this link securely with{" "}
-              <strong>{createdEmail}</strong> so the client can set their
-              password.
-            </p>
-
-            <textarea
-              readOnly
-              value={resetLink}
-              rows={4}
-              aria-label="Password-reset link"
-              onFocus={(event) => event.target.select()}
-            />
-
-            <div className="form-actions">
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={copyResetLink}
-              >
-                Copy link
-              </button>
-
-              <a
-                className="primary-btn"
-                href={resetLink}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open reset link
-              </a>
-            </div>
-
-            {copyMessage && <p role="status">{copyMessage}</p>}
-          </div>
-        </div>
-      )}
 
       <div className="page-header user-management-users-header">
         <h2>Registered users</h2>

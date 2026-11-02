@@ -10,7 +10,10 @@ const logger = require("firebase-functions/logger");
 
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const {
+  getFirestore,
+  FieldValue,
+} = require("firebase-admin/firestore");
 
 initializeApp();
 
@@ -126,7 +129,11 @@ exports.submitAccountRequest = onCall(
       const data = request.data || {};
 
       const name = requireString(data.name, "Full name", 150);
-      const email = requireString(data.email, "Email", 254).toLowerCase();
+      const email = requireString(
+        data.email,
+        "Email",
+        254
+      ).toLowerCase();
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         throw new HttpsError(
@@ -141,7 +148,10 @@ exports.submitAccountRequest = onCall(
         200
       );
 
-      const contactNumber = clean(data.contactNumber, 30).replace(/\D/g, "");
+      const contactNumber = clean(
+        data.contactNumber,
+        30
+      ).replace(/\D/g, "");
 
       if (contactNumber.length !== 11) {
         throw new HttpsError(
@@ -194,12 +204,12 @@ exports.submitAccountRequest = onCall(
         );
       }
 
-      const pendingRequests = await db
+      const emailRequests = await db
         .collection("accountRequests")
         .where("email", "==", email)
         .get();
 
-      const existingEmailRequest = pendingRequests.docs.some((doc) =>
+      const existingEmailRequest = emailRequests.docs.some((doc) =>
         ["pending", "approved", "processed"].includes(
           getRequestStatus(doc.data())
         )
@@ -217,8 +227,11 @@ exports.submitAccountRequest = onCall(
         .where("associationKey", "==", payload.associationKey)
         .get();
 
-      const existingAssociationRequest = associationRequests.docs.some((doc) =>
-        ["pending", "approved"].includes(getRequestStatus(doc.data()))
+      const existingAssociationRequest = associationRequests.docs.some(
+        (doc) =>
+          ["pending", "approved"].includes(
+            getRequestStatus(doc.data())
+          )
       );
 
       if (existingAssociationRequest) {
@@ -234,11 +247,12 @@ exports.submitAccountRequest = onCall(
         .get();
 
       const activeAssociationExists = users.docs.some((doc) => {
-        const user = doc.data();
+        const existingProfile = doc.data();
 
         return (
-          user.status === "active" &&
-          normalized(user.association) === payload.associationKey
+          existingProfile.status === "active" &&
+          normalized(existingProfile.association) ===
+            payload.associationKey
         );
       });
 
@@ -249,7 +263,9 @@ exports.submitAccountRequest = onCall(
         );
       }
 
-      const ref = await db.collection("accountRequests").add(payload);
+      const ref = await db
+        .collection("accountRequests")
+        .add(payload);
 
       logger.info("Account request submitted", {
         accountRequestId: ref.id,
@@ -258,7 +274,8 @@ exports.submitAccountRequest = onCall(
       return {
         success: true,
         accountRequestId: ref.id,
-        message: "Your account request was submitted for engineer review.",
+        message:
+          "Your account request was submitted for engineer review.",
       };
     } catch (error) {
       handleUnexpectedError(error, "Account request submission");
@@ -285,7 +302,10 @@ exports.createClientAccount = onCall(
         200
       );
 
-      const requestRef = db.collection("accountRequests").doc(accountRequestId);
+      const requestRef = db
+        .collection("accountRequests")
+        .doc(accountRequestId);
+
       const requestSnap = await requestRef.get();
 
       if (!requestSnap.exists) {
@@ -324,11 +344,11 @@ exports.createClientAccount = onCall(
         .get();
 
       const activeAssociationExists = users.docs.some((doc) => {
-        const user = doc.data();
+        const existingProfile = doc.data();
 
         return (
-          user.status === "active" &&
-          normalized(user.association) === associationKey
+          existingProfile.status === "active" &&
+          normalized(existingProfile.association) === associationKey
         );
       });
 
@@ -348,6 +368,9 @@ exports.createClientAccount = onCall(
         );
       }
 
+      // Generate an unpredictable temporary password.
+      // The applicant will set their own password through Firebase's
+      // password-reset email flow. Never return this password to a client.
       const temporaryPassword =
         crypto.randomBytes(24).toString("base64url") + "A1!";
 
@@ -380,9 +403,16 @@ exports.createClientAccount = onCall(
         createdBy: request.auth.uid,
       };
 
-      await db.collection("users").doc(createdUser.uid).create(profile);
+      await db
+        .collection("users")
+        .doc(createdUser.uid)
+        .create(profile);
+
       profileCreated = true;
 
+      // Generate the link on the backend. Generating this link does
+      // not send an email. The frontend sends the password-reset email
+      // using Firebase Authentication after this function succeeds.
       const passwordResetLink =
         await adminAuth.generatePasswordResetLink(email);
 
@@ -406,9 +436,11 @@ exports.createClientAccount = onCall(
         email,
         passwordResetLink,
         message:
-          "Client account created successfully. Share the password-reset link securely with the client.",
+          "Client account and profile created successfully. Send the password-setup email to the applicant.",
       };
     } catch (error) {
+      // Roll back the newly created account and profile if a later
+      // operation fails. Existing accounts are never deleted here.
       if (createdUser?.uid) {
         if (profileCreated) {
           await db
@@ -416,22 +448,28 @@ exports.createClientAccount = onCall(
             .doc(createdUser.uid)
             .delete()
             .catch((rollbackError) => {
-              logger.error("Failed to roll back client Firestore profile", {
-                accountRequestId,
-                userId: createdUser.uid,
-                message: rollbackError.message,
-              });
+              logger.error(
+                "Failed to roll back client Firestore profile",
+                {
+                  accountRequestId,
+                  userId: createdUser.uid,
+                  message: rollbackError.message,
+                }
+              );
             });
         }
 
         await adminAuth
           .deleteUser(createdUser.uid)
           .catch((rollbackError) => {
-            logger.error("Failed to roll back client Authentication account", {
-              accountRequestId,
-              userId: createdUser.uid,
-              message: rollbackError.message,
-            });
+            logger.error(
+              "Failed to roll back client Authentication account",
+              {
+                accountRequestId,
+                userId: createdUser.uid,
+                message: rollbackError.message,
+              }
+            );
           });
       }
 
