@@ -1,11 +1,20 @@
 
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import {
+  collection,
+  onSnapshot,
+  query,
+  where
+} from "firebase/firestore";
+import { db, firebaseConfigured } from "../firebase";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessageContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { useRequests } from "../context/RequestContext";
 import { initials } from "../utils";
+
 
 export default function Sidebar({
   collapsed = false,
@@ -14,7 +23,6 @@ export default function Sidebar({
   setMobileOpen = () => {}
 }) {
   const { user, logout } = useAuth();
-
   const { unreadMessageCount } = useMessages();
 
   const {
@@ -27,10 +35,42 @@ export default function Sidebar({
     markRequestsAsViewed
   } = useRequests();
 
+  const [pendingAccountRequests, setPendingAccountRequests] = useState(0);
   const navigate = useNavigate();
-
   const { theme, toggleTheme } = useTheme();
   const darkMode = theme === "dark";
+
+  useEffect(() => {
+    if (
+      user?.role !== "engineer" ||
+      !user?.id ||
+      !firebaseConfigured ||
+      !db
+    ) {
+      setPendingAccountRequests(0);
+      return undefined;
+    }
+
+    const pendingQuery = query(
+      collection(db, "accountRequests"),
+      where("status", "==", "pending")
+    );
+
+    return onSnapshot(
+      pendingQuery,
+      (snapshot) => {
+        setPendingAccountRequests(snapshot.size);
+      },
+      (error) => {
+        console.error(
+          "Could not load pending account requests:",
+          error?.code,
+          error?.message
+        );
+        setPendingAccountRequests(0);
+      }
+    );
+  }, [user?.id, user?.role]);
 
   if (!user) {
     return null;
@@ -70,6 +110,10 @@ export default function Sidebar({
       return unreadAppointmentCount;
     }
 
+    if (to === "/users" && user.role === "engineer") {
+      return pendingAccountRequests;
+    }
+
     return 0;
   };
 
@@ -92,15 +136,14 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`sidebar ${
-        collapsed ? "collapsed" : ""
-      } ${mobileOpen ? "mobile-open" : ""}`}
+      className={`sidebar ${collapsed ? "collapsed" : ""} ${
+        mobileOpen ? "mobile-open" : ""
+      }`}
     >
       <div className="sidebar-inner">
         <div className="sidebar-header">
           <div className="sidebar-brand">
             <span className="sidebar-brand-mark">AG</span>
-
             <span className="sidebar-brand-text">
               <strong>AGRIhelp</strong>
               <span>Agricultural Service</span>
@@ -110,15 +153,9 @@ export default function Sidebar({
           <button
             type="button"
             className="sidebar-toggle"
-            onClick={() =>
-              setCollapsed((current) => !current)
-            }
-            aria-label={
-              collapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
-            title={
-              collapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
+            onClick={() => setCollapsed((current) => !current)}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? "›" : "‹"}
           </button>
@@ -141,7 +178,7 @@ export default function Sidebar({
                   collapsed
                     ? `${label}${
                         notificationCount > 0
-                          ? ` (${notificationCount} new)`
+                          ? ` (${notificationCount} pending/new)`
                           : ""
                       }`
                     : undefined
@@ -152,9 +189,7 @@ export default function Sidebar({
 
                 {notificationCount > 0 && (
                   <span className="nav-notification">
-                    {notificationCount > 9
-                      ? "9+"
-                      : notificationCount}
+                    {notificationCount > 9 ? "9+" : notificationCount}
                   </span>
                 )}
               </NavLink>
@@ -167,21 +202,10 @@ export default function Sidebar({
             type="button"
             className="theme-toggle"
             onClick={toggleTheme}
-            title={
-              darkMode
-                ? "Switch to light mode"
-                : "Switch to dark mode"
-            }
-            aria-label={
-              darkMode
-                ? "Switch to light mode"
-                : "Switch to dark mode"
-            }
+            title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
           >
-            <span className="theme-icon">
-              {darkMode ? "☀" : "☾"}
-            </span>
-
+            <span className="theme-icon">{darkMode ? "☀" : "☾"}</span>
             <span className="theme-label">
               {darkMode ? "Light Mode" : "Dark Mode"}
             </span>

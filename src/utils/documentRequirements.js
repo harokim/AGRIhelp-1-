@@ -1,17 +1,59 @@
 
 export const DOCUMENT_REQUIREMENTS = [
-  { id: "board-resolution", label: "Board Resolution", required: true },
-  { id: "pre-validation-report", label: "Pre-Validation Report", required: true },
-  { id: "abe-endorsement", label: "ABE Endorsement or Certification", required: true },
-  { id: "utilization-proposal", label: "Utilization Proposal", required: true },
-  { id: "proof-of-land", label: "Authenticated Proof of Land", required: true },
-  { id: "letter-of-intent", label: "Letter of Intent", required: true },
-  { id: "lgu-pre-validation", label: "LGU Pre-Validation Report", required: true },
-  { id: "placement-site-report", label: "Placement Site Pre-Validation Report", required: true }
+  {
+    id: "board-resolution",
+    label: "Board Resolution",
+    required: true,
+    multiple: false
+  },
+  {
+    id: "proof-of-land",
+    label: "Authenticated Proof of Land",
+    required: true,
+    multiple: false
+  },
+  {
+    id: "letter-of-intent",
+    label: "Letter of Intent",
+    required: true,
+    multiple: false
+  },
+  {
+    id: "organization-profile",
+    label: "Profile of the Organization",
+    required: true,
+    multiple: true
+  },
+  {
+    id: "other-documents",
+    label: "Other Documents / Certificates",
+    required: false,
+    multiple: true
+  },
+  {
+  id: "preValidationReport",
+  label: "Pre-Validation Report",
+  required: true,
+  multiple: false
+},
 ];
 
 function normalizeDocumentType(value) {
-  return String(value || "").trim().toLowerCase();
+  const normalized = String(value || "").trim().toLowerCase();
+
+  const aliases = {
+    "profile-of-organization": "organization-profile",
+    "organization profile": "organization-profile",
+    "profile of the organization": "organization-profile",
+    "authenticated-proof-of-land": "proof-of-land",
+    "authenticated proof of land": "proof-of-land",
+    "letter of intent": "letter-of-intent",
+    "board resolution": "board-resolution",
+    "other documents": "other-documents",
+    "other documents / certificates": "other-documents"
+  };
+
+  return aliases[normalized] || normalized;
 }
 
 export function getDocumentCompleteness(documents = []) {
@@ -30,10 +72,18 @@ export function getDocumentCompleteness(documents = []) {
     )
   );
 
-  const items = DOCUMENT_REQUIREMENTS.map((requirement) => ({
-    ...requirement,
-    complete: submittedTypes.has(normalizeDocumentType(requirement.id))
-  }));
+  const items = DOCUMENT_REQUIREMENTS.map((requirement) => {
+    const count = validDocuments.filter(
+      (document) =>
+        normalizeDocumentType(document.documentType) === requirement.id
+    ).length;
+
+    return {
+      ...requirement,
+      count,
+      complete: count > 0
+    };
+  });
 
   const requiredItems = items.filter((item) => item.required);
   const completedCount = requiredItems.filter((item) => item.complete).length;
@@ -41,10 +91,7 @@ export function getDocumentCompleteness(documents = []) {
 
   const missingRequirements = requiredItems
     .filter((item) => !item.complete)
-    .map((item) => ({
-      id: item.id,
-      label: item.label
-    }));
+    .map(({ id, label }) => ({ id, label }));
 
   return {
     items,
@@ -59,8 +106,7 @@ export function isValidDocumentType(documentType) {
   const normalizedType = normalizeDocumentType(documentType);
 
   return DOCUMENT_REQUIREMENTS.some(
-    (requirement) =>
-      normalizeDocumentType(requirement.id) === normalizedType
+    (requirement) => requirement.id === normalizedType
   );
 }
 
@@ -68,7 +114,7 @@ export function getDocumentRequirementLabel(documentType) {
   const normalizedType = normalizeDocumentType(documentType);
 
   const requirement = DOCUMENT_REQUIREMENTS.find(
-    (item) => normalizeDocumentType(item.id) === normalizedType
+    (item) => item.id === normalizedType
   );
 
   return requirement?.label || "Unassigned document";

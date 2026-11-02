@@ -22,8 +22,7 @@ export default function DocumentCompleteness({
         <div>
           <h3>{title}</h3>
           <p>
-            {completedCount} of {totalCount} requirements
-            have an assigned document.
+            {completedCount} of {totalCount} required categories complete.
           </p>
         </div>
 
@@ -42,7 +41,7 @@ export default function DocumentCompleteness({
         aria-valuemin={0}
         aria-valuemax={totalCount}
         aria-valuenow={completedCount}
-        aria-label="Document completeness"
+        aria-label="Required document completeness"
       >
         <span style={{ width: `${progress}%` }} />
       </div>
@@ -59,15 +58,20 @@ export default function DocumentCompleteness({
               className="document-completeness-icon"
               aria-hidden="true"
             >
-              {item.complete ? "✓" : "!"}
+              {item.complete ? "✓" : item.required ? "!" : "○"}
             </span>
 
             <span className="document-completeness-label">
               {item.label}
+              {!item.required && " (Optional)"}
             </span>
 
             <strong>
-              {item.complete ? "Complete" : "Incomplete"}
+              {item.count > 0
+                ? `${item.count} file${item.count === 1 ? "" : "s"}`
+                : item.required
+                  ? "Missing"
+                  : "Optional"}
             </strong>
           </div>
         ))}
@@ -75,9 +79,8 @@ export default function DocumentCompleteness({
 
       {!isComplete && (
         <p className="document-completeness-note">
-          One or more requirements do not have an assigned
-          document. Confirm the missing items before completing
-          your review.
+          Missing required categories must be submitted before the request
+          is considered document-complete.
         </p>
       )}
     </section>

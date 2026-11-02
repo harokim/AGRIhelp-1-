@@ -3,12 +3,14 @@ import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRequests } from "../context/RequestContext";
 import { MAX_FILE_SIZE } from "../utils";
-import {
-  saveDocument,
-  fileToDataURL
-} from "../services/documentService";
-import DocumentCompleteness from "../components/DocumentCompleteness";
+import { saveDocument } from "../services/documentService";
 import { DOCUMENT_REQUIREMENTS } from "../utils/documentRequirements";
+
+const REQUIRED_TYPES = DOCUMENT_REQUIREMENTS
+  .filter((item) => item.required)
+  .map((item) => item.id);
+
+const ALLOWED_EXTENSIONS = /\.(pdf|jpe?g|png)$/i;
 
 const MINIMUM_REQUIREMENTS = [
   {
@@ -27,41 +29,28 @@ const MINIMUM_REQUIREMENTS = [
     title: "2. Pre-Validation Report",
     text: "A pre-validation report signed by an Agricultural and Biosystems Engineer (ABE) in the P/C/MLGU is required. In the absence of an ABE in the respective LGU, the pre-validation report may be signed by the ABE in the province, at a minimum."
   },
-  {
-    title: "3. ABE Endorsement or Certification",
-    text: "Endorsement or certification from a licensed Agricultural and Biosystems Engineer is required."
-  },
-  {
-    title: "4. Utilization Proposal",
-    text: "Utilization Proposal indicating the production area and volume, the general specification, including type and capacity, of the requested machinery and facilities, and the period of operation."
-  },
 
   {
-    title: "5. Authenticated Proof of Land",
+    title: "3. Authenticated Proof of Land",
     text: "Authenticated proof of land ownership or a copy of an accepted land-use document named to the requesting entity."
   },
   {
-    title: "6. Letter of Intent",
+    title: "4. Letter of Intent",
     text: "Letter of Intent duly signed by the appropriate authorized representative stating the machinery, equipment, or facilities requested and the organization's commitment to the project."
   },
   {
-    title: "7. LGU Pre-Validation Report",
-    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer in the P/C/MLGU."
+    title: "5. Profile of the Organization",
+    text: "Profile of the organization containing information about the organization, its membership, organizational structure, and relevant activities."
   },
   {
-    title: "8. Placement Site Pre-Validation Report",
-    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer in the P/C/MLGU where the requested intervention will be placed."
-  }
+    title: "6. Other Documents / Certificates",
+    text: "Other supporting documents or certificates relevant to the requested machinery, equipment, or facilities, as applicable."
+  },
 ];
 
 export default function Requests() {
   const { user } = useAuth();
-
-  const {
-    requests,
-    createRequest,
-    deleteRequest
-  } = useRequests();
+  const { requests, createRequest, deleteRequest } = useRequests();
 
   const [form, setForm] = useState({
     requestType: "",
@@ -69,985 +58,431 @@ export default function Requests() {
   });
 
   const [files, setFiles] = useState([]);
-  const [previews, setPreviews] = useState([]);
-  const [fileTypes, setFileTypes] = useState([]);
-
-  const [requirementsRead, setRequirementsRead] =
-    useState(false);
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [monthFilter, setMonthFilter] = useState("All");
-  const [yearFilter, setYearFilter] = useState("All");
-  const [previewFile, setPreviewFile] = useState(null);
+  const [requirementsRead, setRequirementsRead] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [previewFile, setPreviewFile] = useState(null);
 
-  const updateForm = (name, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [name]: value
-    }));
-  };
-
-  const changeFiles = async (event) => {
-    const selected = Array.from(
-      event.target.files || []
-    );
-
-    if (!selected.length) {
-      return;
-    }
-
-    const invalid = selected.find(
-      (file) =>
-        file.size <= 0 ||
-        file.size > MAX_FILE_SIZE
-    );
-
-    if (invalid) {
-      alert(
-        invalid.size > MAX_FILE_SIZE
-          ? `"${invalid.name}" exceeds the maximum allowed file size of ${
-              MAX_FILE_SIZE / (1024 * 1024)
-            } MB.`
-          : `"${invalid.name}" is empty.`
-      );
-
-      event.target.value = "";
-      return;
-    }
-
-    const unsupported = selected.find(
-      (file) =>
-        ![
-          "application/pdf",
-          "image/jpeg",
-          "image/png"
-        ].includes(file.type) &&
-        !/\.(pdf|jpe?g|png)$/i.test(file.name)
-    );
-
-    if (unsupported) {
-      alert(
-        `"${unsupported.name}" is not supported. Only PDF, JPG, and PNG files are allowed.`
-      );
-
-      event.target.value = "";
-      return;
-    }
-
-    const fresh = selected.filter(
-      (file) =>
-        !files.some(
-          (old) =>
-            old.name === file.name &&
-            old.size === file.size
-        )
-    );
-
-    if (!fresh.length) {
-      alert(
-        "The selected files are already in the list."
-      );
-
-      event.target.value = "";
-      return;
-    }
-
-    const nextPreviews = [];
-
-    for (const file of fresh) {
-      let url = null;
-
-      try {
-        url = await fileToDataURL(file);
-      } catch {
-        url = null;
-      }
-
-      nextPreviews.push({
-        name: file.name,
-        type: file.type,
-        url
-      });
-    }
-
-    setFiles((previous) => [
-      ...previous,
-      ...fresh
-    ]);
-
-    setPreviews((previous) => [
-      ...previous,
-      ...nextPreviews
-    ]);
-
-    setFileTypes((previous) => [
-      ...previous,
-      ...fresh.map(() => "")
-    ]);
-
-    event.target.value = "";
-  };
-
-  const removeFile = (index) => {
-    setFiles((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
-
-    setPreviews((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
-
-    setFileTypes((previous) =>
-      previous.filter((_, i) => i !== index)
-    );
-  };
-
-  const clearSelectedFiles = () => {
-    setFiles([]);
-    setPreviews([]);
-    setFileTypes([]);
-  };
-
-  const updateFileType = (index, documentType) => {
-    setFileTypes((previous) =>
-      previous.map((type, i) =>
-        i === index ? documentType : type
+  const updateFileCategory = (index, documentType) => {
+    setFiles((current) =>
+      current.map((item, i) =>
+        i === index ? { ...item, documentType } : item
       )
     );
   };
 
+  const changeFiles = (event) => {
+    const selected = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (!selected.length) return;
+
+    const validFiles = [];
+
+    for (const file of selected) {
+      if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+        window.alert(
+          `"${file.name}" must be larger than 0 bytes and no larger than ${
+            MAX_FILE_SIZE / (1024 * 1024)
+          } MB.`
+        );
+        continue;
+      }
+
+      if (
+        !["application/pdf", "image/jpeg", "image/png"].includes(file.type) &&
+        !ALLOWED_EXTENSIONS.test(file.name)
+      ) {
+        window.alert(`"${file.name}" is not supported. Use PDF, JPG, or PNG.`);
+        continue;
+      }
+
+      const duplicate = files.some(
+        (item) => item.file.name === file.name && item.file.size === file.size
+      );
+
+      const duplicateInSelection = validFiles.some(
+        (item) => item.file.name === file.name && item.file.size === file.size
+      );
+
+      if (!duplicate && !duplicateInSelection) {
+        validFiles.push({ file, documentType: "" });
+      }
+    }
+
+    if (validFiles.length) {
+      setFiles((current) => [...current, ...validFiles]);
+    }
+  };
+
+  const removeFile = (index) => {
+    setFiles((current) => current.filter((_, i) => i !== index));
+  };
+
+  const fileCountFor = (type) =>
+    files.filter((item) => item.documentType === type).length;
+
+  const missingRequirements = REQUIRED_TYPES.filter(
+    (type) => fileCountFor(type) === 0
+  );
+
+  const mine = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return requests
+      .filter((request) => request.clientId === user?.id)
+      .filter((request) => {
+        if (!term) return true;
+
+        return [
+          request.referenceNumber,
+          request.association,
+          request.requestType,
+          request.details,
+          request.status
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(term);
+      })
+      .sort((a, b) =>
+        String(b.createdAtTimestamp || b.createdAt || "").localeCompare(
+          String(a.createdAtTimestamp || a.createdAt || "")
+        )
+      );
+  }, [requests, user?.id, search]);
+
   const submit = async (event) => {
     event.preventDefault();
 
-    if (isSubmitting) {
+    if (isSubmitting) return;
+
+    if (!user?.id || !user.association) {
+      window.alert("Your account or assigned association could not be identified.");
       return;
     }
 
     if (!requirementsRead) {
-      alert(
-        "Please read and acknowledge the minimum documentary requirements before submitting your request."
-      );
+      window.alert("Please acknowledge the documentary requirements.");
       return;
     }
 
-    if (!user?.id) {
-      alert("Please sign in again.");
+    if (!form.requestType || !form.details.trim()) {
+      window.alert("Select a request type and enter request details.");
       return;
     }
 
-    if (!user.association) {
-      alert(
-        "Your account does not have an assigned association."
-      );
-      return;
-    }
+    if (missingRequirements.length) {
+      const labels = DOCUMENT_REQUIREMENTS
+        .filter((item) => missingRequirements.includes(item.id))
+        .map((item) => item.label);
 
-    if (!form.requestType) {
-      alert("Please select a request type.");
-      return;
-    }
-
-    if (!form.details.trim()) {
-      alert(
-        "Please provide a description for your request."
-      );
+      window.alert(`Please attach the following required documents:\n\n${labels.join("\n")}`);
       return;
     }
 
     setIsSubmitting(true);
-
-    let request = null;
+    let createdRequest = null;
 
     try {
-      request = await createRequest({
+      createdRequest = await createRequest({
         clientId: user.id,
         association: user.association,
         requestType: form.requestType,
         details: form.details.trim()
       });
 
-      for (
-        let index = 0;
-        index < files.length;
-        index += 1
-      ) {
-        const file = files[index];
+      for (const item of files) {
+        await saveDocument({
+          file: item.file,
+          requestId: createdRequest.id,
+          clientId: user.id,
+          documentType: item.documentType
+        });
+      }
 
-        const documentType =
-          fileTypes[index] || "Supporting Document";
+      setForm({ requestType: "", details: "" });
+      setFiles([]);
+      setRequirementsRead(false);
 
+      window.alert("Request and documents submitted successfully.");
+    } catch (error) {
+      console.error("Request submission failed:", {
+        code: error?.code,
+        message: error?.message,
+        requestId: createdRequest?.id
+      });
+
+      if (createdRequest?.id) {
         try {
-          await saveDocument({
-            file,
-            requestId: request.id,
-            clientId: user.id,
-            documentType
-          });
-        } catch (fileError) {
-          try {
-            await deleteRequest(request.id);
-          } catch (cleanupError) {
-            console.error(
-              "Could not clean up the failed request:",
-              cleanupError
-            );
-          }
-
-          throw new Error(
-            fileError?.message ||
-              `The document "${file.name}" could not be uploaded.`
+          await deleteRequest(createdRequest.id);
+        } catch (cleanupError) {
+          console.error(
+            "Request cleanup failed:",
+            cleanupError?.code,
+            cleanupError?.message
           );
         }
       }
 
-      setForm({
-        requestType: "",
-        details: ""
-      });
-
-      clearSelectedFiles();
-      setRequirementsRead(false);
-
-      alert("Request submitted successfully.");
-    } catch (error) {
-      alert(
-        error?.userMessage ||
-          error?.message ||
-          "The request could not be submitted. Please try again."
+      window.alert(
+        error?.message ||
+        "The request could not be fully submitted. Please check your connection and try again."
       );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getCreatedDate = (request) => {
-    const value =
-      request.createdAt ||
-      request.createdAtTimestamp;
+  const formatDate = (request) => {
+    const value = request.createdAtTimestamp || request.createdAt;
+    let date = null;
 
-    if (!value) {
-      return null;
-    }
+    if (value?.toDate) date = value.toDate();
+    else if (value?.seconds) date = new Date(value.seconds * 1000);
+    else if (value) date = new Date(value);
 
-    if (
-      typeof value === "object" &&
-      typeof value.toDate === "function"
-    ) {
-      return value.toDate();
-    }
+    if (!date || Number.isNaN(date.getTime())) return "Date unavailable";
 
-    if (
-      typeof value === "object" &&
-      typeof value.seconds === "number"
-    ) {
-      return new Date(value.seconds * 1000);
-    }
-
-    const date = new Date(value);
-
-    return Number.isNaN(date.getTime())
-      ? null
-      : date;
-  };
-
-  const formatCreatedDate = (request) => {
-    const date = getCreatedDate(request);
-
-    if (!date) {
-      return String(
-        request.createdAt || "Date not available"
-      );
-    }
-
-    return date.toLocaleDateString("en-PH", {
+    return date.toLocaleString("en-PH", {
       timeZone: "Asia/Manila",
-      month: "short",
-      day: "numeric",
-      year: "numeric"
+      dateStyle: "medium",
+      timeStyle: "short"
     });
   };
 
-  const getRejectionReason = (request) => {
-    const values = [
-      request.rejectionReason,
-      request.rejectionNote,
-      request.engineerRemarks,
-      request.notes
-    ];
-
-    const reason = values.find(
-      (value) =>
-        typeof value === "string" &&
-        value.trim()
-    );
-
-    return reason ? reason.trim() : "";
-  };
-
-  const years = useMemo(() => {
-    const values = requests
-      .filter(
-        (request) =>
-          request.clientId === user?.id
-      )
-      .map((request) => {
-        const date = getCreatedDate(request);
-
-        return date
-          ? String(date.getFullYear())
-          : "";
-      })
-      .filter(Boolean);
-
-    return [...new Set(values)].sort(
-      (a, b) => Number(b) - Number(a)
-    );
-  }, [requests, user?.id]);
-
-  const mine = useMemo(() => {
-    const searchValue =
-      search.trim().toLowerCase();
-
-    return requests
-      .filter(
-        (request) =>
-          request.clientId === user?.id
-      )
-      .filter(
-        (request) =>
-          statusFilter === "All" ||
-          request.status === statusFilter
-      )
-      .filter((request) => {
-        if (monthFilter === "All") {
-          return true;
-        }
-
-        const date = getCreatedDate(request);
-
-        if (!date) {
-          return false;
-        }
-
-        return (
-          String(
-            date.getMonth() + 1
-          ).padStart(2, "0") === monthFilter
-        );
-      })
-      .filter((request) => {
-        if (yearFilter === "All") {
-          return true;
-        }
-
-        const date = getCreatedDate(request);
-
-        if (!date) {
-          return false;
-        }
-
-        return (
-          String(date.getFullYear()) === yearFilter
-        );
-      })
-      .filter((request) => {
-        if (!searchValue) {
-          return true;
-        }
-
-        return `${request.referenceNumber || ""} ${
-          request.association || ""
-        } ${request.requestType || ""} ${
-          request.details || ""
-        } ${getRejectionReason(request)}`
-          .toLowerCase()
-          .includes(searchValue);
-      })
-      .sort((a, b) => {
-        const dateA = getCreatedDate(a);
-        const dateB = getCreatedDate(b);
-
-        return (
-          (dateB?.getTime() || 0) -
-          (dateA?.getTime() || 0)
-        );
-      });
-  }, [
-    requests,
-    user?.id,
-    search,
-    statusFilter,
-    monthFilter,
-    yearFilter
-  ]);
-
   const handleDelete = async (request) => {
-    if (request.clientId !== user?.id) {
-      return;
-    }
+    if (request.clientId !== user?.id) return;
 
-    const confirmed = window.confirm(
-      `Delete request ${
-        request.referenceNumber || request.id
-      }? This will also remove its uploaded documents.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
+    if (!window.confirm(
+      `Delete request ${request.referenceNumber || request.id}?`
+    )) return;
 
     try {
       await deleteRequest(request.id);
-
-      alert("Request deleted successfully.");
     } catch (error) {
-      alert(
-        error?.message ||
-          "The request could not be deleted."
-      );
+      window.alert(error?.message || "Could not delete the request.");
     }
   };
 
   return (
     <div className="page request-page">
       <div className="page-header">
-        <span className="eyebrow">
-          SERVICE REQUESTS
-        </span>
-
+        <span className="eyebrow">SERVICE REQUESTS</span>
         <h1>My Requests</h1>
-
-        <p>
-          Submit requests and keep your documents
-          organized.
-        </p>
+        <p>Submit an association request and manage your submissions.</p>
       </div>
 
       <div className="two-column request-layout">
-        <form
-          className="card form-card request-form-card"
-          onSubmit={submit}
-        >
-          <div className="request-form-heading">
-            <div>
-              <h3>New service request</h3>
-
-              <p>
-                Review the documentary requirements
-                before submitting.
-              </p>
-            </div>
-
-            <span className="request-requirement-badge">
-              Review first
-            </span>
-          </div>
-
-          <div className="request-requirements-panel">
-            <div className="request-requirements-header">
-              <span className="eyebrow">
-                DOCUMENTARY REQUIREMENTS
-              </span>
-
-              <h3>Minimum Requirements</h3>
-            </div>
-
-            <div className="request-requirements-list">
-              {MINIMUM_REQUIREMENTS.map(
-                (requirement, index) => (
-                  <div
-                    className="request-requirement-item"
-                    key={requirement.title}
-                  >
-                    <div className="request-requirement-number">
-                      {index + 1}
-                    </div>
-
-                    <div className="request-requirement-content">
-                      <strong>
-                        {requirement.title.replace(
-                          /^\d+\.\s*/,
-                          ""
-                        )}
-                      </strong>
-
-                      <p>{requirement.text}</p>
-
-                      {requirement.items && (
-                        <ol>
-                          {requirement.items.map(
-                            (item) => (
-                              <li key={item}>
-                                {item}
-                              </li>
-                            )
-                          )}
-                        </ol>
-                      )}
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-
-            <label className="requirements-checkbox">
-              <input
-                type="checkbox"
-                checked={requirementsRead}
-                onChange={(event) =>
-                  setRequirementsRead(
-                    event.target.checked
-                  )
-                }
-              />
-
-              <span>
-                I have read and understand the
-                minimum documentary requirements.
-              </span>
-            </label>
-          </div>
+        <form className="card form-card request-form-card" onSubmit={submit}>
+          <h3>New service request</h3>
 
           <div className="assigned-association">
             <span>Assigned association</span>
-
-            <strong>
-              {user?.association ||
-                "No association assigned"}
-            </strong>
+            <strong>{user?.association || "No association assigned"}</strong>
           </div>
 
-          <label htmlFor="request-type">
-            Request type
+          <div className="request-requirements-panel">
+  <h3>Minimum Requirements</h3>
+  <p>Review the documentary requirements before submitting your request.</p>
+
+  {MINIMUM_REQUIREMENTS.map((requirement) => (
+    <div className="request-requirement-item" key={requirement.title}>
+      <div className="request-requirement-content">
+        <strong>{requirement.title}</strong>
+        <p>{requirement.text}</p>
+
+        {requirement.items && (
+          <ol>
+            {requirement.items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  ))}
+
+  <div className="request-requirements-list">
+    {DOCUMENT_REQUIREMENTS.map((requirement) => (
+      <div className="request-requirement-item" key={requirement.id}>
+        <div className="request-requirement-content">
+          <strong>{requirement.label}</strong>
+          <p>
+            {requirement.required ? "Required" : "Optional"}
+            {requirement.multiple ? " · Multiple files allowed" : ""}
+            {" · "}
+            {fileCountFor(requirement.id)} attached
+          </p>
+        </div>
+        <span>
+          {fileCountFor(requirement.id) > 0
+            ? "✓"
+            : requirement.required
+              ? "Missing"
+              : "Optional"}
+        </span>
+      </div>
+    ))}
+  </div>
+</div>
+
+          <label className="requirements-checkbox">
+            <input
+              type="checkbox"
+              checked={requirementsRead}
+              onChange={(event) => setRequirementsRead(event.target.checked)}
+            />
+            <span>I have read and understood the documentary requirements.</span>
           </label>
 
+          <label htmlFor="request-type">Request type</label>
           <select
             id="request-type"
+            required
             value={form.requestType}
             onChange={(event) =>
-              updateForm(
-                "requestType",
-                event.target.value
-              )
+              setForm((current) => ({ ...current, requestType: event.target.value }))
             }
-            required
           >
-            <option value="">
-              Select request type
-            </option>
-
-            <option value="Machinery">
-              Machinery
-            </option>
-
-            <option value="Infrastructure">
-              Infrastructure
-            </option>
+            <option value="">Select request type</option>
+            <option value="Machinery">Machinery</option>
+            <option value="Infrastructure">Infrastructure</option>
           </select>
 
-          <label htmlFor="request-details">
-            Request details
-          </label>
-
+          <label htmlFor="request-details">Request details</label>
           <textarea
             id="request-details"
-            rows="7"
-            value={form.details}
-            onChange={(event) =>
-              updateForm(
-                "details",
-                event.target.value
-              )
-            }
-            placeholder="Describe your request..."
+            rows={5}
             required
+            value={form.details}
+            placeholder="Describe your request..."
+            onChange={(event) =>
+              setForm((current) => ({ ...current, details: event.target.value }))
+            }
           />
 
-          <label>Supporting documents</label>
-
+          <label htmlFor="request-files">Documents</label>
           <p className="upload-help">
-            Supporting documents are optional during
-            initial submission. Each file must be{" "}
-            {MAX_FILE_SIZE / (1024 * 1024)} MB or smaller.
-            Assign a requirement category to each file
-            to update the completeness indicator.
+            PDF, JPG, or PNG. Maximum {MAX_FILE_SIZE / (1024 * 1024)} MB per file.
           </p>
 
-          <label className="file-upload-box">
-            <span className="file-upload-icon">
-              📁
-            </span>
-
-            <strong>
-              Click to select documents
-            </strong>
-
-            <small>
-              Optional · PDF, JPG, PNG · Maximum{" "}
-              {MAX_FILE_SIZE / (1024 * 1024)} MB per file
-            </small>
-
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-              onChange={changeFiles}
-            />
-          </label>
+          <input
+            id="request-files"
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+            onChange={changeFiles}
+          />
 
           {files.length > 0 && (
-            <div className="upload-section">
-              <div className="upload-section-header">
-                <strong>
-                  Selected documents ({files.length})
-                </strong>
-
-                <button
-                  type="button"
-                  className="text-btn"
-                  onClick={clearSelectedFiles}
+            <div className="upload-file-list">
+              {files.map((item, index) => (
+                <div
+                  className="upload-file-item"
+                  key={`${item.file.name}-${item.file.size}-${index}`}
                 >
-                  Clear all
-                </button>
-              </div>
+                  <div className="upload-file-info">
+                    <strong>{item.file.name}</strong>
+                    <small>{(item.file.size / 1024).toFixed(0)} KB</small>
+                  </div>
 
-              <div className="upload-file-list">
-                {files.map((file, index) => {
-                  const preview = previews[index];
-
-                  const image =
-                    file.type.startsWith("image/");
-
-                  return (
-                    <div
-                      className="upload-file-item"
-                      key={`${file.name}-${file.size}-${index}`}
+                  <div className="upload-file-category">
+                    <label htmlFor={`document-category-${index}`}>
+                      Document category
+                    </label>
+                    <select
+                      id={`document-category-${index}`}
+                      required
+                      value={item.documentType}
+                      onChange={(event) =>
+                        updateFileCategory(index, event.target.value)
+                      }
                     >
-                      <div className="upload-thumbnail">
-                        {image && preview?.url ? (
-                          <img
-                            src={preview.url}
-                            alt={file.name}
-                          />
-                        ) : (
-                          <span className="file-type-icon">
-                            {file.type === "application/pdf"
-                              ? "PDF"
-                              : "FILE"}
-                          </span>
-                        )}
-                      </div>
+                      <option value="">Select category</option>
+                      {DOCUMENT_REQUIREMENTS.map((requirement) => (
+                        <option key={requirement.id} value={requirement.id}>
+                          {requirement.label}
+                          {requirement.required ? "" : " (Optional)"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                      <div className="upload-file-info">
-                        <strong title={file.name}>
-                          {file.name}
-                        </strong>
-
-                        <small>
-                          {(file.size / 1024).toFixed(0)} KB
-                        </small>
-                      </div>
-
-                      <div className="upload-file-category">
-                        <label
-                          htmlFor={`document-type-${index}`}
-                        >
-                          Requirement category
-                        </label>
-
-                        <select
-                          id={`document-type-${index}`}
-                          value={fileTypes[index] || ""}
-                          onChange={(event) =>
-                            updateFileType(
-                              index,
-                              event.target.value
-                            )
-                          }
-                        >
-                          <option value="">
-                            Select requirement
-                          </option>
-
-                          {DOCUMENT_REQUIREMENTS.map(
-                            (requirement) => (
-                              <option
-                                key={requirement.id}
-                                value={requirement.id}
-                              >
-                                {requirement.label}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </div>
-
-                      <div className="upload-file-actions">
-                        {preview?.url && (
-                          <button
-                            type="button"
-                            className="secondary-btn small"
-                            onClick={() =>
-                              setPreviewFile(preview)
-                            }
-                          >
-                            Preview
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          className="danger-btn small"
-                          onClick={() => removeFile(index)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  <button
+                    type="button"
+                    className="danger-btn small"
+                    onClick={() => removeFile(index)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-
-          <DocumentCompleteness
-            title="Selected document completeness"
-            documents={files.map((file, index) => ({
-              fileName: file.name,
-              documentType: fileTypes[index] || ""
-            }))}
-          />
 
           <button
             className="primary-btn full"
             type="submit"
             disabled={isSubmitting}
           >
-            {isSubmitting
-              ? "Submitting request..."
-              : "Submit request"}
+            {isSubmitting ? "Submitting..." : "Submit request"}
           </button>
         </form>
 
         <section className="card request-list-card">
-          <div className="request-list-heading">
-            <div>
-              <h3>Submitted requests</h3>
+          <h3>Submitted requests</h3>
 
-              <p>
-                Search and manage your submitted
-                requests.
-              </p>
-            </div>
-          </div>
-
-          <div className="request-filters">
-            <input
-              className="search-input"
-              type="search"
-              placeholder="Search requests..."
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-            />
-
-            <select
-              aria-label="Filter by status"
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
-            >
-              <option value="All">All statuses</option>
-              <option value="Submitted">Submitted</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Documents Pending">
-                Documents Pending
-              </option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-
-            <select
-              aria-label="Filter by month"
-              value={monthFilter}
-              onChange={(event) =>
-                setMonthFilter(event.target.value)
-              }
-            >
-              <option value="All">All months</option>
-
-              {[
-                "01",
-                "02",
-                "03",
-                "04",
-                "05",
-                "06",
-                "07",
-                "08",
-                "09",
-                "10",
-                "11",
-                "12"
-              ].map((month) => (
-                <option value={month} key={month}>
-                  {new Date(
-                    2000,
-                    Number(month) - 1,
-                    1
-                  ).toLocaleDateString("en-PH", {
-                    month: "long"
-                  })}
-                </option>
-              ))}
-            </select>
-
-            <select
-              aria-label="Filter by year"
-              value={yearFilter}
-              onChange={(event) =>
-                setYearFilter(event.target.value)
-              }
-            >
-              <option value="All">All years</option>
-
-              {years.map((year) => (
-                <option value={year} key={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </div>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="Search requests..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
 
           <div className="request-list">
-            {mine.map((request) => {
-              const rejectionReason =
-                getRejectionReason(request);
+            {mine.map((request) => (
+              <article className="card request-row" key={request.id}>
+                <div className="request-row-content">
+                  <span className="request-reference">
+                    {request.referenceNumber || request.id}
+                  </span>
+                  <h3>{request.requestType || request.type || "Request"}</h3>
+                  <p>{request.details || "No details provided."}</p>
+                  <small>
+                    {request.association} · {formatDate(request)}
+                  </small>
+                </div>
 
-              const isRejected =
-                request.status === "Rejected";
-
-              return (
-                <article
-                  className={`card request-row ${
-                    isRejected
-                      ? "request-row-rejected"
-                      : ""
-                  }`}
-                  key={request.id}
-                >
-                  <div className="request-row-content">
-                    <div className="request-reference">
-                      {request.referenceNumber ||
-                        request.id}
-                    </div>
-
-                    <h3>{request.requestType}</h3>
-
-                    <p>{request.details}</p>
-
-                    <small>
-                      {request.association} ·{" "}
-                      {formatCreatedDate(request)}
-                    </small>
-
-                    {isRejected && (
-                      <div className="request-rejection-reason">
-                        <div className="request-rejection-header">
-                          <strong>
-                            Reason for Rejection
-                          </strong>
-                        </div>
-
-                        <p>
-                          {rejectionReason ||
-                            "No rejection reason was provided."}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="request-row-actions">
-                    <span
-                      className={`tag ${
-                        isRejected
-                          ? "request-rejected-tag"
-                          : ""
-                      }`}
-                    >
-                      {request.status}
-                    </span>
-
-                    <button
-                      type="button"
-                      className="danger-btn small"
-                      onClick={() => handleDelete(request)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+              </article>
+            ))}
 
             {mine.length === 0 && (
               <div className="empty-state">
                 <strong>No requests found.</strong>
-
-                <span>
-                  Try changing your filters or submit
-                  your first request.
-                </span>
+                <span>Your submitted requests will appear here.</span>
               </div>
             )}
           </div>
         </section>
       </div>
 
-      {previewFile?.url && (
-        <div
-          className="modal-overlay"
-          onClick={() => setPreviewFile(null)}
-        >
-          <div
-            className="modal-card request-preview-modal"
-            onClick={(event) => event.stopPropagation()}
-          >
+      {previewFile && (
+        <div className="modal-overlay" onClick={() => setPreviewFile(null)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <div>
-                <span className="eyebrow">
-                  DOCUMENT
-                </span>
-
-                <h2>{previewFile.name}</h2>
-              </div>
-
-              <button
-                type="button"
-                className="modal-close"
-                onClick={() => setPreviewFile(null)}
-              >
+              <h2>{previewFile.name}</h2>
+              <button type="button" className="modal-close" onClick={() => setPreviewFile(null)}>
                 ×
               </button>
             </div>
-
-            {previewFile.type?.startsWith("image/") ? (
-              <img
-                className="request-preview-image"
-                src={previewFile.url}
-                alt={previewFile.name}
-              />
-            ) : (
-              <iframe
-                className="request-preview-frame"
-                src={previewFile.url}
-                title={previewFile.name}
-              />
-            )}
+            <iframe
+              title={previewFile.name}
+              src={previewFile.url}
+              style={{ width: "100%", height: "70vh", border: 0 }}
+            />
           </div>
         </div>
       )}

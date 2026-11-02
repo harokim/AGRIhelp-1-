@@ -201,41 +201,64 @@ service cloud.firestore {
       allow delete: if isEngineer();
     }
 
-    match /documents/{documentId} {
-      allow read: if isEngineer()
-        || (
-          signedIn()
-          && resource.data.clientId == request.auth.uid
-        );
+    
+match /documents/{documentId} {
+  allow read: if isEngineer()
+    || (
+      signedIn()
+      && resource.data.clientId == request.auth.uid
+    );
 
-      allow create: if signedIn()
-        && request.resource.data.clientId == request.auth.uid;
+  allow create: if signedIn()
+    && request.resource.data.clientId == request.auth.uid
+    && request.resource.data.requestId is string
+    && request.resource.data.requestId.size() > 0
+    && exists(
+      /databases/$(database)/documents/requests/$(request.resource.data.requestId)
+    )
+    && get(
+      /databases/$(database)/documents/requests/$(request.resource.data.requestId)
+    ).data.clientId == request.auth.uid;
 
-      allow update: if isEngineer()
-        || (
-          signedIn()
-          && resource.data.clientId == request.auth.uid
-        );
+  allow update: if isEngineer()
+    || (
+      signedIn()
+      && resource.data.clientId == request.auth.uid
+      && request.resource.data.clientId == resource.data.clientId
+      && request.resource.data.requestId == resource.data.requestId
+    );
 
-      allow delete: if isEngineer();
+  allow delete: if isEngineer()
+    || (
+      signedIn()
+      && resource.data.clientId == request.auth.uid
+    );
 
-      match /chunks/{chunkId} {
-        allow read: if isEngineer()
-          || (
-            signedIn()
-            && get(
-              /databases/$(database)/documents/documents/$(documentId)
-            ).data.clientId == request.auth.uid
-          );
-
-        allow create: if signedIn()
-          && get(
-            /databases/$(database)/documents/documents/$(documentId)
-          ).data.clientId == request.auth.uid;
-
-        allow update, delete: if isEngineer();
-      }
+  match /chunks/{chunkId} {
+    function parentDocumentExists() {
+      return exists(
+        /databases/$(database)/documents/documents/$(documentId)
+      );
     }
+
+    function ownsParentDocument() {
+      return signedIn()
+        && parentDocumentExists()
+        && get(
+          /databases/$(database)/documents/documents/$(documentId)
+        ).data.clientId == request.auth.uid;
+    }
+
+    allow read: if isEngineer() || ownsParentDocument();
+
+    allow create: if isEngineer() || ownsParentDocument();
+
+    allow update: if isEngineer() || ownsParentDocument();
+
+    allow delete: if isEngineer() || ownsParentDocument();
+  }
+}
+
 
     match /reportDocuments/{documentId} {
       allow read: if isEngineer();

@@ -1,8 +1,10 @@
+
 import {
   createContext,
   useContext,
   useEffect,
-  useState
+  useState,
+  useCallback
 } from "react";
 import {
   addDoc,
@@ -15,7 +17,8 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where
+  where,
+  writeBatch,
 } from "firebase/firestore";
 import {
   db,
@@ -154,6 +157,99 @@ export function RequestProvider({
     reportDocuments,
     setReportDocuments
   ] = useState([]);
+
+  const [
+    newRequestCount,
+    setNewRequestCount
+  ] = useState(0);
+
+  const [
+    lastViewedRequestIds,
+    setLastViewedRequestIds
+  ] = useState([]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLastViewedRequestIds([]);
+      return;
+    }
+
+    try {
+      const saved =
+        window.localStorage.getItem(
+          `agrihelp-viewed-requests-${user.id}`
+        );
+
+      setLastViewedRequestIds(
+        saved ? JSON.parse(saved) : []
+      );
+    } catch {
+      setLastViewedRequestIds([]);
+    }
+  }, [user?.id]);
+
+  const markRequestsAsViewed =
+    useCallback(() => {
+      if (
+        user?.role !== "engineer" ||
+        !user?.id
+      ) {
+        return;
+      }
+
+      const currentRequestIds =
+        requests
+          .filter(
+            (item) => item.clientId
+          )
+          .map(
+            (item) => item.id
+          );
+
+      try {
+        window.localStorage.setItem(
+          `agrihelp-viewed-requests-${user.id}`,
+          JSON.stringify(currentRequestIds)
+        );
+      } catch {}
+
+      setLastViewedRequestIds(
+        currentRequestIds
+      );
+
+      setNewRequestCount(0);
+    }, [
+      requests,
+      user?.id,
+      user?.role
+    ]);
+
+  useEffect(() => {
+    if (
+      user?.role !== "engineer" ||
+      !user?.id
+    ) {
+      setNewRequestCount(0);
+      return;
+    }
+
+    const viewedIds =
+      new Set(lastViewedRequestIds);
+
+    const count =
+      requests.filter(
+        (item) =>
+          item.clientId &&
+          !viewedIds.has(item.id)
+      ).length;
+
+    setNewRequestCount(count);
+  }, [
+    requests,
+    lastViewedRequestIds,
+    user?.id,
+    user?.role
+  ]);
 
   useEffect(() => {
     if (
@@ -559,42 +655,48 @@ export function RequestProvider({
       }
     };
 
-  
   const deleteRequest = async (id) => {
     if (!firebaseConfigured || !db) {
       throw new Error("Firebase is not configured yet.");
     }
 
-    const request = requests.find((item) => item.id === id);
-
-    if (!request) {
-      throw new Error("The request could not be found.");
-    }
-
-    const isEngineer = user?.role === "engineer";
-
-    if (!isEngineer && request.clientId !== user?.id) {
-      throw new Error("You are not allowed to delete this request.");
+    if (!id) {
+      throw new Error("A request ID is required.");
     }
 
     try {
-      if (isEngineer) {
-        const documentSnapshot = await getDocs(
-          query(
-            collection(db, "documents"),
-            where("requestId", "==", id)
-          )
-        );
+      let request = requests.find((item) => item.id === id);
 
-        for (const document of documentSnapshot.docs) {
-          await deleteDocumentWithChunks(document.id);
+      if (!request) {
+        const requestSnapshot = await getDoc(doc(db, "requests", id));
+
+        if (!requestSnapshot.exists()) {
+          return;
         }
 
+        request = {
+          id: requestSnapshot.id,
+          ...requestSnapshot.data()
+        };
+      }
+
+      const isEngineer = user?.role === "engineer";
+
+      if (!isEngineer && request.clientId !== user?.id) {
+        throw new Error("You are not allowed to delete this request.");
+      }
+
+      const documentSnapshot = await getDocs(
+        query(collection(db, "documents"), where("requestId", "==", id))
+      );
+
+      for (const documentSnapshotItem of documentSnapshot.docs) {
+        await deleteDocumentWithChunks(documentSnapshotItem.id);
+      }
+
+      if (isEngineer) {
         const reportSnapshot = await getDocs(
-          query(
-            collection(db, "reportDocuments"),
-            where("requestId", "==", id)
-          )
+          query(collection(db, "reportDocuments"), where("requestId", "==", id))
         );
 
         for (const report of reportSnapshot.docs) {
@@ -602,23 +704,17 @@ export function RequestProvider({
             collection(db, "reportDocuments", report.id, "chunks")
           );
 
-          await Promise.all(
-            chunks.docs.map((chunk) =>
-              deleteDoc(
-                doc(
-                  db,
-                  "reportDocuments",
-                  report.id,
-                  "chunks",
-                  chunk.id
-                )
-              )
-            )
-          );
+          for (let start = 0; start < chunks.docs.length; start += 400) {
+            const batch = writeBatch(db);
 
-          await deleteDoc(
-            doc(db, "reportDocuments", report.id)
-          );
+            chunks.docs.slice(start, start + 400).forEach((chunk) => {
+              batch.delete(chunk.ref);
+            });
+
+            await batch.commit();
+          }
+
+          await deleteDoc(doc(db, "reportDocuments", report.id));
         }
       }
 
@@ -627,7 +723,6 @@ export function RequestProvider({
       throw friendlyError(error);
     }
   };
-
 
   const addReportDocument =
     async (data) => {
@@ -916,6 +1011,8 @@ export function RequestProvider({
         requests,
         documents,
         reportDocuments,
+        newRequestCount,
+        markRequestsAsViewed,
         createRequest,
         decide,
         updateRequest,
