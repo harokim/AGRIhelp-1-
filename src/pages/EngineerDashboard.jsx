@@ -311,7 +311,7 @@ export default function EngineerDashboard() {
           title="Total Requests"
           count={requests.length}
           onClick={() =>
-            navigate("/engineer-requests", {
+            navigate("/request-reports", {  
               state: { statusFilter: "All" }
             })
           }

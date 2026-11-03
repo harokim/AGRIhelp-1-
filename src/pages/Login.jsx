@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +7,7 @@ import { OFFICE_NAME } from "../utils";
 import { firebaseConfigured } from "../firebase";
 import "../styles.css";
 import "../login-layout.css";
+import agrihelpLogo from "../assets/agrihelplogo.png";
 
 import bgFallback from "../assets/login-bg.jpg";
 import agriPhoto1 from "../assets/agri-photo-1.png";
@@ -158,9 +158,13 @@ export default function Login() {
       >
         <div className="hero-overlay" />
 
-        <div className="hero-content">
+        <div className="hero-content">          
           <div className="hero-brand">
-            <div className="hero-logo">AG</div>
+            <img
+              src={agrihelpLogo}
+              alt="AGRIhelp Logo"
+              className="hero-logo"
+            />
 
             <div>
               <strong>AGRIhelp</strong>
@@ -247,14 +251,19 @@ export default function Login() {
               </div>
             )}
 
-            <div className="login-form-header">
-              <div className="login-form-logo">AG</div>
+            
+              <div className="login-form-header">
+                <img
+                  src={agrihelpLogo}
+                  alt="AGRIhelp Logo"
+                  className="login-form-logo"
+                />
 
-              <div>
-                <h2>Sign in</h2>
-                <p>Access your AGRIhelp account</p>
+                <div>
+                  <h2>Sign in</h2>
+                  <p>Access your AGRIhelp account</p>
+                </div>
               </div>
-            </div>
 
             <form onSubmit={handleLogin}>
               <label htmlFor="login-email">Email Address</label>
@@ -325,25 +334,21 @@ export default function Login() {
               </button>
             </div>
 
-            <div className="login-register">
-              <span>Don't have a client account?</span>
+            
+                <div className="login-register">
+                  <span>Don't have a client account?</span>
 
-              <button
-                type="button"
-                onClick={() => navigate("/signup")}
-              >
-                Create a Client Account
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/request-account")}
+                  >
+                    Request a Client Account
+                  </button>
 
-              <span>Engineer account</span>
-
-              <button
-                type="button"
-                onClick={() => navigate("/engineer-signup")}
-              >
-                Create an Engineer Account
-              </button>
-            </div>
+                  <p className="engineer-access-notice">
+                  Engineer accounts are created by an authorized administrator. Contact the office if you need engineer access.
+                </p>
+                </div>
 
             <div className="login-office">{OFFICE_NAME}</div>
           </div>

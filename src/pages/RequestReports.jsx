@@ -1,7 +1,7 @@
-
 import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRequests } from "../context/RequestContext";
+
 
 function getRequestDate(request) {
   const value = request?.createdAt || request?.createdAtTimestamp;
@@ -81,12 +81,48 @@ function ReportField({ label, value }) {
 
 export default function RequestReports() {
   const { user, users } = useAuth();
-  const { requests } = useRequests();
+  const { requests, deleteRequest } = useRequests();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedAssociation, setSelectedAssociation] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+
+  const [deletingRequest, setDeletingRequest] = useState(false);
+
+const handleDeleteRequest = async () => {
+  if (!selectedRequest || deletingRequest) return;
+
+  const requestId = selectedRequest.id;
+  const reference = selectedRequest.referenceNumber || requestId;
+
+  const confirmed = window.confirm(
+    `Delete request ${reference} and its associated documents?\n\n` +
+    "This action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  setDeletingRequest(true);
+
+  try {
+    await deleteRequest(requestId);
+    setSelectedId(null);
+
+    window.alert(
+      "The request and its associated documents were deleted successfully."
+    );
+  } catch (error) {
+    console.error("Failed to delete request report:", error);
+
+    window.alert(
+      error?.message ||
+      "Unable to delete the request. Please check your permissions and try again."
+    );
+  } finally {
+    setDeletingRequest(false);
+  }
+};
 
   const statusList = [
     "All",
@@ -344,6 +380,7 @@ export default function RequestReports() {
               >
                 Close
               </button>
+              
             </div>
 
             {selectedAssociationRequests.length === 0 ? (
@@ -439,6 +476,17 @@ export default function RequestReports() {
                 Date Submitted: {formatRequestDateTime(selectedRequest)}
               </span>
             </div>
+
+            <div className="report-delete-actions">
+  <button
+    type="button"
+    className="danger-btn"
+    onClick={handleDeleteRequest}
+    disabled={deletingRequest}
+  >
+    {deletingRequest ? "Deleting..." : "Delete Request"}
+  </button>
+</div>
 
             <div className="report-section">
               <h3>Request Information</h3>

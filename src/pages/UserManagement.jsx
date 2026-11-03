@@ -6,6 +6,8 @@ import {
   doc,
   onSnapshot,
   updateDoc,
+  setDoc,
+  getDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -117,138 +119,169 @@ export default function UserManagement() {
     return unsubscribe;
   }, [user?.role]);
 
-  const createAccount = async (request) => {
-  if (processingId || deletingRequestId) return;
+  
+const createAccount = async (request) => {
+  if (processingId || deletingRequestId || resendingEmailId) return;
 
   if (normalizeStatus(request.status) !== "pending") {
-    window.alert(
-      "This request is no longer pending. Refresh the page and check its status."
-    );
+    window.alert("This account request is no longer pending.");
     return;
   }
 
   const currentUser = auth?.currentUser;
 
-  if (!currentUser?.uid) {
-    const message =
-      "Your Firebase session is missing or expired. Please sign in again.";
-
-    setRequestError(message);
-    window.alert(message);
+  if (!currentUser?.uid || !db) {
+    window.alert("Your engineer session is unavailable. Please sign in again.");
     return;
   }
 
-  const email = String(request.email || "")
-    .trim()
-    .toLowerCase();
+  const email = String(request.email || "").trim().toLowerCase();
+  const name = String(request.name || request.fullName || "").trim();
+  const contactNumber = String(request.contactNumber || "").replace(/\D/g, "");
 
-  const applicantName =
-    request.name || request.fullName || email || "this applicant";
+  if (!email || !name) {
+    window.alert("The account request is missing the applicant's name or email.");
+    return;
+  }
 
-  if (!email) {
-    window.alert(
-      "This application has no email address. The account cannot be created."
-    );
+  if (!/^09\d{9}$/.test(contactNumber)) {
+    window.alert("The applicant's contact number must contain 11 digits and start with 09.");
     return;
   }
 
   const confirmed = window.confirm(
-    `Approve and create a client account for ${applicantName}?\n\n` +
-      `Email: ${email}\n` +
-      `Association: ${request.association || "Not provided"}\n\n` +
-      "This will create the Firebase Authentication account and client profile, " +
-      "then send a password-setup email."
+    `Prepare the client account for ${name}?\n\n` +
+    `Email: ${email}\n` +
+    `Association: ${request.association || "Not provided"}\n\n` +
+    "First, create the account manually in Firebase Console > Authentication > Users.\n" +
+    "Then copy the new user's UID and enter it when prompted."
   );
 
   if (!confirmed) return;
 
+  const uid = window.prompt(
+    "Enter the UID of the Authentication account you created manually in Firebase Console:"
+  );
+
+  if (!uid || !uid.trim()) {
+    window.alert("No UID was entered. The request was not changed.");
+    return;
+  }
+
+  const clientUid = uid.trim();
+
   setProcessingId(request.id);
   setRequestError("");
 
-  let accountCreated = false;
-
   try {
-    
-    const client = await registerClientByEngineer({
-      name: applicantName,
+    const engineerSnapshot = await getDoc(
+      doc(db, "users", currentUser.uid)
+    );
+
+    if (
+      !engineerSnapshot.exists() ||
+      engineerSnapshot.data().role !== "engineer" ||
+      engineerSnapshot.data().status !== "active"
+    ) {
+      throw new Error("Only an active engineer can approve account requests.");
+    }
+
+    const existingProfile = await getDoc(doc(db, "users", clientUid));
+
+    if (existingProfile.exists()) {
+      throw new Error(
+        "A Firestore user profile already exists for that UID. Check the account before continuing."
+      );
+    }
+
+    const members = Number(request.members);
+    const year =
+      request.year === null ||
+      request.year === undefined ||
+      request.year === ""
+        ? null
+        : Number(request.year);
+
+    if (!Number.isInteger(members) || members < 0) {
+      throw new Error("The request has an invalid association member count.");
+    }
+
+    if (year !== null && !Number.isInteger(year)) {
+      throw new Error("The request has an invalid association registration year.");
+    }
+
+    const profile = {
+      name,
       email,
-      contactNumber: String(request.contactNumber || ""),
+      role: "client",
+      contactNumber,
       association: String(request.association || ""),
-      members: Number(request.members) || 0,
-      year:
-        request.year === null ||
-        request.year === undefined ||
-        request.year === ""
-          ? ""
-          : String(request.year),
-      position: String(request.position || ""),
-      region: String(request.region || ""),
-      province: String(request.province || ""),
-      municipality: String(request.municipality || ""),
-      barangay: String(request.barangay || ""),
       address: [
         request.barangay,
         request.municipality,
         request.province,
-        request.region,
-      ]
-        .filter(Boolean)
-        .join(", "),
-      password: generateTemporaryPassword(),
-    });
+        request.region
+      ].filter(Boolean).join(", "),
+      officeAddress: [
+        request.barangay,
+        request.municipality,
+        request.province,
+        request.region
+      ].filter(Boolean).join(", "),
+      barangay: String(request.barangay || ""),
+      municipality: String(request.municipality || ""),
+      province: String(request.province || ""),
+      region: String(request.region || ""),
+      position: String(request.position || ""),
+      members,
+      year,
+      status: "active",
+      createdBy: currentUser.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
 
-    accountCreated = true;
+    await setDoc(doc(db, "users", clientUid), profile);
 
-  
-    await sendPasswordResetEmail(auth, email);
-
-    
     await updateDoc(doc(db, "accountRequests", request.id), {
       status: "approved",
       approvedBy: currentUser.uid,
       approvedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
-    setAccountRequests((currentRequests) =>
-      currentRequests.map((item) =>
+    setAccountRequests((current) =>
+      current.map((item) =>
         item.id === request.id
-          ? {
-              ...item,
-              status: "approved",
-              approvedBy: currentUser.uid,
-            }
+          ? { ...item, status: "approved" }
           : item
       )
     );
 
+    let emailMessage =
+      "The client profile was created and the request was approved.";
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      emailMessage += "\nA password-reset email was requested.";
+    } catch (emailError) {
+      console.error("Password-reset email failed:", emailError);
+      emailMessage +=
+        "\nThe profile and approval succeeded, but the password-reset email could not be sent. Use the resend option to try again.";
+    }
+
     window.alert(
-      `Account created successfully for ${email}.\n\n` +
-        "The client profile has been created and a password setup email has been requested. " +
-        "Ask the client to check their inbox and spam folder."
+      `${emailMessage}\n\n` +
+      `Client UID: ${clientUid}\n` +
+      `Email: ${email}`
     );
   } catch (error) {
-    console.error("Client account approval failed:", error);
+    console.error("Account approval failed:", error);
 
-    let message;
-
-    if (accountCreated) {
-      message =
-        "The Firebase account and client profile were created, but a later step failed. " +
-        "Do not approve this request again, because that could create a duplicate account. " +
-        "Check the error below. If the password email failed, use Firebase Authentication's password-reset flow for this existing account.";
-    } else if (error?.code === "auth/email-already-in-use") {
-      message =
-        "An Authentication account already exists for this email. " +
-        "Check Firebase Authentication and the users collection before taking further action.";
-    } else if (error?.code === "permission-denied") {
-      message =
-        "Firestore denied the operation. Check your published Firestore rules and confirm that your engineer account is active.";
-    } else {
-      message =
-        error?.message ||
-        "Unable to create the client account. Please try again.";
-    }
+    const message =
+      error?.code === "permission-denied"
+        ? "Firestore denied this operation. Check the published rules and confirm that you are signed in as an active engineer."
+        : error?.message || "Unable to finish account approval.";
 
     setRequestError(message);
     window.alert(message);
@@ -257,14 +290,15 @@ export default function UserManagement() {
   }
 };
 
+
   const resendPasswordSetupEmail = async (request) => {
     if (processingId || deletingRequestId || resendingEmailId) return;
 
     const status = normalizeStatus(request.status);
 
-    if (status !== "processed") {
+    if (status !== "approved" && status !== "processed") {
       window.alert(
-        "A password-setup email can only be resent for a processed account request."
+        "A password-reset email can only be resent after the account has been approved."
       );
       return;
     }
@@ -543,9 +577,12 @@ export default function UserManagement() {
           <div>
             <h2>Account requests</h2>
             <p>
-              Approving a pending request creates the Authentication
-              account and Firestore client profile, then sends a
-              password-setup email.
+              <p>
+  Review pending requests, create the applicant's Authentication
+  account manually in Firebase Console, and then finish the approval
+  process here. AGRIhelp creates the Firestore profile and requests
+  a password-reset email.
+</p>
             </p>
           </div>
 
@@ -584,7 +621,7 @@ export default function UserManagement() {
                 {accountRequests.map((request) => {
                   const status = normalizeStatus(request.status);
                   const isPending = status === "pending";
-                  const isProcessed = status === "processed";
+                  const isProcessed = status === "processed" || status === "approved";
                   const isProcessing = processingId === request.id;
                   const isDeleting = deletingRequestId === request.id;
                   const isResending = resendingEmailId === request.id;
@@ -630,7 +667,7 @@ export default function UserManagement() {
                             >
                               {isProcessing
                                 ? "Creating account..."
-                                : "Approve & create account"}
+                                : "Finish account approval"}
                             </button>
                           ) : isProcessed ? (
                             <button

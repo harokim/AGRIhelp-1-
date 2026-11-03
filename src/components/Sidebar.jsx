@@ -14,6 +14,7 @@ import { useMessages } from "../context/MessageContext";
 import { useAppointments } from "../context/AppointmentContext";
 import { useRequests } from "../context/RequestContext";
 import { initials } from "../utils";
+import agrihelpLogo from "../assets/agrihelplogo.png";
 
 
 export default function Sidebar({
@@ -142,13 +143,20 @@ export default function Sidebar({
     >
       <div className="sidebar-inner">
         <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <span className="sidebar-brand-mark">AG</span>
-            <span className="sidebar-brand-text">
-              <strong>AGRIhelp</strong>
-              <span>Agricultural Service</span>
-            </span>
-          </div>
+          
+<div className="sidebar-brand">
+  <img
+    src={agrihelpLogo}
+    alt="AGRIhelp Logo"
+    className="sidebar-logo"
+  />
+
+  <span className="sidebar-brand-text">
+    <strong>AGRIhelp</strong>
+    <span>Agricultural Service</span>
+  </span>
+</div>
+
 
           <button
             type="button"
