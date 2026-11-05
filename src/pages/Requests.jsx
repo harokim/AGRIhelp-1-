@@ -25,25 +25,21 @@ const MINIMUM_REQUIREMENTS = [
       "Total number of members with RSBSA Control Number that will benefit from the requested project."
     ]
   },
-  {
-    title: "2. Pre-Validation Report",
-    text: "A pre-validation report signed by an Agricultural and Biosystems Engineer (ABE) in the P/C/MLGU is required. In the absence of an ABE in the respective LGU, the pre-validation report may be signed by the ABE in the province, at a minimum."
-  },
 
   {
-    title: "3. Authenticated Proof of Land",
+    title: "2. Authenticated Proof of Land",
     text: "Authenticated proof of land ownership or a copy of an accepted land-use document named to the requesting entity."
   },
   {
-    title: "4. Letter of Intent",
+    title: "3. Letter of Intent",
     text: "Letter of Intent duly signed by the appropriate authorized representative stating the machinery, equipment, or facilities requested and the organization's commitment to the project."
   },
   {
-    title: "5. Profile of the Organization",
+    title: "4. Profile of the Organization",
     text: "Profile of the organization containing information about the organization, its membership, organizational structure, and relevant activities."
   },
   {
-    title: "6. Other Documents / Certificates",
+    title: "5. Other Documents / Certificates",
     text: "Other supporting documents or certificates relevant to the requested machinery, equipment, or facilities, as applicable."
   },
 ];

@@ -134,27 +134,30 @@ service cloud.firestore {
           "createdAt",
           "updatedAt"
         ]);
-
-      allow update: if isEngineer()
-        || (
-          isOwner(userId)
-          && request.resource.data.diff(resource.data)
-            .affectedKeys()
-            .hasOnly([
-              "name",
-              "contactNumber",
-              "address",
-              "officeAddress",
-              "barangay",
-              "municipality",
-              "province",
-              "region",
-              "position",
-              "profileBio",
-              "avatar",
-              "updatedAt"
-            ])
-        );
+        
+          allow update: if (
+            isEngineer()
+            && resource.data.role == "client"
+            && request.resource.data.role == "client"
+          ) || (
+            isOwner(userId)
+            && request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                "name",
+                "contactNumber",
+                "address",
+                "officeAddress",
+                "barangay",
+                "municipality",
+                "province",
+                "region",
+                "position",
+                "profileBio",
+                "avatar",
+                "updatedAt"
+              ])
+          );
 
       allow delete: if false;
     }

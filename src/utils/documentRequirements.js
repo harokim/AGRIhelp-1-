@@ -30,12 +30,6 @@ export const DOCUMENT_REQUIREMENTS = [
     required: false,
     multiple: true
   },
-  {
-  id: "preValidationReport",
-  label: "Pre-Validation Report",
-  required: true,
-  multiple: false
-},
 ];
 
 function normalizeDocumentType(value) {

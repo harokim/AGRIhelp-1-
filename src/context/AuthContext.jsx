@@ -501,17 +501,6 @@ export function AuthProvider({ children }) {
         const profile = mapUser(snapshot);
 
         if (profile.status === "inactive") {
-          if (profile.role === "client") {
-            try {
-              await deleteClientData(firebaseUser.uid);
-            } catch (cleanupError) {
-              console.error(
-                "Could not clean up inactive client data:",
-                cleanupError
-              );
-            }
-          }
-
           await signOut(auth);
           setUser(null);
         } else {
@@ -585,27 +574,15 @@ export function AuthProvider({ children }) {
       const profile = mapUser(snapshot);
 
       if (profile.status === "inactive") {
-        if (profile.role === "client") {
-          try {
-            await deleteClientData(credential.user.uid);
-          } catch (cleanupError) {
-            console.error(
-              "Could not clean up inactive client data:",
-              cleanupError
-            );
-          }
-        }
-
         await signOut(auth);
         throw new Error("This account is inactive.");
       }
-
-      setUser(profile);
-      return profile;
-    } catch (error) {
-      throw friendlyFirebaseError(error);
-    }
-  };
+            setUser(profile);
+            return profile;
+          } catch (error) {
+            throw friendlyFirebaseError(error);
+          }
+        };
 
   
   const register = async (data, role) => {
@@ -900,20 +877,6 @@ export function AuthProvider({ children }) {
 
       const target = targetSnapshot.data();
 
-      if (
-        target.role === "client" &&
-        patch.status === "inactive"
-      ) {
-        await deleteClientData(id);
-      }
-
-      if (
-        target.role === "engineer" &&
-        patch.status === "inactive"
-      ) {
-        await deleteEngineerData(id);
-      }
-
       await updateDoc(doc(db, "users", id), {
         ...patch,
         updatedAt: serverTimestamp()
@@ -930,50 +893,62 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const deleteUser = async (id) => {
-    if (!firebaseConfigured || !db || !auth) {
+ const deleteUser = async (id) => {
+  if (!firebaseConfigured || !db || !auth) {
+    throw new Error("Firebase is not configured.");
+  }
+
+  const engineer = auth.currentUser;
+
+  if (!engineer) {
+    throw new Error("You must be signed in as an engineer.");
+  }
+
+  if (!id || id === engineer.uid) {
+    throw new Error("You cannot deactivate your own account.");
+  }
+
+  try {
+    const engineerSnapshot = await getDoc(
+      doc(db, "users", engineer.uid)
+    );
+
+    if (
+      !engineerSnapshot.exists() ||
+      engineerSnapshot.data().role !== "engineer" ||
+      engineerSnapshot.data().status !== "active"
+    ) {
       throw new Error(
-        "Firebase is not configured yet."
+        "Only an active engineer can deactivate client accounts."
       );
     }
 
-    if (!id || id === auth.currentUser?.uid) {
+    const targetRef = doc(db, "users", id);
+    const targetSnapshot = await getDoc(targetRef);
+
+    if (!targetSnapshot.exists()) {
+      throw new Error("The account could not be found.");
+    }
+
+    const target = targetSnapshot.data();
+
+    if (target.role !== "client") {
+      throw new Error("Only client accounts can be deactivated here.");
+    }
+
+    if (target.status === "inactive") {
       return;
     }
 
-    try {
-      const targetSnapshot = await getDoc(
-        doc(db, "users", id)
-      );
-
-      if (!targetSnapshot.exists()) {
-        throw new Error(
-          "The account could not be found."
-        );
-      }
-
-      const target = targetSnapshot.data();
-
-      if (target.status === "inactive") {
-        return;
-      }
-
-      if (target.role === "client") {
-        await deleteClientData(id);
-      }
-
-      if (target.role === "engineer") {
-        await deleteEngineerData(id);
-      }
-
-      await updateDoc(doc(db, "users", id), {
-        status: "inactive",
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      throw friendlyFirebaseError(error);
-    }
-  };
+    await updateDoc(targetRef, {
+      status: "inactive",
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Client account deactivation failed:", error);
+    throw friendlyFirebaseError(error);
+  }
+};
 
   const logout = () =>
     auth ? signOut(auth) : Promise.resolve();
