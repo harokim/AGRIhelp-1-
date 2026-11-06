@@ -905,3 +905,208 @@ html[data-theme="dark"] .large-avatar {
   }
 }
 
+/* AGRIhelp themed alert popups */
+
+.agrihelp-alert-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(5, 22, 12, 0.58);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  animation: agrihelp-alert-fade 180ms ease;
+}
+
+.agrihelp-alert-dialog {
+  width: min(440px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+  animation: agrihelp-alert-enter 200ms ease;
+}
+
+.agrihelp-alert-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 20px;
+  background: linear-gradient(110deg, #185b31, #24733d);
+  color: #ffffff;
+}
+
+.agrihelp-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.agrihelp-alert-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 17px;
+}
+
+.agrihelp-alert-close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.agrihelp-alert-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.agrihelp-alert-content {
+  padding: 22px 20px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.agrihelp-alert-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.agrihelp-alert-button {
+  min-width: 95px;
+  min-height: 38px;
+  padding: 9px 20px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--green-700);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.agrihelp-alert-button:hover {
+  background: var(--green-600);
+  transform: translateY(-1px);
+}
+
+.agrihelp-alert-button:focus-visible,
+.agrihelp-alert-close:focus-visible {
+  outline: 3px solid var(--yellow-500);
+  outline-offset: 3px;
+}
+
+html[data-theme="dark"] .agrihelp-alert-dialog {
+  border-color: #355340;
+  background: #14251a;
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] .agrihelp-alert-content {
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] .agrihelp-alert-actions {
+  border-top-color: #294233;
+}
+
+html[data-theme="dark"] .agrihelp-alert-header {
+  background: linear-gradient(110deg, #123d25, #185b31);
+}
+
+@keyframes agrihelp-alert-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes agrihelp-alert-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .agrihelp-alert-dialog {
+    border-radius: 13px;
+  }
+
+  .agrihelp-alert-content {
+    padding: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agrihelp-alert-backdrop,
+  .agrihelp-alert-dialog {
+    animation: none;
+  }
+}
+
+/* Account registration heading and description */
+.auth-page h1,
+.auth-container h1,
+.signup-page h1 {
+  color: #ffffff !important;
+}
+
+.auth-page p,
+.auth-container p,
+.signup-page p {
+  color: #ffffff !important;
+}
+
+.agrihelp-alert-actions {
+  align-items: center;
+  gap: 10px;
+}
+
+.agrihelp-alert-actions .secondary-btn {
+  min-height: 38px;
+  padding: 9px 20px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.agrihelp-alert-button:disabled,
+.agrihelp-alert-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

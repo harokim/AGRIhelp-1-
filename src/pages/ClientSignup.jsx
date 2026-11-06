@@ -431,6 +431,7 @@ export default function ClientSignup({
           <p>
             Register the association representative account used to submit
             requests and coordinate appointments.
+            
           </p>
 
           {[

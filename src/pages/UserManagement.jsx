@@ -71,6 +71,9 @@ export default function UserManagement() {
   const [showCreateClient, setShowCreateClient] = useState(false);
   const [manualCreatedClient, setManualCreatedClient] = useState(null);
 
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [deactivatingId, setDeactivatingId] = useState("");
+
   useEffect(() => {
     if (user?.role !== "engineer" || !db) {
       setAccountRequests([]);
@@ -386,24 +389,29 @@ const createAccount = async (request) => {
     }
   };
 
-  const deactivateUser = async (id, name) => {
-    const confirmed = window.confirm(
-      `Deactivate the client account for ${name || "this user"}?`
-    );
+      const deactivateUser = (id, name) => {
+      setConfirmDialog({
+        title: "Deactivate client account",
+        message: `Deactivate the client account for ${name || "this user"}?`,
+        confirmLabel: "Deactivate",
+        onConfirm: async () => {
+          setDeactivatingId(id);
+          setConfirmDialog(null);
 
-    if (!confirmed) return;
-
-    try {
-      await deleteUser(id);
-      window.alert("Client account deactivated successfully.");
-    } catch (error) {
-      console.error("Unable to deactivate user:", error);
-
-      window.alert(
-        error?.message || "Could not deactivate this account."
-      );
-    }
-  };
+          try {
+            await deleteUser(id);
+            window.alert("Client account deactivated successfully.");
+          } catch (error) {
+            console.error("Unable to deactivate user:", error);
+            window.alert(
+              error?.message || "Could not deactivate this account."
+            );
+          } finally {
+            setDeactivatingId("");
+          }
+        }
+      });
+    };
 
   const handleManualClientCreated = (client) => {
     setManualCreatedClient(client);
@@ -825,6 +833,67 @@ const createAccount = async (request) => {
           </tbody>
         </table>
       </div>
+
+ {confirmDialog && (
+        <div className="agrihelp-alert-backdrop">
+          <section
+            className="agrihelp-alert-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="agrihelp-confirm-title"
+            aria-describedby="agrihelp-confirm-message"
+          >
+            <div className="agrihelp-alert-header">
+              <h2
+                className="agrihelp-alert-title"
+                id="agrihelp-confirm-title"
+              >
+                <span className="agrihelp-alert-icon">!</span>
+                {confirmDialog.title}
+              </h2>
+
+              <button
+                type="button"
+                className="agrihelp-alert-close"
+                onClick={() => setConfirmDialog(null)}
+                aria-label="Close confirmation"
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              className="agrihelp-alert-content"
+              id="agrihelp-confirm-message"
+            >
+              {confirmDialog.message}
+            </div>
+
+            <div className="agrihelp-alert-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setConfirmDialog(null)}
+                disabled={Boolean(deactivatingId)}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="agrihelp-alert-button"
+                onClick={confirmDialog.onConfirm}
+                disabled={Boolean(deactivatingId)}
+              >
+                {deactivatingId
+                  ? "Deactivating..."
+                  : confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
     </div>
   );
 }
