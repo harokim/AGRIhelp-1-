@@ -389,10 +389,8 @@ export default function EngineerRequests() {
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              <option value="All">All except approved</option>
+              <option value="All">All</option>
               <option value="Submitted">Submitted</option>
-              <option value="Under Review">Under Review</option>
-              <option value="Documents Pending">Documents Pending</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>
@@ -618,13 +616,6 @@ export default function EngineerRequests() {
                     onClick={() => handleDecision(selectedRequest, "Approved")}
                   >
                     Approve
-                  </button>
-                  <button
-                    type="button"
-                    className="secondary-btn small"
-                    onClick={() => handleDecision(selectedRequest, "Documents Pending")}
-                  >
-                    Request Documents
                   </button>
                   <button
                     type="button"

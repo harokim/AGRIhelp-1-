@@ -309,21 +309,36 @@ match /documents/{documentId} {
     }
 
     match /notifications/{notificationId} {
-      allow read: if isEngineer()
-        || (
-          signedIn()
-          && resource.data.userId == request.auth.uid
-        );
+  allow read: if isEngineer()
+    || (
+      signedIn()
+      && resource.data.userId == request.auth.uid
+    );
 
-      allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid;
+  allow create: if (
+    signedIn()
+    && request.resource.data.userId == request.auth.uid
+  ) || (
+    isEngineer()
+    && request.resource.data.userId is string
+    && request.resource.data.userId != request.auth.uid
+    && exists(
+      /databases/$(database)/documents/users/$(request.resource.data.userId)
+    )
+    && get(
+      /databases/$(database)/documents/users/$(request.resource.data.userId)
+    ).data.role == "client"
+    && get(
+      /databases/$(database)/documents/users/$(request.resource.data.userId)
+    ).data.status == "active"
+  );
 
-      allow update, delete: if isEngineer()
-        || (
-          signedIn()
-          && resource.data.userId == request.auth.uid
-        );
-    }
+  allow update, delete: if isEngineer()
+    || (
+      signedIn()
+      && resource.data.userId == request.auth.uid
+    );
+}
 
     match /messages/{messageId} {
   allow read: if signedIn()

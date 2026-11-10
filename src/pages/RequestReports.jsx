@@ -90,8 +90,6 @@ export default function RequestReports() {
   const statusList = [
     "All",
     "Submitted",
-    "Under Review",
-    "Documents Pending",
     "Approved",
     "Rejected",
     "Scheduled for Validation",

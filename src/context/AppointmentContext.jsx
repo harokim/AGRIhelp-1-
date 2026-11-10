@@ -77,7 +77,13 @@ export function AppointmentProvider({ children }) {
             )
         );
       },
-      () => setAppointments([])
+      (error) => {
+        console.error(
+          "Appointment listener failed:",
+          error
+        );
+        setAppointments([]);
+      }
     );
 
     const unsubBlocked = onSnapshot(
@@ -87,7 +93,13 @@ export function AppointmentProvider({ children }) {
           snapshot.docs.map((item) => item.id)
         );
       },
-      () => setBlockedDates([])
+      (error) => {
+        console.error(
+          "Blocked dates listener failed:",
+          error
+        );
+        setBlockedDates([]);
+      }
     );
 
     const unsubFullyBooked = onSnapshot(
@@ -97,7 +109,13 @@ export function AppointmentProvider({ children }) {
           snapshot.docs.map((item) => item.id)
         );
       },
-      () => setFullyBookedDates([])
+      (error) => {
+        console.error(
+          "Fully booked dates listener failed:",
+          error
+        );
+        setFullyBookedDates([]);
+      }
     );
 
     const notificationQuery = query(
@@ -121,7 +139,13 @@ export function AppointmentProvider({ children }) {
             )
         );
       },
-      () => setAppointmentNotifications([])
+      (error) => {
+        console.error(
+          "Appointment notifications listener failed:",
+          error
+        );
+        setAppointmentNotifications([]);
+      }
     );
 
     return () => {
@@ -132,12 +156,13 @@ export function AppointmentProvider({ children }) {
     };
   }, [user?.id, user?.role]);
 
-  
+  // Only engineers are permitted to remove expired appointments.
   useEffect(() => {
     if (
       !firebaseConfigured ||
       !db ||
       !user?.id ||
+      user?.role !== "engineer" ||
       appointments.length === 0
     ) {
       return;
@@ -161,10 +186,20 @@ export function AppointmentProvider({ children }) {
           doc(db, "appointments", appointment.id)
         )
       )
-    );
+    ).then((results) => {
+      results.forEach((result) => {
+        if (result.status === "rejected") {
+          console.error(
+            "Expired appointment cleanup failed:",
+            result.reason
+          );
+        }
+      });
+    });
   }, [
     appointments,
-    user?.id
+    user?.id,
+    user?.role
   ]);
 
   const checkAppointmentSlot = (
@@ -204,6 +239,28 @@ export function AppointmentProvider({ children }) {
   };
 
   const addAppointment = async (data) => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      user.role !== "engineer"
+    ) {
+      throw new Error(
+        "Only an authorized engineer can create appointments."
+      );
+    }
+
+    if (
+      !data?.clientId ||
+      !data?.date ||
+      !data?.time ||
+      !data?.title?.trim()
+    ) {
+      return {
+        error: "required"
+      };
+    }
+
     const error = checkAppointmentSlot(
       data.date,
       data.time
@@ -217,39 +274,65 @@ export function AppointmentProvider({ children }) {
       doc(db, "users", data.clientId)
     );
 
-    const clientName = client.exists()
-      ? client.data().name
-      : "Client";
+    if (
+      !client.exists() ||
+      client.data().role !== "client" ||
+      client.data().status !== "active"
+    ) {
+      return {
+        error: "client"
+      };
+    }
 
-    const clientPhone = client.exists()
-      ? client.data().contactNumber
-      : "";
+    const clientName =
+      client.data().name || "Client";
 
+    const clientPhone =
+      client.data().contactNumber || "";
+
+    // Save the appointment first.
     const result = await addDoc(
       collection(db, "appointments"),
       {
         ...data,
+        title: data.title.trim(),
         clientName,
         status: "Approved",
-        createdBy: user?.id || "",
+        createdBy: user.id,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }
     );
 
-    const message = `Your AGRIhelp appointment is approved for ${data.date} at ${data.time}. ${data.title}`;
+    const message =
+      `Your AGRIhelp appointment is approved for ${data.date} at ${data.time}. ${data.title.trim()}`;
 
-    await addDoc(
-      collection(db, "notifications"),
-      {
-        userId: data.clientId,
-        title: "Appointment approved",
-        message,
-        appointmentId: result.id,
-        read: false,
-        createdAt: serverTimestamp()
-      }
-    );
+    // Notification delivery is independent of appointment creation.
+    let notificationSent = false;
+
+    try {
+      await addDoc(
+        collection(db, "notifications"),
+        {
+          userId: data.clientId,
+          title: "Appointment approved",
+          message,
+          appointmentId: result.id,
+          read: false,
+          createdAt: serverTimestamp()
+        }
+      );
+
+      notificationSent = true;
+    } catch (notificationError) {
+      console.error(
+        "Appointment was saved, but notification delivery failed:",
+        notificationError
+      );
+    }
+
+    // SMS delivery is also independent.
+    let smsSent = false;
 
     if (clientPhone) {
       try {
@@ -257,17 +340,38 @@ export function AppointmentProvider({ children }) {
           phoneNumber: clientPhone,
           message: `AGRIhelp: ${message}`
         });
-      } catch {}
+
+        smsSent = true;
+      } catch (smsError) {
+        console.error(
+          "Appointment was saved, but SMS delivery failed:",
+          smsError
+        );
+      }
     }
 
     return {
       id: result.id,
       ...data,
-      status: "Approved"
+      clientName,
+      status: "Approved",
+      notificationSent,
+      smsSent
     };
   };
 
   const deleteAppointment = async (id) => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      user.role !== "engineer"
+    ) {
+      throw new Error(
+        "Only an authorized engineer can delete appointments."
+      );
+    }
+
     if (!id) {
       return {
         error: "not-found"
@@ -287,6 +391,17 @@ export function AppointmentProvider({ children }) {
     id,
     patch
   ) => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      user.role !== "engineer"
+    ) {
+      throw new Error(
+        "Only an authorized engineer can update appointments."
+      );
+    }
+
     const current = appointments.find(
       (item) => item.id === id
     );
@@ -333,6 +448,17 @@ export function AppointmentProvider({ children }) {
   };
 
   const toggleBlocked = async (date) => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      user.role !== "engineer"
+    ) {
+      throw new Error(
+        "Only an authorized engineer can manage availability."
+      );
+    }
+
     if (!date) {
       return {
         error: "date"
@@ -373,10 +499,11 @@ export function AppointmentProvider({ children }) {
       )
     );
 
-    const activeAppointments = appointmentsOnDate.docs.filter(
-      (appointment) =>
-        appointment.data().status !== "Cancelled"
-    );
+    const activeAppointments =
+      appointmentsOnDate.docs.filter(
+        (appointment) =>
+          appointment.data().status !== "Cancelled"
+      );
 
     if (activeAppointments.length > 0) {
       return {
@@ -386,7 +513,7 @@ export function AppointmentProvider({ children }) {
 
     await setDoc(ref, {
       date,
-      createdBy: user?.id || "",
+      createdBy: user.id,
       createdAt: serverTimestamp()
     });
 
@@ -397,6 +524,17 @@ export function AppointmentProvider({ children }) {
   };
 
   const toggleFullyBooked = async (date) => {
+    if (
+      !firebaseConfigured ||
+      !db ||
+      !user?.id ||
+      user.role !== "engineer"
+    ) {
+      throw new Error(
+        "Only an authorized engineer can manage availability."
+      );
+    }
+
     if (!date) {
       return {
         error: "date"
@@ -421,7 +559,6 @@ export function AppointmentProvider({ children }) {
       date
     );
 
-    
     if (fullyBookedDates.includes(date)) {
       await deleteDoc(ref);
 
@@ -431,7 +568,6 @@ export function AppointmentProvider({ children }) {
       };
     }
 
-    
     const appointmentsOnDate = await getDocs(
       query(
         collection(db, "appointments"),
@@ -439,10 +575,11 @@ export function AppointmentProvider({ children }) {
       )
     );
 
-    const activeAppointments = appointmentsOnDate.docs.filter(
-      (appointment) =>
-        appointment.data().status !== "Cancelled"
-    );
+    const activeAppointments =
+      appointmentsOnDate.docs.filter(
+        (appointment) =>
+          appointment.data().status !== "Cancelled"
+      );
 
     if (activeAppointments.length === 0) {
       return {
@@ -452,7 +589,7 @@ export function AppointmentProvider({ children }) {
 
     await setDoc(ref, {
       date,
-      createdBy: user?.id || "",
+      createdBy: user.id,
       createdAt: serverTimestamp()
     });
 
