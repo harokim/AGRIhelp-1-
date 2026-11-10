@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessageContext";
 import { Avatar } from "./ClientMessages";
@@ -60,6 +60,7 @@ export default function EngineerMessages() {
   const [selected, setSelected] = useState("");
   const [search, setSearch] = useState("");
   const [text, setText] = useState("");
+  const chatBodyRef = useRef(null);
 
   const sortedClients = useMemo(() => {
     return [...clients].sort((firstClient, secondClient) => {
@@ -170,28 +171,45 @@ export default function EngineerMessages() {
     (item) => item.id === selected
   );
 
-  const thread = useMemo(() => {
-    if (!peer || !user?.id) {
-      return [];
-    }
+  const peerId = peer?.id;
+const userId = user?.id;
 
-    return messages
-      .filter(
-        (message) =>
-          (
-            message.from === user.id &&
-            message.to === peer.id
-          ) ||
-          (
-            message.from === peer.id &&
-            message.to === user.id
-          )
-      )
-      .sort(
-        (a, b) =>
-          messageTimestamp(a) - messageTimestamp(b)
-      );
-  }, [messages, peer?.id, user?.id]);
+const thread = useMemo(() => {
+  if (!peerId || !userId) {
+    return [];
+  }
+
+  return messages
+    .filter(
+      (message) =>
+        (
+          message.from === userId &&
+          message.to === peerId
+        ) ||
+        (
+          message.from === peerId &&
+          message.to === userId
+        )
+    )
+    .sort(
+      (a, b) =>
+        messageTimestamp(a) - messageTimestamp(b)
+    );
+}, [messages, peerId, userId]);
+
+useEffect(() => {
+  const chatBody = chatBodyRef.current;
+
+  if (!chatBody) return;
+
+  chatBody.scrollTop = chatBody.scrollHeight;
+}, [thread, peerId]);useEffect(() => {
+  const chatBody = chatBodyRef.current;
+
+  if (!chatBody) return;
+
+  chatBody.scrollTop = chatBody.scrollHeight;
+}, [thread, peerId]);
 
   const handleSelectClient = async (clientId) => {
     setSelected(clientId);
@@ -205,6 +223,8 @@ export default function EngineerMessages() {
       );
     }
   };
+
+  
 
   useEffect(() => {
     if (!selected || !user?.id) return;
@@ -419,7 +439,7 @@ export default function EngineerMessages() {
                 </div>
               </header>
 
-              <div className="ig-chat-body">
+              <div className="ig-chat-body" ref={chatBodyRef}>
                 <div className="ig-profile-intro">
                   <Avatar u={peer} small />
 

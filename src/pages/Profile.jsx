@@ -17,10 +17,8 @@ export default function Profile({
     viewEngineer
       ? users.find(
           (item) =>
-            item.role ===
-              "engineer" &&
-            item.status !==
-              "inactive"
+            item.role === "engineer" &&
+            item.status !== "inactive"
         )
       : user;
 
@@ -31,9 +29,7 @@ export default function Profile({
     useState(false);
 
   useEffect(() => {
-    setForm(
-      target || {}
-    );
+    setForm(target || {});
   }, [target?.id]);
 
   if (!target) {
@@ -49,6 +45,9 @@ export default function Profile({
   const editable =
     !viewEngineer &&
     target.id === user?.id;
+
+  const isEngineer =
+    form.role === "engineer";
 
   const updateField = (
     field,
@@ -109,12 +108,8 @@ export default function Profile({
 
     const contactNumber =
       String(
-        form.contactNumber ||
-          ""
-      ).replace(
-        /\D/g,
-        ""
-      );
+        form.contactNumber || ""
+      ).replace(/\D/g, "");
 
     if (nameError) {
       alert(nameError);
@@ -122,9 +117,7 @@ export default function Profile({
     }
 
     if (
-      !/^09\d{9}$/.test(
-        contactNumber
-      )
+      !/^09\d{9}$/.test(contactNumber)
     ) {
       alert(
         "Contact number must contain exactly 11 digits and begin with 09."
@@ -135,33 +128,35 @@ export default function Profile({
     setSaving(true);
 
     try {
+      const profileData = isEngineer
+        ? {
+            name,
+            contactNumber
+          }
+        : {
+            name,
+            contactNumber,
+            position:
+              form.position?.trim() || "",
+            profileBio:
+              form.profileBio?.trim() || "",
+            address:
+              form.address?.trim() || "",
+            officeAddress:
+              form.officeAddress?.trim() || "",
+            barangay:
+              form.barangay || "",
+            municipality:
+              form.municipality || "",
+            province:
+              form.province || "",
+            region:
+              form.region || ""
+          };
+
       await updateProfile(
         target.id,
-        {
-          name,
-          contactNumber,
-          position:
-            form.position?.trim() ||
-            "",
-          profileBio:
-            form.profileBio?.trim() ||
-            "",
-          address:
-            form.address?.trim() ||
-            "",
-          officeAddress:
-            form.officeAddress?.trim() ||
-            "",
-          barangay:
-            form.barangay || "",
-          municipality:
-            form.municipality ||
-            "",
-          province:
-            form.province || "",
-          region:
-            form.region || ""
-        }
+        profileData
       );
 
       alert(
@@ -189,9 +184,7 @@ export default function Profile({
     event.target.value = "";
 
     if (
-      !file.type.startsWith(
-        "image/"
-      )
+      !file.type.startsWith("image/")
     ) {
       alert(
         "Please select an image file."
@@ -211,9 +204,7 @@ export default function Profile({
 
     try {
       const avatar =
-        await fileToDataURL(
-          file
-        );
+        await fileToDataURL(file);
 
       await updateProfile(
         target.id,
@@ -272,16 +263,13 @@ export default function Profile({
             </span>
 
             <h1>
-              {form.name ||
-                "User"}
+              {form.name || "User"}
             </h1>
 
             <p>
-              {form.role ===
-              "engineer"
+              {isEngineer
                 ? "Municipal Agricultural and Biosystems Engineering Office"
-                : form.association ||
-                  "Client"}
+                : form.association || "Client"}
             </p>
           </div>
         </div>
@@ -289,151 +277,101 @@ export default function Profile({
         <div className="form-grid">
           <Field
             label="Full name"
-            value={
-              form.name || ""
-            }
+            value={form.name || ""}
             disabled={!editable}
             onChange={(value) =>
-              updateField(
-                "name",
-                value
-              )
+              updateField("name", value)
             }
           />
 
           <Field
             label="Email"
-            value={
-              form.email || ""
-            }
+            value={form.email || ""}
             disabled
           />
 
           <Field
             label="Contact number"
-            value={
-              form.contactNumber ||
-              ""
-            }
+            value={form.contactNumber || ""}
             disabled={!editable}
             onChange={(value) =>
               updateField(
                 "contactNumber",
                 value
-                  .replace(
-                    /\D/g,
-                    ""
-                  )
-                  .slice(
-                    0,
-                    11
-                  )
+                  .replace(/\D/g, "")
+                  .slice(0, 11)
               )
             }
           />
 
-          <Field
-            label="Position / profile"
-            value={
-              displayPosition
-            }
-            disabled={!editable}
-            onChange={(value) =>
-              updateField(
-                "position",
-                value
-              )
-            }
-          />
+          {!isEngineer && (
+            <>
+              <Field
+                label="Position / profile"
+                value={displayPosition}
+                disabled={!editable}
+                onChange={(value) =>
+                  updateField("position", value)
+                }
+              />
 
-          <Field
-            label="Association"
-            value={
-              form.association ||
-              ""
-            }
-            disabled
-          />
+              <Field
+                label="Association"
+                value={form.association || ""}
+                disabled
+              />
 
-          <Field
-            label="Region"
-            value={
-              form.region || ""
-            }
-            disabled={!editable}
-            onChange={(value) =>
-              updateField(
-                "region",
-                value
-              )
-            }
-          />
+              <Field
+                label="Region"
+                value={form.region || ""}
+                disabled={!editable}
+                onChange={(value) =>
+                  updateField("region", value)
+                }
+              />
 
-          <Field
-            label="Province"
-            value={
-              form.province ||
-              ""
-            }
-            disabled={!editable}
-            onChange={(value) =>
-              updateField(
-                "province",
-                value
-              )
-            }
-          />
+              <Field
+                label="Province"
+                value={form.province || ""}
+                disabled={!editable}
+                onChange={(value) =>
+                  updateField("province", value)
+                }
+              />
 
-          <Field
-            label="Municipality / City"
-            value={
-              form.municipality ||
-              ""
-            }
-            disabled={!editable}
-            onChange={(value) =>
-              updateField(
-                "municipality",
-                value
-              )
-            }
-          />
+              <Field
+                label="Municipality / City"
+                value={form.municipality || ""}
+                disabled={!editable}
+                onChange={(value) =>
+                  updateField("municipality", value)
+                }
+              />
 
-          <Field
-            label="Barangay"
-            value={
-              form.barangay ||
-              ""
-            }
-            disabled={!editable}
-            onChange={(value) =>
-              updateField(
-                "barangay",
-                value
-              )
-            }
-          />
+              <Field
+                label="Barangay"
+                value={form.barangay || ""}
+                disabled={!editable}
+                onChange={(value) =>
+                  updateField("barangay", value)
+                }
+              />
 
-          <Field
-            label="Address"
-            value={
-              form.address ||
-              form.officeAddress ||
-              ""
-            }
-            disabled={!editable}
-            onChange={(value) => {
-              updateField(
-                "address",
-                value
-              );
-
-              updateField(
-                "officeAddress",
-                value
-              );
-            }}
-          />
+              <Field
+                label="Address"
+                value={
+                  form.address ||
+                  form.officeAddress ||
+                  ""
+                }
+                disabled={!editable}
+                onChange={(value) => {
+                  updateField("address", value);
+                  updateField("officeAddress", value);
+                }}
+              />
+            </>
+          )}
         </div>
 
         {editable && (
@@ -445,9 +383,7 @@ export default function Profile({
                 hidden
                 type="file"
                 accept="image/*"
-                onChange={
-                  upload
-                }
+                onChange={upload}
               />
             </label>
 
@@ -464,12 +400,11 @@ export default function Profile({
           </div>
         )}
 
-        {!editable &&
-          viewEngineer && (
-            <p className="muted">
-              This is the Engineer's profile information.
-            </p>
-          )}
+        {!editable && viewEngineer && (
+          <p className="muted">
+            This is the Engineer's profile information.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -491,12 +426,9 @@ function Field({
         value={value}
         disabled={disabled}
         onChange={(event) =>
-          onChange?.(
-            event.target.value
-          )
+          onChange?.(event.target.value)
         }
       />
     </div>
   );
 }
-

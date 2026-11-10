@@ -263,12 +263,16 @@ export default function Requests() {
   };
 
   return (
-    <div className="page request-page">
-      <div className="page-header">
-        <span className="eyebrow">SERVICE REQUESTS</span>
-        <h1>My Requests</h1>
-        <p>Submit an association request and manage your submissions.</p>
-      </div>
+    <div className="page request-page client-dashboard-font">
+      <div className="welcome-banner request-page-banner">
+  <div className="welcome-banner-content">
+    <div>
+      <span className="eyebrow">SERVICE REQUESTS</span>
+      <h1>My Requests</h1>
+      <p>Submit an association request and manage your submissions.</p>
+    </div>
+  </div>
+</div>
 
       <div className="two-column request-layout">
         <form className="card form-card request-form-card" onSubmit={submit}>

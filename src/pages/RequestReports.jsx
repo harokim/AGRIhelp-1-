@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useRequests } from "../context/RequestContext";
 
-
 function getRequestDate(request) {
   const value = request?.createdAt || request?.createdAtTimestamp;
 
@@ -64,10 +63,7 @@ function getStatusClass(status) {
 }
 
 function getAssociationName(request) {
-  return (
-    request?.association?.trim() ||
-    "No association"
-  );
+  return request?.association?.trim() || "No association";
 }
 
 function ReportField({ label, value }) {
@@ -89,40 +85,7 @@ export default function RequestReports() {
   const [selectedId, setSelectedId] = useState(null);
 
   const [deletingRequest, setDeletingRequest] = useState(false);
-
-const handleDeleteRequest = async () => {
-  if (!selectedRequest || deletingRequest) return;
-
-  const requestId = selectedRequest.id;
-  const reference = selectedRequest.referenceNumber || requestId;
-
-  const confirmed = window.confirm(
-    `Delete request ${reference} and its associated documents?\n\n` +
-    "This action cannot be undone."
-  );
-
-  if (!confirmed) return;
-
-  setDeletingRequest(true);
-
-  try {
-    await deleteRequest(requestId);
-    setSelectedId(null);
-
-    window.alert(
-      "The request and its associated documents were deleted successfully."
-    );
-  } catch (error) {
-    console.error("Failed to delete request report:", error);
-
-    window.alert(
-      error?.message ||
-      "Unable to delete the request. Please check your permissions and try again."
-    );
-  } finally {
-    setDeletingRequest(false);
-  }
-};
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const statusList = [
     "All",
@@ -227,6 +190,58 @@ const handleDeleteRequest = async () => {
   const selectedClient = selectedRequest
     ? users.find((item) => item.id === selectedRequest.clientId) || null
     : null;
+
+  const confirmDeleteRequest = async () => {
+    if (!selectedRequest || deletingRequest) return;
+
+    const requestId = selectedRequest.id;
+
+    setConfirmDialog(null);
+    setDeletingRequest(true);
+
+    try {
+      await deleteRequest(requestId);
+      setSelectedId(null);
+
+      setConfirmDialog({
+        type: "alert",
+        title: "Request Deleted",
+        message:
+          "The request and its associated documents were successfully deleted.",
+        confirmLabel: "OK",
+        onConfirm: () => setConfirmDialog(null),
+      });
+    } catch (error) {
+      console.error("Failed to delete request report:", error);
+
+      setConfirmDialog({
+        type: "alert",
+        title: "Deletion Failed",
+        message:
+          error?.message ||
+          "Unable to delete this request. Please check your permissions and try again.",
+        confirmLabel: "OK",
+        onConfirm: () => setConfirmDialog(null),
+      });
+    } finally {
+      setDeletingRequest(false);
+    }
+  };
+
+  const handleDeleteRequest = () => {
+    if (!selectedRequest || deletingRequest) return;
+
+    const reference =
+      selectedRequest.referenceNumber || selectedRequest.id;
+
+    setConfirmDialog({
+      type: "confirm",
+      title: "Delete Request?",
+      message: `Are you sure you want to delete request ${reference} and its associated documents? This action cannot be undone.`,
+      confirmLabel: "Delete Request",
+      onConfirm: confirmDeleteRequest,
+    });
+  };
 
   const closeAssociationModal = () => {
     setSelectedAssociation(null);
@@ -380,7 +395,6 @@ const handleDeleteRequest = async () => {
               >
                 Close
               </button>
-              
             </div>
 
             {selectedAssociationRequests.length === 0 ? (
@@ -478,15 +492,15 @@ const handleDeleteRequest = async () => {
             </div>
 
             <div className="report-delete-actions">
-  <button
-    type="button"
-    className="danger-btn"
-    onClick={handleDeleteRequest}
-    disabled={deletingRequest}
-  >
-    {deletingRequest ? "Deleting..." : "Delete Request"}
-  </button>
-</div>
+              <button
+                type="button"
+                className="danger-btn"
+                onClick={handleDeleteRequest}
+                disabled={deletingRequest}
+              >
+                {deletingRequest ? "Deleting..." : "Delete Request"}
+              </button>
+            </div>
 
             <div className="report-section">
               <h3>Request Information</h3>
@@ -627,6 +641,66 @@ const handleDeleteRequest = async () => {
                   </div>
                 </div>
               )}
+          </div>
+        </div>
+      )}
+
+      {confirmDialog && (
+        <div
+          className="custom-confirm-backdrop"
+          onClick={() => {
+            if (!deletingRequest) {
+              setConfirmDialog(null);
+            }
+          }}
+        >
+          <div
+            className="custom-confirm-modal"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-message"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="custom-confirm-icon">
+              {confirmDialog.type === "confirm" ? "!" : "✓"}
+            </div>
+
+            <h2 id="confirm-dialog-title">
+              {confirmDialog.title}
+            </h2>
+
+            <p id="confirm-dialog-message">
+              {confirmDialog.message}
+            </p>
+
+            <div className="custom-confirm-actions">
+              {confirmDialog.type === "confirm" && (
+                <button
+                  type="button"
+                  className="custom-confirm-cancel"
+                  onClick={() => setConfirmDialog(null)}
+                  disabled={deletingRequest}
+                >
+                  Cancel
+                </button>
+              )}
+
+              <button
+                type="button"
+                className={
+                  confirmDialog.type === "confirm"
+                    ? "custom-confirm-delete"
+                    : "custom-confirm-ok"
+                }
+                onClick={confirmDialog.onConfirm}
+                disabled={deletingRequest}
+              >
+                {deletingRequest
+                  ? "Deleting..."
+                  : confirmDialog.confirmLabel}
+              </button>
+            </div>
           </div>
         </div>
       )}

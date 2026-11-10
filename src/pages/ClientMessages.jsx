@@ -1,11 +1,13 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../context/MessageContext";
 import { initials } from "../utils";
+
 
 export function Avatar({
   u,
@@ -72,6 +74,7 @@ export default function ClientMessages() {
   const [text, setText] = useState("");
   const [selected, setSelected] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const chatBodyRef = useRef(null);
 
   const engineers = useMemo(
     () =>
@@ -210,8 +213,16 @@ export default function ClientMessages() {
         (a, b) =>
           messageTimestamp(a) - messageTimestamp(b)
       );
-  }, [messages, peer?.id, user?.id]);
+  }, [messages, peer, user]);
+  
+  useEffect(() => {
+  const chatBody = chatBodyRef.current;
 
+  if (!chatBody) return;
+
+  chatBody.scrollTop = chatBody.scrollHeight;
+}, [thread, peer?.id]);
+  
   useEffect(() => {
     if (!peer?.id || !user?.id) {
       return;
@@ -396,7 +407,7 @@ export default function ClientMessages() {
                 </div>
               </header>
 
-              <div className="ig-chat-body">
+              <div className="ig-chat-body" ref={chatBodyRef}>
                 <div className="ig-profile-intro">
                   <Avatar u={peer} small />
 

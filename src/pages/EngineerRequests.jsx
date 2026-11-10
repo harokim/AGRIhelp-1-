@@ -105,10 +105,12 @@ export default function EngineerRequests() {
   }, [filteredRequests]);
 
   const associationRequests = filteredRequests.filter(
-    (request) => (request.association || "Unassigned Association") === selectedAssociation
+    (request) =>
+      (request.association || "Unassigned Association") === selectedAssociation
   );
 
-  const selectedRequest = requests.find((item) => item.id === selectedRequestId) || null;
+  const selectedRequest =
+    requests.find((item) => item.id === selectedRequestId) || null;
 
   const requestDocuments = (requestId) =>
     documents.filter((item) => item.requestId === requestId);
@@ -189,7 +191,165 @@ export default function EngineerRequests() {
   };
 
   return (
-    <div className="container page-container">
+    <div className="container page-container engineer-requests-page">
+      <style>{`
+        .engineer-delete-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          background: rgba(0, 0, 0, 0.62);
+          backdrop-filter: blur(3px);
+        }
+
+        .engineer-delete-dialog {
+          width: 100%;
+          max-width: 440px;
+          height: auto;
+          max-height: calc(100vh - 40px);
+          overflow-y: auto;
+          margin: auto;
+          padding: 26px;
+          border: 1px solid rgba(24, 91, 49, 0.18);
+          border-radius: 16px;
+          background: #ffffff;
+          color: #17251c;
+          box-shadow: 0 18px 55px rgba(0, 0, 0, 0.28);
+          box-sizing: border-box;
+        }
+
+        .engineer-delete-dialog h2 {
+          margin: 0;
+          color: #123b25;
+          font-size: 20px;
+          font-weight: 700;
+        }
+
+        .engineer-delete-dialog p {
+          margin: 14px 0 22px;
+          color: #4b5b50;
+          font-size: 14px;
+          line-height: 1.6;
+          overflow-wrap: anywhere;
+        }
+
+        .engineer-delete-dialog-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        }
+
+        .engineer-delete-cancel {
+          border: 0;
+          background: transparent;
+          color: #185b31;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          padding: 8px;
+        }
+
+        .engineer-delete-cancel:hover {
+          color: #0c2b1b;
+          text-decoration: underline;
+        }
+
+        .engineer-delete-actions {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .engineer-delete-actions button {
+          min-height: 40px;
+          padding: 10px 17px;
+          border-radius: 9px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .engineer-delete-actions button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .engineer-delete-confirm {
+          border: 1px solid #dc4545;
+          background: #dc4545;
+          color: #ffffff;
+        }
+
+        .engineer-delete-confirm:hover:not(:disabled) {
+          background: #bd3030;
+          transform: translateY(-1px);
+        }
+
+        .engineer-delete-cancel-button {
+          border: 1px solid #d5ded7;
+          background: #f5f7f5;
+          color: #244532;
+        }
+
+        .engineer-delete-cancel-button:hover:not(:disabled) {
+          background: #e9eee9;
+        }
+
+        html[data-theme="dark"] .engineer-delete-dialog {
+          border-color: rgba(230, 185, 30, 0.25);
+          background: #14291e;
+          color: #f1f5f1;
+        }
+
+        html[data-theme="dark"] .engineer-delete-dialog h2 {
+          color: #f2f6f2;
+        }
+
+        html[data-theme="dark"] .engineer-delete-dialog p {
+          color: #c5d2c8;
+        }
+
+        html[data-theme="dark"] .engineer-delete-cancel {
+          color: #e6b91e;
+        }
+
+        html[data-theme="dark"] .engineer-delete-cancel:hover {
+          color: #f5d66b;
+        }
+
+        html[data-theme="dark"] .engineer-delete-cancel-button {
+          border-color: #496452;
+          background: #203a2b;
+          color: #edf4ee;
+        }
+
+        html[data-theme="dark"] .engineer-delete-cancel-button:hover:not(:disabled) {
+          background: #2a4935;
+        }
+
+        @media (max-width: 480px) {
+          .engineer-delete-dialog {
+            padding: 21px;
+          }
+
+          .engineer-delete-actions {
+            flex-direction: column-reverse;
+            align-items: stretch;
+          }
+
+          .engineer-delete-actions button {
+            width: 100%;
+          }
+        }
+      `}</style>
+
       <div className="page-header">
         <span className="eyebrow">REQUEST MANAGEMENT</span>
         <h1>Client Requests</h1>
@@ -548,20 +708,55 @@ export default function EngineerRequests() {
       )}
 
       {pendingDelete && (
-        <div className="modal-backdrop" onClick={() => !busy && setPendingDelete(null)}>
-          <div className="modal card" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Delete request?</h2>
-              <button type="button" className="text-btn" onClick={() => setPendingDelete(null)}>
+        <div
+          className="engineer-delete-backdrop"
+          onClick={() => !busy && setPendingDelete(null)}
+        >
+          <div
+            className="engineer-delete-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="engineer-delete-title"
+            aria-describedby="engineer-delete-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="engineer-delete-dialog-header">
+              <h2 id="engineer-delete-title">Delete request?</h2>
+
+              <button
+                type="button"
+                className="engineer-delete-cancel"
+                disabled={busy}
+                onClick={() => setPendingDelete(null)}
+              >
                 Cancel
               </button>
             </div>
-            <p>
-              Delete {pendingDelete.referenceNumber || pendingDelete.id} and its associated documents?
+
+            <p id="engineer-delete-description">
+              Delete <strong>{pendingDelete.referenceNumber || pendingDelete.id}</strong> and its associated documents?
+              This action cannot be undone.
             </p>
-            <button type="button" className="danger-btn full" disabled={busy} onClick={confirmDelete}>
-              {busy ? "Deleting..." : "Confirm Delete"}
-            </button>
+
+            <div className="engineer-delete-actions">
+              <button
+                type="button"
+                className="engineer-delete-cancel-button"
+                disabled={busy}
+                onClick={() => setPendingDelete(null)}
+              >
+                Keep Request
+              </button>
+
+              <button
+                type="button"
+                className="engineer-delete-confirm"
+                disabled={busy}
+                onClick={confirmDelete}
+              >
+                {busy ? "Deleting..." : "Confirm Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
