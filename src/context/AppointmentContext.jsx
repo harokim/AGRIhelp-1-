@@ -24,8 +24,8 @@ import {
   firebaseConfigured
 } from "../firebase";
 import {
-  sendSemaphoreSMS
-} from "../services/semaphoreService";
+  sendClientSMS
+} from "../services/smsService";
 import {
   todayISO
 } from "../utils";
@@ -336,7 +336,7 @@ export function AppointmentProvider({ children }) {
 
     if (clientPhone) {
       try {
-        await sendSemaphoreSMS({
+        await sendClientSMS({
           phoneNumber: clientPhone,
           message: `AGRIhelp: ${message}`
         });

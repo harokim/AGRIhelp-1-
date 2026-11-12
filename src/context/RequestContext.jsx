@@ -25,8 +25,8 @@ import {
   firebaseConfigured
 } from "../firebase";
 import {
-  sendSemaphoreSMS
-} from "../services/semaphoreService";
+  sendClientSMS
+} from "../services/smsService";
 import {
   deleteDocumentWithChunks,
   loadDocumentData
@@ -127,10 +127,9 @@ async function notifyClient(
 
     if (phoneNumber) {
       try {
-        await sendSemaphoreSMS({
+        await sendClientSMS({
           phoneNumber,
-          message:
-            `AGRIhelp: ${message}`
+          message: `AGRIhelp: ${message}`
         });
       } catch {}
     }

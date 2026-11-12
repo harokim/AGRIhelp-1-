@@ -7,10 +7,12 @@ import { getDocumentRequirementLabel } from "../utils/documentRequirements";
 
 function requestDate(request) {
   const value = request.createdAtTimestamp || request.createdAt;
+
   if (value?.toDate) return value.toDate();
   if (value?.seconds) return new Date(value.seconds * 1000);
 
   const date = value ? new Date(value) : null;
+
   return date && !Number.isNaN(date.getTime()) ? date : null;
 }
 
@@ -40,6 +42,7 @@ export default function EngineerRequests() {
   const [note, setNote] = useState("");
   const [noteStatus, setNoteStatus] = useState("");
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [pendingDecision, setPendingDecision] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const clientFor = (id) => users.find((item) => item.id === id);
@@ -83,8 +86,11 @@ export default function EngineerRequests() {
           .includes(term);
       })
       .sort((a, b) =>
-        String(a.association || "").localeCompare(String(b.association || "")) ||
-        (requestDate(b)?.getTime() || 0) - (requestDate(a)?.getTime() || 0)
+        String(a.association || "").localeCompare(
+          String(b.association || "")
+        ) ||
+        (requestDate(b)?.getTime() || 0) -
+          (requestDate(a)?.getTime() || 0)
       );
   }, [requests, users, search, statusFilter, typeFilter]);
 
@@ -92,9 +98,13 @@ export default function EngineerRequests() {
     const grouped = new Map();
 
     filteredRequests.forEach((request) => {
-      const association = request.association || "Unassigned Association";
+      const association =
+        request.association || "Unassigned Association";
 
-      if (!grouped.has(association)) grouped.set(association, []);
+      if (!grouped.has(association)) {
+        grouped.set(association, []);
+      }
+
       grouped.get(association).push(request);
     });
 
@@ -106,7 +116,8 @@ export default function EngineerRequests() {
 
   const associationRequests = filteredRequests.filter(
     (request) =>
-      (request.association || "Unassigned Association") === selectedAssociation
+      (request.association || "Unassigned Association") ===
+      selectedAssociation
   );
 
   const selectedRequest =
@@ -125,16 +136,19 @@ export default function EngineerRequests() {
       return;
     }
 
-    const url = document.data;
-    const tab = window.open(url, "_blank");
+    const tab = window.open(document.data, "_blank");
 
     if (!tab) {
-      window.alert("Your browser blocked the document tab. Allow pop-ups and try again.");
+      window.alert(
+        "Your browser blocked the document tab. Allow pop-ups and try again."
+      );
     }
   };
 
-  const handleDecision = async (request, status) => {
-    if (!["Submitted", "Under Review"].includes(request.status)) return;
+  const handleDecision = (request, status) => {
+    if (!["Submitted", "Under Review"].includes(request.status)) {
+      return;
+    }
 
     if (status === "Rejected" || status === "Documents Pending") {
       setNoteRequest(request);
@@ -143,14 +157,34 @@ export default function EngineerRequests() {
       return;
     }
 
-    if (!window.confirm(`Set ${request.referenceNumber || request.id} as ${status}?`)) {
-      return;
+    if (status === "Approved") {
+      setPendingDecision({
+        request,
+        status
+      });
     }
+  };
+
+  const confirmDecision = async () => {
+    if (!pendingDecision || busy) return;
+
+    setBusy(true);
 
     try {
-      await decide(request.id, status);
+      await decide(
+        pendingDecision.request.id,
+        pendingDecision.status
+      );
+
+      setPendingDecision(null);
     } catch (error) {
-      window.alert(error?.message || "The request could not be updated.");
+      console.error("Request approval failed:", error);
+
+      window.alert(
+        error?.message || "The request could not be updated."
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -160,13 +194,28 @@ export default function EngineerRequests() {
       return;
     }
 
+    if (busy) return;
+
+    setBusy(true);
+
     try {
-      await decide(noteRequest.id, noteStatus, note.trim());
+      await decide(
+        noteRequest.id,
+        noteStatus,
+        note.trim()
+      );
+
       setNoteRequest(null);
       setNote("");
       setNoteStatus("");
     } catch (error) {
-      window.alert(error?.message || "The request could not be updated.");
+      console.error("Request update failed:", error);
+
+      window.alert(
+        error?.message || "The request could not be updated."
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -184,7 +233,11 @@ export default function EngineerRequests() {
 
       setPendingDelete(null);
     } catch (error) {
-      window.alert(error?.message || "The request could not be deleted.");
+      console.error("Request deletion failed:", error);
+
+      window.alert(
+        error?.message || "The request could not be deleted."
+      );
     } finally {
       setBusy(false);
     }
@@ -193,22 +246,186 @@ export default function EngineerRequests() {
   return (
     <div className="container page-container engineer-requests-page">
       <style>{`
-        .engineer-delete-backdrop {
+        .engineer-delete-backdrop,
+        .engineer-confirm-backdrop {
           position: fixed;
           inset: 0;
-          z-index: 10000;
           display: flex;
           align-items: center;
           justify-content: center;
           padding: 20px;
-          background: rgba(0, 0, 0, 0.62);
-          backdrop-filter: blur(3px);
+          background: rgba(0, 0, 0, 0.52);
+          backdrop-filter: blur(5px);
+          -webkit-backdrop-filter: blur(5px);
+        }
+
+        .engineer-delete-backdrop {
+          z-index: 10000;
+        }
+
+        .engineer-confirm-backdrop {
+          z-index: 10001;
+        }
+
+        .engineer-confirm-dialog {
+          width: 100%;
+          max-width: 440px;
+          max-height: calc(100vh - 40px);
+          overflow: hidden;
+          border: 1px solid rgba(24, 91, 49, 0.25);
+          border-radius: 15px;
+          background: #ffffff;
+          color: #17251c;
+          box-shadow: 0 20px 55px rgba(0, 0, 0, 0.3);
+          animation: engineerConfirmEnter 0.18s ease-out;
+        }
+
+        .engineer-confirm-header {
+          min-height: 60px;
+          padding: 12px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          background: #185b31;
+          color: #ffffff;
+        }
+
+        .engineer-confirm-heading {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          font-size: 15px;
+          font-weight: 750;
+        }
+
+        .engineer-confirm-icon {
+          width: 30px;
+          height: 30px;
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.17);
+          font-size: 19px;
+          font-weight: 800;
+        }
+
+        .engineer-confirm-close {
+          width: 32px;
+          height: 32px;
+          border: 0;
+          border-radius: 7px;
+          background: transparent;
+          color: #ffffff;
+          font-size: 23px;
+          cursor: pointer;
+        }
+
+        .engineer-confirm-close:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.15);
+        }
+
+        .engineer-confirm-body {
+          padding: 24px 20px;
+          background: #ffffff;
+          color: #25342a;
+          font-size: 14px;
+          line-height: 1.6;
+          overflow-wrap: anywhere;
+        }
+
+        .engineer-confirm-body strong {
+          color: #185b31;
+        }
+
+        .engineer-confirm-footer {
+          min-height: 68px;
+          padding: 12px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          border-top: 1px solid #dce5dd;
+          background: #ffffff;
+        }
+
+        .engineer-confirm-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 10px;
+        }
+
+        .engineer-confirm-actions button {
+          min-width: 95px;
+          min-height: 39px;
+          padding: 9px 19px;
+          border: 0;
+          border-radius: 9px;
+          font-size: 13px;
+          font-weight: 750;
+          cursor: pointer;
+          transition: 0.2s ease;
+        }
+
+        .engineer-confirm-actions button:disabled,
+        .engineer-confirm-close:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .engineer-confirm-cancel {
+          background: #edf1ed;
+          color: #36513e;
+        }
+
+        .engineer-confirm-cancel:hover:not(:disabled) {
+          background: #dfe8e0;
+        }
+
+        .engineer-confirm-approve {
+          background: #27864e;
+          color: #ffffff;
+          box-shadow: 0 3px 9px rgba(39, 134, 78, 0.18);
+        }
+
+        .engineer-confirm-approve:hover:not(:disabled) {
+          background: #1d6e3e;
+          transform: translateY(-1px);
+        }
+
+        html[data-theme="dark"] .engineer-confirm-dialog {
+          border-color: rgba(230, 185, 30, 0.25);
+          background: #14291e;
+          color: #f1f5f1;
+        }
+
+        html[data-theme="dark"] .engineer-confirm-body {
+          background: #14291e;
+          color: #e1eae3;
+        }
+
+        html[data-theme="dark"] .engineer-confirm-body strong {
+          color: #e6b91e;
+        }
+
+        html[data-theme="dark"] .engineer-confirm-footer {
+          border-top-color: #355341;
+          background: #14291e;
+        }
+
+        html[data-theme="dark"] .engineer-confirm-cancel {
+          background: #294333;
+          color: #e8f0e9;
+        }
+
+        html[data-theme="dark"] .engineer-confirm-cancel:hover:not(:disabled) {
+          background: #355740;
         }
 
         .engineer-delete-dialog {
           width: 100%;
           max-width: 440px;
-          height: auto;
           max-height: calc(100vh - 40px);
           overflow-y: auto;
           margin: auto;
@@ -334,7 +551,27 @@ export default function EngineerRequests() {
           background: #2a4935;
         }
 
+        @keyframes engineerConfirmEnter {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
         @media (max-width: 480px) {
+          .engineer-confirm-dialog {
+            max-width: 100%;
+          }
+
+          .engineer-confirm-footer {
+            padding: 12px 16px;
+          }
+
           .engineer-delete-dialog {
             padding: 21px;
           }
@@ -353,7 +590,9 @@ export default function EngineerRequests() {
       <div className="page-header">
         <span className="eyebrow">REQUEST MANAGEMENT</span>
         <h1>Client Requests</h1>
-        <p>Select an association to review its submitted requests and documents.</p>
+        <p>
+          Select an association to review its submitted requests and documents.
+        </p>
       </div>
 
       <div className="request-filters card engineer-request-filters">
@@ -397,7 +636,9 @@ export default function EngineerRequests() {
           </div>
         </div>
 
-        <p>{filteredRequests.length} matching requests across {groups.length} associations.</p>
+        <p>
+          {filteredRequests.length} matching requests across {groups.length} associations.
+        </p>
       </div>
 
       <section className="request-report-list card">
@@ -409,12 +650,18 @@ export default function EngineerRequests() {
         </div>
 
         {groups.length === 0 ? (
-          <div className="empty-state">No associations or requests match these filters.</div>
+          <div className="empty-state">
+            No associations or requests match these filters.
+          </div>
         ) : (
           <div className="report-request-items">
             {groups.map((group) => {
               const pending = group.requests.filter((item) =>
-                ["Submitted", "Under Review", "Documents Pending"].includes(item.status)
+                [
+                  "Submitted",
+                  "Under Review",
+                  "Documents Pending"
+                ].includes(item.status)
               ).length;
 
               return (
@@ -426,15 +673,25 @@ export default function EngineerRequests() {
                 >
                   <div className="report-request-main">
                     <span className="request-id">
-                      {group.requests.length} request{group.requests.length === 1 ? "" : "s"}
+                      {group.requests.length} request
+                      {group.requests.length === 1 ? "" : "s"}
                     </span>
+
                     <strong>{group.association}</strong>
-                    <span className="report-request-type">{pending} awaiting review or documents</span>
-                    <small>Latest submission: {formatDate(group.requests[0])}</small>
+
+                    <span className="report-request-type">
+                      {pending} awaiting review or documents
+                    </span>
+
+                    <small>
+                      Latest submission: {formatDate(group.requests[0])}
+                    </small>
                   </div>
 
                   <div className="report-request-side">
-                    <span className="report-view-details">View Requests →</span>
+                    <span className="report-view-details">
+                      View Requests →
+                    </span>
                   </div>
                 </button>
               );
@@ -444,7 +701,10 @@ export default function EngineerRequests() {
       </section>
 
       {selectedAssociation && (
-        <div className="modal-backdrop report-details-backdrop" onClick={() => setSelectedAssociation("")}>
+        <div
+          className="modal-backdrop report-details-backdrop"
+          onClick={() => setSelectedAssociation("")}
+        >
           <div
             className="modal card report-details-modal association-requests-modal"
             role="dialog"
@@ -457,13 +717,20 @@ export default function EngineerRequests() {
                 <h2>{selectedAssociation}</h2>
                 <p>{associationRequests.length} requests found</p>
               </div>
-              <button type="button" className="text-btn" onClick={() => setSelectedAssociation("")}>
+
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setSelectedAssociation("")}
+              >
                 Close
               </button>
             </div>
 
             {associationRequests.length === 0 ? (
-              <div className="empty-state">No requests match the current filters.</div>
+              <div className="empty-state">
+                No requests match the current filters.
+              </div>
             ) : (
               <div className="report-request-items association-request-list">
                 {associationRequests.map((request) => {
@@ -481,16 +748,32 @@ export default function EngineerRequests() {
                         <span className="request-id">
                           {request.referenceNumber || request.id}
                         </span>
-                        <strong>{request.requestType || request.type || "Request"}</strong>
-                        <small>{client?.name || "Unknown client"} · {formatDate(request)}</small>
-                        <small>{count} document file{count === 1 ? "" : "s"}</small>
+
+                        <strong>
+                          {request.requestType || request.type || "Request"}
+                        </strong>
+
+                        <small>
+                          {client?.name || "Unknown client"} · {formatDate(request)}
+                        </small>
+
+                        <small>
+                          {count} document file{count === 1 ? "" : "s"}
+                        </small>
                       </div>
 
                       <div className="report-request-side">
-                        <span className={`status ${String(request.status || "Submitted").toLowerCase().replaceAll(" ", "-")}`}>
+                        <span
+                          className={`status ${String(
+                            request.status || "Submitted"
+                          ).toLowerCase().replaceAll(" ", "-")}`}
+                        >
                           {request.status || "Submitted"}
                         </span>
-                        <span className="report-view-details">View Details →</span>
+
+                        <span className="report-view-details">
+                          View Details →
+                        </span>
                       </div>
                     </button>
                   );
@@ -502,7 +785,10 @@ export default function EngineerRequests() {
       )}
 
       {selectedRequest && (
-        <div className="modal-backdrop report-details-backdrop" onClick={() => setSelectedRequestId("")}>
+        <div
+          className="modal-backdrop report-details-backdrop"
+          onClick={() => setSelectedRequestId("")}
+        >
           <div
             className="modal card report-details-modal"
             role="dialog"
@@ -512,27 +798,55 @@ export default function EngineerRequests() {
             <div className="modal-header report-details-header">
               <div>
                 <span className="eyebrow">REQUEST DETAILS</span>
-                <h2>{selectedRequest.referenceNumber || selectedRequest.id}</h2>
+                <h2>
+                  {selectedRequest.referenceNumber || selectedRequest.id}
+                </h2>
                 <p>{selectedRequest.association}</p>
               </div>
-              <button type="button" className="text-btn" onClick={() => setSelectedRequestId("")}>
+
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setSelectedRequestId("")}
+              >
                 Close
               </button>
             </div>
 
             <div className="report-details-status-row">
-              <span className={`status ${String(selectedRequest.status || "Submitted").toLowerCase().replaceAll(" ", "-")}`}>
+              <span
+                className={`status ${String(
+                  selectedRequest.status || "Submitted"
+                ).toLowerCase().replaceAll(" ", "-")}`}
+              >
                 {selectedRequest.status || "Submitted"}
               </span>
-              <span>Date Submitted: {formatDate(selectedRequest)}</span>
+
+              <span>
+                Date Submitted: {formatDate(selectedRequest)}
+              </span>
             </div>
 
             <div className="report-section">
               <h3>Client Information</h3>
-              <p><strong>Name:</strong> {clientFor(selectedRequest.clientId)?.name || "Unknown"}</p>
-              <p><strong>Email:</strong> {clientFor(selectedRequest.clientId)?.email || "Not available"}</p>
-              <p><strong>Association:</strong> {selectedRequest.association || "Not provided"}</p>
-              <p><strong>Request Type:</strong> {selectedRequest.requestType || selectedRequest.type || "Not specified"}</p>
+              <p>
+                <strong>Name:</strong>{" "}
+                {clientFor(selectedRequest.clientId)?.name || "Unknown"}
+              </p>
+              <p>
+                <strong>Email:</strong>{" "}
+                {clientFor(selectedRequest.clientId)?.email || "Not available"}
+              </p>
+              <p>
+                <strong>Association:</strong>{" "}
+                {selectedRequest.association || "Not provided"}
+              </p>
+              <p>
+                <strong>Request Type:</strong>{" "}
+                {selectedRequest.requestType ||
+                  selectedRequest.type ||
+                  "Not specified"}
+              </p>
             </div>
 
             <div className="report-section">
@@ -564,15 +878,25 @@ export default function EngineerRequests() {
 
               {currentDocuments.length === 0 ? (
                 <div className="empty-state">
-                  No document records were found for this request. If the client saw an upload error, ask them to resubmit the missing files.
+                  No document records were found for this request. If the
+                  client saw an upload error, ask them to resubmit the missing
+                  files.
                 </div>
               ) : (
                 <div className="report-request-items">
                   {currentDocuments.map((document) => (
                     <div className="report-request-item" key={document.id}>
                       <div className="report-request-main">
-                        <strong>{document.fileName || "Unnamed document"}</strong>
-                        <small>{getDocumentRequirementLabel(document.documentType)}</small>
+                        <strong>
+                          {document.fileName || "Unnamed document"}
+                        </strong>
+
+                        <small>
+                          {getDocumentRequirementLabel(
+                            document.documentType
+                          )}
+                        </small>
+
                         <small>
                           {document.fileSize
                             ? `${(document.fileSize / 1024).toFixed(0)} KB`
@@ -586,11 +910,16 @@ export default function EngineerRequests() {
                           className="secondary-btn small"
                           onClick={() => {
                             if (!document.data) {
-                              window.alert("The document data could not be loaded. Refresh and try again.");
+                              window.alert(
+                                "The document data could not be loaded. Refresh and try again."
+                              );
                               return;
                             }
 
-                            if (document.contentType === "application/pdf" || /\.pdf$/i.test(document.fileName || "")) {
+                            if (
+                              document.contentType === "application/pdf" ||
+                              /\.pdf$/i.test(document.fileName || "")
+                            ) {
                               openPdf(document);
                             } else {
                               setPreviewDocument(document);
@@ -606,24 +935,33 @@ export default function EngineerRequests() {
               )}
             </div>
 
-            {["Submitted", "Under Review"].includes(selectedRequest.status) && (
+            {["Submitted", "Under Review"].includes(
+              selectedRequest.status
+            ) && (
               <div className="report-section">
                 <h3>Actions</h3>
+
                 <div className="engineer-table-actions">
                   <button
                     type="button"
                     className="primary-btn small"
-                    onClick={() => handleDecision(selectedRequest, "Approved")}
+                    onClick={() =>
+                      handleDecision(selectedRequest, "Approved")
+                    }
                   >
                     Approve
                   </button>
+
                   <button
                     type="button"
                     className="danger-btn small"
-                    onClick={() => handleDecision(selectedRequest, "Rejected")}
+                    onClick={() =>
+                      handleDecision(selectedRequest, "Rejected")
+                    }
                   >
                     Reject
                   </button>
+
                   <button
                     type="button"
                     className="danger-btn small"
@@ -639,28 +977,49 @@ export default function EngineerRequests() {
       )}
 
       {previewDocument?.data && (
-        <div className="modal-backdrop" onClick={() => setPreviewDocument(null)}>
-          <div className="modal card" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="modal-backdrop"
+          onClick={() => setPreviewDocument(null)}
+        >
+          <div
+            className="modal card"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="modal-header">
               <div>
                 <span className="eyebrow">DOCUMENT PREVIEW</span>
                 <h2>{previewDocument.fileName}</h2>
               </div>
-              <button type="button" className="text-btn" onClick={() => setPreviewDocument(null)}>
+
+              <button
+                type="button"
+                className="text-btn"
+                onClick={() => setPreviewDocument(null)}
+              >
                 Close
               </button>
             </div>
+
             {previewDocument.contentType?.startsWith("image/") ? (
               <img
                 src={previewDocument.data}
                 alt={previewDocument.fileName}
-                style={{ display: "block", width: "100%", maxHeight: "75vh", objectFit: "contain" }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  maxHeight: "75vh",
+                  objectFit: "contain"
+                }}
               />
             ) : (
               <iframe
                 title={previewDocument.fileName}
                 src={previewDocument.data}
-                style={{ width: "100%", height: "70vh", border: 0 }}
+                style={{
+                  width: "100%",
+                  height: "70vh",
+                  border: 0
+                }}
               />
             )}
           </div>
@@ -668,32 +1027,124 @@ export default function EngineerRequests() {
       )}
 
       {noteRequest && (
-        <div className="modal-backdrop" onClick={() => setNoteRequest(null)}>
-          <div className="modal card" onClick={(event) => event.stopPropagation()}>
+        <div
+          className="modal-backdrop"
+          onClick={() => !busy && setNoteRequest(null)}
+        >
+          <div
+            className="modal card"
+            onClick={(event) => event.stopPropagation()}
+          >
             <div className="modal-header">
               <div>
                 <span className="eyebrow">REQUEST UPDATE</span>
                 <h2>{noteStatus}</h2>
               </div>
-              <button type="button" className="text-btn" onClick={() => setNoteRequest(null)}>
+
+              <button
+                type="button"
+                className="text-btn"
+                disabled={busy}
+                onClick={() => setNoteRequest(null)}
+              >
                 Close
               </button>
             </div>
 
             <label htmlFor="request-note">
-              {noteStatus === "Rejected" ? "Reason for rejection" : "Documents or corrections required"}
+              {noteStatus === "Rejected"
+                ? "Reason for rejection"
+                : "Documents or corrections required"}
             </label>
+
             <textarea
               id="request-note"
               rows={5}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               placeholder="Enter a clear explanation..."
+              disabled={busy}
             />
 
-            <button type="button" className="primary-btn full" onClick={submitNote}>
-              Confirm
+            <button
+              type="button"
+              className="primary-btn full"
+              onClick={submitNote}
+              disabled={busy}
+            >
+              {busy ? "Processing..." : "Confirm"}
             </button>
+          </div>
+        </div>
+      )}
+
+      {pendingDecision && (
+        <div
+          className="engineer-confirm-backdrop"
+          onClick={() => !busy && setPendingDecision(null)}
+        >
+          <div
+            className="engineer-confirm-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="engineer-confirm-title"
+            aria-describedby="engineer-confirm-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="engineer-confirm-header">
+              <div className="engineer-confirm-heading">
+                <span className="engineer-confirm-icon">!</span>
+
+                <span id="engineer-confirm-title">
+                  AGRIhelp Notification
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className="engineer-confirm-close"
+                disabled={busy}
+                onClick={() => setPendingDecision(null)}
+                aria-label="Close confirmation"
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              className="engineer-confirm-body"
+              id="engineer-confirm-description"
+            >
+              Set{" "}
+              <strong>
+                {pendingDecision.request.referenceNumber ||
+                  pendingDecision.request.id}
+              </strong>{" "}
+              as{" "}
+              <strong>{pendingDecision.status}</strong>?
+            </div>
+
+            <div className="engineer-confirm-footer">
+              <div className="engineer-confirm-actions">
+                <button
+                  type="button"
+                  className="engineer-confirm-cancel"
+                  disabled={busy}
+                  onClick={() => setPendingDecision(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="engineer-confirm-approve"
+                  disabled={busy}
+                  onClick={confirmDecision}
+                >
+                  {busy ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -725,8 +1176,11 @@ export default function EngineerRequests() {
             </div>
 
             <p id="engineer-delete-description">
-              Delete <strong>{pendingDelete.referenceNumber || pendingDelete.id}</strong> and its associated documents?
-              This action cannot be undone.
+              Delete{" "}
+              <strong>
+                {pendingDelete.referenceNumber || pendingDelete.id}
+              </strong>{" "}
+              and its associated documents? This action cannot be undone.
             </p>
 
             <div className="engineer-delete-actions">
